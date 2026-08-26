@@ -5,7 +5,7 @@ Relay is a phone-first virtual personal trainer: open it, see today’s complete
 ## Product capabilities
 
 - A three-step phone setup that previews the plan, selects video or camera coaching, and checks the training space
-- A focused 24-minute workout with six looping video guides, reps, sets, rest, and coaching cues
+- A focused 24-minute workout with six licensed human video demonstrations, reps, sets, rest, and coaching cues
 - Optional on-device pose tracking, rep counting, joint-angle feedback, and voice cues
 - Secure ChatGPT account sign-in using the visitor’s email-based account
 - Account-bound workout history, daily wellness check-ins, goals, and weekly training schedule
