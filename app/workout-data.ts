@@ -4,6 +4,7 @@ export type Exercise = {
   id: string;
   name: string;
   image: string;
+  video: string;
   sets: number;
   target: number;
   targetLabel: string;
@@ -20,6 +21,7 @@ export const workout: Exercise[] = [
     id: 'squat',
     name: 'Bodyweight squat',
     image: '/exercises/squat.png',
+    video: '/videos/squat.mp4',
     sets: 3,
     target: 10,
     targetLabel: '10 reps',
@@ -38,6 +40,7 @@ export const workout: Exercise[] = [
     id: 'reverse-lunge',
     name: 'Reverse lunge',
     image: '/exercises/reverse-lunge.png',
+    video: '/videos/reverse-lunge.mp4',
     sets: 3,
     target: 8,
     targetLabel: '8 / side',
@@ -56,6 +59,7 @@ export const workout: Exercise[] = [
     id: 'incline-pushup',
     name: 'Incline push-up',
     image: '/exercises/incline-pushup.png',
+    video: '/videos/incline-pushup.mp4',
     sets: 3,
     target: 8,
     targetLabel: '8 reps',
@@ -74,6 +78,7 @@ export const workout: Exercise[] = [
     id: 'glute-bridge',
     name: 'Glute bridge',
     image: '/exercises/glute-bridge.png',
+    video: '/videos/glute-bridge.mp4',
     sets: 3,
     target: 12,
     targetLabel: '12 reps',
@@ -92,6 +97,7 @@ export const workout: Exercise[] = [
     id: 'bird-dog',
     name: 'Bird dog',
     image: '/exercises/bird-dog.png',
+    video: '/videos/bird-dog.mp4',
     sets: 2,
     target: 8,
     targetLabel: '8 / side',
@@ -110,6 +116,7 @@ export const workout: Exercise[] = [
     id: 'forearm-plank',
     name: 'Forearm plank',
     image: '/exercises/forearm-plank.png',
+    video: '/videos/forearm-plank.mp4',
     sets: 2,
     target: 30,
     targetLabel: '30 sec',

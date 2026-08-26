@@ -3,10 +3,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import CameraCoach from './camera-coach';
 import type { AccountSnapshot, DailyLog, ScheduleItem } from './account-types';
-import { totalSets, workout } from './workout-data';
+import { totalSets, workout, type Exercise } from './workout-data';
 
 type View = 'today' | 'history' | 'you';
-type SessionStage = 'guide' | 'camera' | 'rest' | 'summary';
+type SessionStage = 'setup' | 'guide' | 'camera' | 'rest' | 'summary';
+type CoachingMode = 'video' | 'camera';
 
 function formatClock(totalSeconds: number) {
   const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
@@ -41,7 +42,9 @@ function calculateStreak(dates: string[]) {
 export default function Home() {
   const [view, setView] = useState<View>('today');
   const [sessionOpen, setSessionOpen] = useState(false);
-  const [stage, setStage] = useState<SessionStage>('guide');
+  const [stage, setStage] = useState<SessionStage>('setup');
+  const [setupStep, setSetupStep] = useState(1);
+  const [coachingMode, setCoachingMode] = useState<CoachingMode>('video');
   const [exerciseIndex, setExerciseIndex] = useState(0);
   const [setsDone, setSetsDone] = useState<number[]>(workout.map(() => 0));
   const [restSeconds, setRestSeconds] = useState(45);
@@ -104,7 +107,7 @@ export default function Home() {
   }, [audioEnabled]);
 
   useEffect(() => {
-    if (!sessionOpen || stage === 'summary') return;
+    if (!sessionOpen || stage === 'summary' || stage === 'setup') return;
     const timer = window.setInterval(() => setElapsed((value) => value + 1), 1000);
     return () => window.clearInterval(timer);
   }, [sessionOpen, stage]);
@@ -125,7 +128,9 @@ export default function Home() {
 
   function startSession(startAt = 0) {
     setSessionOpen(true);
-    setStage('guide');
+    setStage('setup');
+    setSetupStep(1);
+    setCoachingMode('video');
     setExerciseIndex(startAt);
     setSetsDone(workout.map(() => 0));
     setElapsed(0);
@@ -234,6 +239,60 @@ export default function Home() {
   }
 
   if (sessionOpen) {
+    if (stage === 'setup') {
+      return (
+        <main className="workout-setup">
+          <header className="setup-header">
+            <button type="button" onClick={() => setSessionOpen(false)} aria-label="Exit workout setup">×</button>
+            <div><span>FOUNDATION 01</span><strong>Get ready</strong></div>
+            <span>{setupStep} / 3</span>
+          </header>
+          <div className="setup-progress" aria-label={`Workout setup step ${setupStep} of 3`}>
+            {[1, 2, 3].map((step) => <i className={step <= setupStep ? 'active' : ''} key={step} />)}
+          </div>
+
+          {setupStep === 1 && <section className="setup-panel">
+            <div className="setup-video"><MovementVideo exercise={workout[0]} controls={false} /></div>
+            <div className="setup-copy">
+              <p className="kicker">STEP 1 · SEE TODAY&apos;S PLAN</p>
+              <h1>Know exactly<br />what&apos;s ahead.</h1>
+              <p>Six beginner-friendly movements. Every set includes a looping video, one key cue, your reps, and rest time.</p>
+              <div className="setup-facts"><span><strong>24</strong><small>MINUTES</small></span><span><strong>6</strong><small>MOVES</small></span><span><strong>16</strong><small>SETS</small></span></div>
+              <button className="setup-next" type="button" onClick={() => setSetupStep(2)}>Choose how I&apos;ll train <span>→</span></button>
+            </div>
+          </section>}
+
+          {setupStep === 2 && <section className="setup-panel setup-choice-panel">
+            <div className="setup-copy">
+              <p className="kicker">STEP 2 · CHOOSE YOUR COACH</p>
+              <h1>How should Relay<br />guide you?</h1>
+              <p>Both modes show the same workout. You can switch to the camera at any movement.</p>
+              <div className="coach-choice" role="radiogroup" aria-label="Coaching mode">
+                <button className={coachingMode === 'video' ? 'selected' : ''} role="radio" aria-checked={coachingMode === 'video'} type="button" onClick={() => setCoachingMode('video')}>
+                  <span className="choice-icon">▶</span><div><strong>Follow the videos</strong><small>Recommended · watch, move, tap done</small></div><b>{coachingMode === 'video' ? '✓' : ''}</b>
+                </button>
+                <button className={coachingMode === 'camera' ? 'selected' : ''} role="radio" aria-checked={coachingMode === 'camera'} type="button" onClick={() => setCoachingMode('camera')}>
+                  <span className="choice-icon camera-choice-icon"><i /></span><div><strong>Use live camera coach</strong><small>Rep counting and one form cue at a time</small></div><b>{coachingMode === 'camera' ? '✓' : ''}</b>
+                </button>
+              </div>
+              <div className="setup-actions"><button type="button" onClick={() => setSetupStep(1)}>← Back</button><button className="setup-next" type="button" onClick={() => setSetupStep(3)}>Next <span>→</span></button></div>
+            </div>
+          </section>}
+
+          {setupStep === 3 && <section className="setup-panel setup-ready-panel">
+            <div className="ready-mark">✓</div>
+            <div className="setup-copy">
+              <p className="kicker">STEP 3 · QUICK READY CHECK</p>
+              <h1>Set your space.<br />Then press start.</h1>
+              <div className="ready-list"><span><b>1</b><strong>Clear one arm-span of floor space</strong></span><span><b>2</b><strong>Keep water within reach</strong></span><span><b>3</b><strong>{coachingMode === 'camera' ? 'Prop your phone 2–3 metres away' : 'Keep your phone where the video is easy to see'}</strong></span></div>
+              <p className="ready-mode">YOUR MODE <strong>{coachingMode === 'camera' ? 'Live camera coach' : 'Looping video guides'}</strong></p>
+              <div className="setup-actions"><button type="button" onClick={() => setSetupStep(2)}>← Back</button><button className="setup-next start-workout-now" type="button" onClick={() => setStage(coachingMode === 'camera' ? 'camera' : 'guide')}>Start move 1 <span>→</span></button></div>
+            </div>
+          </section>}
+        </main>
+      );
+    }
+
     if (stage === 'camera') {
       return (
         <CameraCoach
@@ -301,9 +360,9 @@ export default function Home() {
         <div className="session-progress"><i style={{ width: `${Math.max(3, sessionPercent)}%` }} /></div>
         <section className="guide-layout">
           <div className="guide-visual">
-            <img src={exercise.image} alt={`Two-step visual guide for ${exercise.name}`} />
-            <span className="start-label">1 · START</span>
-            <span className="move-label">2 · MOVE</span>
+            <MovementVideo exercise={exercise} />
+            <span className="start-label">LOOPING VIDEO</span>
+            <span className="move-label">WATCH, THEN MOVE</span>
             <button type="button" onClick={() => setPreviewIndex(exerciseIndex)}>↗ <span>Full guide</span></button>
           </div>
           <div className="guide-copy">
@@ -376,8 +435,8 @@ export default function Home() {
 
           <section className={`session-card ${completedToday ? 'completed-card' : ''}`}>
             <div className="session-image">
-              <img src="/exercises/squat.png" alt="Two-step guide showing the start and bottom position of a bodyweight squat" />
-              <span className="guide-chip">{completedToday ? 'COMPLETED' : '6 MOVEMENT GUIDES'}</span>
+              <MovementVideo exercise={workout[0]} controls={false} />
+              <span className="guide-chip">{completedToday ? 'COMPLETED' : '6 VIDEO GUIDES'}</span>
               <button type="button" className="preview-button" onClick={() => startSession()} aria-label="Start coached workout"><span>START</span>→</button>
             </div>
             <div className="session-info">
@@ -386,7 +445,7 @@ export default function Home() {
                 <h2>Foundation 01</h2>
               </div>
               <div className="session-facts"><span><strong>24</strong> MIN</span><span><strong>6</strong> MOVES</span><span><strong>16</strong> SETS</span></div>
-              <button className="start-session" type="button" onClick={() => startSession()}>{completedToday ? 'Do it again' : 'Start coached workout'} <span>→</span></button>
+              <button className="start-session" type="button" onClick={() => startSession()}>{completedToday ? 'Do it again' : 'Start today’s workout'} <span>→</span></button>
               <p className="privacy-copy"><b>●</b> Camera coach is optional and runs on this device.</p>
             </div>
           </section>
@@ -510,6 +569,25 @@ export default function Home() {
   );
 }
 
+function MovementVideo({ exercise, controls = true }: { exercise: Exercise; controls?: boolean }) {
+  return (
+    <video
+      key={exercise.video}
+      src={exercise.video}
+      poster={exercise.image}
+      autoPlay
+      loop
+      muted
+      playsInline
+      controls={controls}
+      preload="metadata"
+      aria-label={`Looping movement demonstration for ${exercise.name}`}
+    >
+      Your browser does not support the movement video.
+    </video>
+  );
+}
+
 function AccountGate({ title, copy }: { title: string; copy: string }) {
   return (
     <article className="account-gate-card">
@@ -530,8 +608,8 @@ function ExercisePreview({ index, onClose, onStartCamera }: { index: number; onC
       <section className="exercise-preview" role="dialog" aria-modal="true" aria-label={`${item.name} movement guide`}>
         <button className="preview-close" type="button" onClick={onClose} aria-label="Close movement guide">×</button>
         <div className="preview-visual">
-          <img src={item.image} alt={`Start and end positions for ${item.name}`} />
-          <span>START</span><span>MOVE</span>
+          <MovementVideo exercise={item} />
+          <span>LOOPING VIDEO</span><span>WATCH FIRST</span>
         </div>
         <div className="preview-body">
           <p className="kicker">MOVEMENT {index + 1} OF {workout.length}</p>
