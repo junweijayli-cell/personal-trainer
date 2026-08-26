@@ -256,7 +256,7 @@ export default function Home() {
             <div className="setup-copy">
               <p className="kicker">STEP 1 · SEE TODAY&apos;S PLAN</p>
               <h1>Know exactly<br />what&apos;s ahead.</h1>
-              <p>Six beginner-friendly movements. Every set includes a looping video, one key cue, your reps, and rest time.</p>
+              <p>Six beginner-friendly movements. The same virtual coach demonstrates every rep, with one key cue, your target, and rest time.</p>
               <div className="setup-facts"><span><strong>24</strong><small>MINUTES</small></span><span><strong>6</strong><small>MOVES</small></span><span><strong>16</strong><small>SETS</small></span></div>
               <button className="setup-next" type="button" onClick={() => setSetupStep(2)}>Choose how I&apos;ll train <span>→</span></button>
             </div>
@@ -361,7 +361,7 @@ export default function Home() {
         <section className="guide-layout">
           <div className="guide-visual">
             <MovementVideo exercise={exercise} />
-            <span className="start-label">LOOPING VIDEO</span>
+            <span className="start-label">VIRTUAL COACH</span>
             <span className="move-label">WATCH, THEN MOVE</span>
             <button type="button" onClick={() => setPreviewIndex(exerciseIndex)}>↗ <span>Full guide</span></button>
           </div>
@@ -609,7 +609,7 @@ function ExercisePreview({ index, onClose, onStartCamera }: { index: number; onC
         <button className="preview-close" type="button" onClick={onClose} aria-label="Close movement guide">×</button>
         <div className="preview-visual">
           <MovementVideo exercise={item} />
-          <span>LOOPING VIDEO</span><span>WATCH FIRST</span>
+          <span>VIRTUAL COACH</span><span>WATCH FIRST</span>
         </div>
         <div className="preview-body">
           <p className="kicker">MOVEMENT {index + 1} OF {workout.length}</p>
