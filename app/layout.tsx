@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL('http://localhost:3000'),
+  metadataBase: new URL('https://relay-coach-jay.junwei-jay-li.chatgpt.site'),
   title: 'Relay Coach — See it. Do it. Move better.',
   description: 'A phone-first virtual trainer with guided workouts, private on-device pose tracking, rep counting, and live form cues.',
   applicationName: 'Relay Coach',
