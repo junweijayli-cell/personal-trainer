@@ -164,6 +164,7 @@ footer { display: flex; justify-content: space-between; padding: 34px 2px; color
 .guide-layout { width: min(1260px, calc(100% - 48px)); min-height: calc(100vh - 144px); margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(360px, .65fr); gap: 34px; align-items: center; padding: 34px 0; }
 .guide-visual { position: relative; overflow: hidden; min-height: 520px; height: calc(100vh - 220px); max-height: 720px; border: 1px solid var(--line); border-radius: 26px; background: #efe9dc; }
 .guide-visual img, .guide-visual video { width: 100%; height: 100%; display: block; object-fit: cover; }
+.session-image video, .setup-video video, .guide-visual video, .preview-visual video { object-fit: contain; background: #ead4bd; }
 .guide-visual > span { position: absolute; bottom: 18px; border-radius: 99px; background: rgba(21,23,21,.9); color: white; padding: 7px 9px; font-size: 7px; font-weight: 850; letter-spacing: .1em; }
 .guide-visual .start-label { left: 18px; }
 .guide-visual .move-label { left: 52%; }

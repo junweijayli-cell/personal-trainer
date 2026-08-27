@@ -16,12 +16,15 @@ export type Exercise = {
   muscles: string;
 };
 
+const mediaVersion = '20260827-2';
+const media = (path: string) => `${path}?v=${mediaVersion}`;
+
 export const workout: Exercise[] = [
   {
     id: 'squat',
     name: 'Bodyweight squat',
-    image: '/exercises/squat-realistic.png',
-    video: '/videos/squat.mp4',
+    image: media('/exercises/squat-realistic.png'),
+    video: media('/videos/squat.mp4'),
     sets: 3,
     target: 10,
     targetLabel: '10 reps',
@@ -39,8 +42,8 @@ export const workout: Exercise[] = [
   {
     id: 'reverse-lunge',
     name: 'Reverse lunge',
-    image: '/exercises/reverse-lunge-realistic.png',
-    video: '/videos/reverse-lunge.mp4',
+    image: media('/exercises/reverse-lunge-realistic.png'),
+    video: media('/videos/reverse-lunge.mp4'),
     sets: 3,
     target: 8,
     targetLabel: '8 / side',
@@ -58,8 +61,8 @@ export const workout: Exercise[] = [
   {
     id: 'incline-pushup',
     name: 'Incline push-up',
-    image: '/exercises/incline-pushup-realistic.png',
-    video: '/videos/incline-pushup.mp4',
+    image: media('/exercises/incline-pushup-realistic.png'),
+    video: media('/videos/incline-pushup.mp4'),
     sets: 3,
     target: 8,
     targetLabel: '8 reps',
@@ -77,8 +80,8 @@ export const workout: Exercise[] = [
   {
     id: 'glute-bridge',
     name: 'Glute bridge',
-    image: '/exercises/glute-bridge-realistic.png',
-    video: '/videos/glute-bridge.mp4',
+    image: media('/exercises/glute-bridge-realistic.png'),
+    video: media('/videos/glute-bridge.mp4'),
     sets: 3,
     target: 12,
     targetLabel: '12 reps',
@@ -96,8 +99,8 @@ export const workout: Exercise[] = [
   {
     id: 'plank-rotation',
     name: 'High-plank rotation',
-    image: '/exercises/plank-rotation-realistic.png',
-    video: '/videos/plank-rotation.mp4',
+    image: media('/exercises/plank-rotation-realistic.png'),
+    video: media('/videos/plank-rotation.mp4'),
     sets: 2,
     target: 6,
     targetLabel: '6 / side',
@@ -115,8 +118,8 @@ export const workout: Exercise[] = [
   {
     id: 'forearm-plank',
     name: 'Forearm plank',
-    image: '/exercises/forearm-plank-realistic.png',
-    video: '/videos/forearm-plank.mp4',
+    image: media('/exercises/forearm-plank-realistic.png'),
+    video: media('/videos/forearm-plank.mp4'),
     sets: 2,
     target: 30,
     targetLabel: '30 sec',

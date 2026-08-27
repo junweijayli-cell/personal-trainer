@@ -99,6 +99,21 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    const preloaders = workout.map((item) => {
+      const video = document.createElement('video');
+      video.preload = 'auto';
+      video.muted = true;
+      video.src = item.video;
+      video.load();
+      return video;
+    });
+    return () => preloaders.forEach((video) => {
+      video.removeAttribute('src');
+      video.load();
+    });
+  }, []);
+
+  useEffect(() => {
     try {
       window.localStorage.setItem('relay-audio', audioEnabled ? 'on' : 'off');
     } catch {
@@ -569,7 +584,7 @@ export default function Home() {
   );
 }
 
-function MovementVideo({ exercise, controls = true }: { exercise: Exercise; controls?: boolean }) {
+function MovementVideo({ exercise, controls = false }: { exercise: Exercise; controls?: boolean }) {
   return (
     <video
       key={exercise.video}
@@ -580,7 +595,7 @@ function MovementVideo({ exercise, controls = true }: { exercise: Exercise; cont
       muted
       playsInline
       controls={controls}
-      preload="metadata"
+      preload="auto"
       aria-label={`Looping movement demonstration for ${exercise.name}`}
     >
       Your browser does not support the movement video.
@@ -608,7 +623,7 @@ function ExercisePreview({ index, onClose, onStartCamera }: { index: number; onC
       <section className="exercise-preview" role="dialog" aria-modal="true" aria-label={`${item.name} movement guide`}>
         <button className="preview-close" type="button" onClick={onClose} aria-label="Close movement guide">×</button>
         <div className="preview-visual">
-          <MovementVideo exercise={item} />
+          <MovementVideo exercise={item} controls />
           <span>VIRTUAL COACH</span><span>WATCH FIRST</span>
         </div>
         <div className="preview-body">
