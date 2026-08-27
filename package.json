@@ -9,8 +9,9 @@
     "dev": "vinext dev",
     "build": "vinext build",
     "start": "vinext start",
-    "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
-    "db:generate": "drizzle-kit generate"
+    "lint": "eslint . --ignore-pattern dist --ignore-pattern .next --ignore-pattern .video-tools --ignore-pattern public/mediapipe",
+    "db:generate": "drizzle-kit generate",
+    "coach:build": "node scripts/build-photoreal-coach-videos.mjs"
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "^1.0.1",
