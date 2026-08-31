@@ -52,13 +52,13 @@ function calculateStreak(dates: string[]) {
 }
 
 export default function Home() {
-  const recommendedFocus = useMemo(() => getRecommendedFocus(), []);
+  const [recommendedFocus, setRecommendedFocus] = useState<FocusId>('full-body');
   const [view, setView] = useState<View>('today');
   const [sessionOpen, setSessionOpen] = useState(false);
   const [stage, setStage] = useState<SessionStage>('setup');
   const [setupStep, setSetupStep] = useState(1);
   const [coachingMode, setCoachingMode] = useState<CoachingMode>('photos');
-  const [selectedFocus, setSelectedFocus] = useState<FocusId>(recommendedFocus);
+  const [selectedFocus, setSelectedFocus] = useState<FocusId>('full-body');
   const [selectedEquipment, setSelectedEquipment] = useState<EquipmentId[]>([]);
   const [exerciseIndex, setExerciseIndex] = useState(0);
   const activeWorkout = useMemo(
@@ -87,6 +87,7 @@ export default function Home() {
   const [accountStatus, setAccountStatus] = useState<'loading' | 'signed-out' | 'signed-in' | 'error'>('loading');
   const [saveStatus, setSaveStatus] = useState('');
   const [pendingExerciseIndex, setPendingExerciseIndex] = useState(0);
+  const [dateLabel, setDateLabel] = useState('TODAY');
   const exercise = activeWorkout[exerciseIndex] ?? activeWorkout[0];
   const completedSetCount = setsDone.reduce((sum, count) => sum + count, 0);
   const sessionPercent = Math.round(completedSetCount / totalSets * 100);
@@ -96,10 +97,15 @@ export default function Home() {
     : 0;
   const trainingStreak = calculateStreak(sessionHistory.map((session) => session.completedAt));
 
-  const dateLabel = useMemo(
-    () => new Intl.DateTimeFormat('en', { weekday: 'short', day: 'numeric', month: 'short' }).format(new Date()).toUpperCase(),
-    [],
-  );
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const todayFocus = getRecommendedFocus();
+      setRecommendedFocus(todayFocus);
+      setSelectedFocus(todayFocus);
+      setDateLabel(new Intl.DateTimeFormat('en', { weekday: 'short', day: 'numeric', month: 'short' }).format(new Date()).toUpperCase());
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
