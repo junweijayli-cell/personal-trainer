@@ -88,6 +88,7 @@ export default function Home() {
   const [saveStatus, setSaveStatus] = useState('');
   const [pendingExerciseIndex, setPendingExerciseIndex] = useState(0);
   const [dateLabel, setDateLabel] = useState('TODAY');
+  const [todayWeekday, setTodayWeekday] = useState(-1);
   const exercise = activeWorkout[exerciseIndex] ?? activeWorkout[0];
   const completedSetCount = setsDone.reduce((sum, count) => sum + count, 0);
   const sessionPercent = Math.round(completedSetCount / totalSets * 100);
@@ -102,6 +103,7 @@ export default function Home() {
       const todayFocus = getRecommendedFocus();
       setRecommendedFocus(todayFocus);
       setSelectedFocus(todayFocus);
+      setTodayWeekday(new Date().getDay());
       setDateLabel(new Intl.DateTimeFormat('en', { weekday: 'short', day: 'numeric', month: 'short' }).format(new Date()).toUpperCase());
     }, 0);
     return () => window.clearTimeout(timer);
@@ -582,7 +584,7 @@ export default function Home() {
             <div className="rotation-days">
               {weekdayLabels.map((day, weekday) => {
                 const rotationFocus = getFocusOption(weeklyRotation[weekday]);
-                const today = weekday === new Date().getDay();
+                const today = weekday === todayWeekday;
                 return <button className={`${today ? 'today' : ''} ${selectedFocus === weeklyRotation[weekday] ? 'selected' : ''}`} type="button" key={day} onClick={() => setSelectedFocus(weeklyRotation[weekday])}>
                   <small>{day}</small><strong>{rotationFocus.shortLabel}</strong>{today && <b>TODAY</b>}
                 </button>;
