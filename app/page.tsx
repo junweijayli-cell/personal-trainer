@@ -1,13 +1,25 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import Image from 'next/image';
 import CameraCoach from './camera-coach';
 import type { AccountSnapshot, DailyLog, ScheduleItem } from './account-types';
-import { totalSets, workout, type Exercise } from './workout-data';
+import {
+  buildWorkout,
+  equipmentOptions,
+  focusOptions,
+  getFocusOption,
+  getRecommendedFocus,
+  getWorkoutStats,
+  weeklyRotation,
+  type EquipmentId,
+  type Exercise,
+  type FocusId,
+} from './workout-data';
 
 type View = 'today' | 'history' | 'you';
 type SessionStage = 'setup' | 'guide' | 'camera' | 'rest' | 'summary';
-type CoachingMode = 'video' | 'camera';
+type CoachingMode = 'photos' | 'camera';
 
 function formatClock(totalSeconds: number) {
   const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
@@ -40,13 +52,28 @@ function calculateStreak(dates: string[]) {
 }
 
 export default function Home() {
+  const recommendedFocus = useMemo(() => getRecommendedFocus(), []);
   const [view, setView] = useState<View>('today');
   const [sessionOpen, setSessionOpen] = useState(false);
   const [stage, setStage] = useState<SessionStage>('setup');
   const [setupStep, setSetupStep] = useState(1);
-  const [coachingMode, setCoachingMode] = useState<CoachingMode>('video');
+  const [coachingMode, setCoachingMode] = useState<CoachingMode>('photos');
+  const [selectedFocus, setSelectedFocus] = useState<FocusId>(recommendedFocus);
+  const [selectedEquipment, setSelectedEquipment] = useState<EquipmentId[]>([]);
   const [exerciseIndex, setExerciseIndex] = useState(0);
-  const [setsDone, setSetsDone] = useState<number[]>(workout.map(() => 0));
+  const activeWorkout = useMemo(
+    () => buildWorkout(selectedFocus, selectedEquipment),
+    [selectedFocus, selectedEquipment],
+  );
+  const workoutStats = useMemo(() => getWorkoutStats(activeWorkout), [activeWorkout]);
+  const totalSets = workoutStats.sets;
+  const focusInfo = getFocusOption(selectedFocus);
+  const recommendedFocusInfo = getFocusOption(recommendedFocus);
+  const planName = `${focusInfo.shortLabel} Day 01`;
+  const equipmentSummary = selectedEquipment.length > 0
+    ? selectedEquipment.map((id) => equipmentOptions.find((item) => item.id === id)?.shortLabel).filter(Boolean).join(' · ')
+    : 'Bodyweight only';
+  const [setsDone, setSetsDone] = useState<number[]>(activeWorkout.map(() => 0));
   const [restSeconds, setRestSeconds] = useState(45);
   const [elapsed, setElapsed] = useState(0);
   const [cameraSets, setCameraSets] = useState(0);
@@ -60,7 +87,7 @@ export default function Home() {
   const [accountStatus, setAccountStatus] = useState<'loading' | 'signed-out' | 'signed-in' | 'error'>('loading');
   const [saveStatus, setSaveStatus] = useState('');
   const [pendingExerciseIndex, setPendingExerciseIndex] = useState(0);
-  const exercise = workout[exerciseIndex];
+  const exercise = activeWorkout[exerciseIndex] ?? activeWorkout[0];
   const completedSetCount = setsDone.reduce((sum, count) => sum + count, 0);
   const sessionPercent = Math.round(completedSetCount / totalSets * 100);
   const sessionHistory = account?.sessions ?? [];
@@ -99,19 +126,33 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    const preloaders = workout.map((item) => {
-      const video = document.createElement('video');
-      video.preload = 'auto';
-      video.muted = true;
-      video.src = item.video;
-      video.load();
-      return video;
-    });
-    return () => preloaders.forEach((video) => {
-      video.removeAttribute('src');
-      video.load();
-    });
+    try {
+      const saved = JSON.parse(window.localStorage.getItem('relay-equipment') ?? '[]') as unknown;
+      if (Array.isArray(saved)) {
+        const valid = saved.filter((item): item is EquipmentId => equipmentOptions.some((option) => option.id === item));
+        window.setTimeout(() => setSelectedEquipment(valid), 0);
+      }
+    } catch {
+      // Device preferences are optional.
+    }
   }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem('relay-equipment', JSON.stringify(selectedEquipment));
+    } catch {
+      // Device preferences are optional.
+    }
+  }, [selectedEquipment]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setExerciseIndex(0);
+      setPendingExerciseIndex(0);
+      setSetsDone(activeWorkout.map(() => 0));
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [activeWorkout]);
 
   useEffect(() => {
     try {
@@ -145,9 +186,9 @@ export default function Home() {
     setSessionOpen(true);
     setStage('setup');
     setSetupStep(1);
-    setCoachingMode('video');
+    setCoachingMode('photos');
     setExerciseIndex(startAt);
-    setSetsDone(workout.map(() => 0));
+    setSetsDone(activeWorkout.map(() => 0));
     setElapsed(0);
     setCameraSets(0);
     setPreviewIndex(null);
@@ -157,13 +198,19 @@ export default function Home() {
   function completeSet() {
     const nextSetCount = Math.min(exercise.sets, setsDone[exerciseIndex] + 1);
     setSetsDone((counts) => counts.map((count, index) => index === exerciseIndex ? nextSetCount : count));
-    if (exerciseIndex === workout.length - 1 && nextSetCount >= exercise.sets) {
+    if (exerciseIndex === activeWorkout.length - 1 && nextSetCount >= exercise.sets) {
       setStage('summary');
       return;
     }
     setPendingExerciseIndex(nextSetCount >= exercise.sets ? exerciseIndex + 1 : exerciseIndex);
     setRestSeconds(exercise.rest);
     setStage('rest');
+  }
+
+  function toggleEquipment(item: EquipmentId) {
+    setSelectedEquipment((current) => current.includes(item)
+      ? current.filter((entry) => entry !== item)
+      : [...current, item]);
   }
 
   function endRest() {
@@ -190,10 +237,13 @@ export default function Home() {
       setSaveStatus('Saving workout…');
       try {
         await postAccount('save-workout', {
+          workoutId: `${selectedFocus}-day-01`,
+          workoutName: planName,
           durationSeconds: Math.max(1, elapsed),
           setsCompleted: totalSets,
-          movementsCompleted: workout.length,
+          movementsCompleted: activeWorkout.length,
           cameraSets,
+          notes: `${equipmentSummary}; focus: ${focusInfo.label}`,
         });
         setSaveStatus('Workout saved to your account.');
       } catch (error) {
@@ -222,7 +272,10 @@ export default function Home() {
     setSaveStatus('Saving your plan…');
     try {
       await postAccount('save-profile', account.profile);
-      await postAccount('save-schedule', account.schedule);
+      await postAccount('save-schedule', account.schedule.map((item) => ({
+        ...item,
+        workoutName: `${getFocusOption(weeklyRotation[item.weekday]).shortLabel} Day 01`,
+      })));
       setSaveStatus('Your plan and schedule are saved.');
     } catch (error) {
       setSaveStatus(error instanceof Error ? error.message : 'Could not save. Try again.');
@@ -243,7 +296,15 @@ export default function Home() {
       const existing = current.schedule.find((item) => item.weekday === weekday);
       const schedule = existing
         ? current.schedule.map((item) => item.weekday === weekday ? { ...item, ...patch } : item)
-        : [...current.schedule, { id: '', weekday, workoutName: 'Foundation 01', startTime: '18:00', durationMinutes: 24, enabled: true, ...patch }];
+        : [...current.schedule, {
+          id: '',
+          weekday,
+          workoutName: `${getFocusOption(weeklyRotation[weekday]).shortLabel} Day 01`,
+          startTime: '18:00',
+          durationMinutes: 24,
+          enabled: true,
+          ...patch,
+        }];
       return { ...current, schedule: schedule.sort((a, b) => a.weekday - b.weekday) };
     });
   }
@@ -259,49 +320,83 @@ export default function Home() {
         <main className="workout-setup">
           <header className="setup-header">
             <button type="button" onClick={() => setSessionOpen(false)} aria-label="Exit workout setup">×</button>
-            <div><span>FOUNDATION 01</span><strong>Get ready</strong></div>
-            <span>{setupStep} / 3</span>
+            <div><span>{planName.toUpperCase()}</span><strong>Build today&apos;s session</strong></div>
+            <span>{setupStep} / 4</span>
           </header>
-          <div className="setup-progress" aria-label={`Workout setup step ${setupStep} of 3`}>
-            {[1, 2, 3].map((step) => <i className={step <= setupStep ? 'active' : ''} key={step} />)}
+          <div className="setup-progress" aria-label={`Workout setup step ${setupStep} of 4`}>
+            {[1, 2, 3, 4].map((step) => <i className={step <= setupStep ? 'active' : ''} key={step} />)}
           </div>
 
-          {setupStep === 1 && <section className="setup-panel">
-            <div className="setup-video"><MovementVideo exercise={workout[0]} controls={false} /></div>
+          {setupStep === 1 && <section className="setup-panel setup-builder-panel">
             <div className="setup-copy">
-              <p className="kicker">STEP 1 · SEE TODAY&apos;S PLAN</p>
-              <h1>Know exactly<br />what&apos;s ahead.</h1>
-              <p>Six beginner-friendly movements. The same virtual coach demonstrates every rep, with one key cue, your target, and rest time.</p>
-              <div className="setup-facts"><span><strong>24</strong><small>MINUTES</small></span><span><strong>6</strong><small>MOVES</small></span><span><strong>16</strong><small>SETS</small></span></div>
-              <button className="setup-next" type="button" onClick={() => setSetupStep(2)}>Choose how I&apos;ll train <span>→</span></button>
+              <p className="kicker">STEP 1 · CHOOSE TODAY&apos;S FOCUS</p>
+              <h1>What do you want<br />to train today?</h1>
+              <p>Follow Relay&apos;s rotation or choose what feels right. Your choice only changes today&apos;s session.</p>
+              <button className={`recommended-focus ${selectedFocus === recommendedFocus ? 'selected' : ''}`} type="button" onClick={() => setSelectedFocus(recommendedFocus)}>
+                <span><small>RECOMMENDED TODAY</small><strong>{recommendedFocusInfo.label}</strong><em>{recommendedFocusInfo.description}</em></span>
+                <b>{selectedFocus === recommendedFocus ? '✓' : 'Use this'}</b>
+              </button>
+              <div className="focus-grid" role="radiogroup" aria-label="Body area to train">
+                {focusOptions.map((option) => (
+                  <button className={selectedFocus === option.id ? 'selected' : ''} role="radio" aria-checked={selectedFocus === option.id} type="button" key={option.id} onClick={() => setSelectedFocus(option.id)}>
+                    <span>{option.shortLabel}</span><small>{option.description}</small><b>{selectedFocus === option.id ? '✓' : '→'}</b>
+                  </button>
+                ))}
+              </div>
+              <button className="setup-next" type="button" onClick={() => setSetupStep(2)}>Next: my equipment <span>→</span></button>
             </div>
           </section>}
 
-          {setupStep === 2 && <section className="setup-panel setup-choice-panel">
+          {setupStep === 2 && <section className="setup-panel setup-choice-panel setup-builder-panel">
             <div className="setup-copy">
-              <p className="kicker">STEP 2 · CHOOSE YOUR COACH</p>
-              <h1>How should Relay<br />guide you?</h1>
-              <p>Both modes show the same workout. You can switch to the camera at any movement.</p>
-              <div className="coach-choice" role="radiogroup" aria-label="Coaching mode">
-                <button className={coachingMode === 'video' ? 'selected' : ''} role="radio" aria-checked={coachingMode === 'video'} type="button" onClick={() => setCoachingMode('video')}>
-                  <span className="choice-icon">▶</span><div><strong>Follow the videos</strong><small>Recommended · watch, move, tap done</small></div><b>{coachingMode === 'video' ? '✓' : ''}</b>
+              <p className="kicker">STEP 2 · WHAT DO YOU HAVE?</p>
+              <h1>Pick your<br />equipment.</h1>
+              <p>Select everything available today. Relay will use it where it helps and keep a bodyweight option in every plan.</p>
+              <div className="bodyweight-default"><span>YOU ALWAYS HAVE</span><strong>Bodyweight training</strong><b>✓ Included</b></div>
+              <div className="equipment-grid" role="group" aria-label="Available equipment">
+                {equipmentOptions.map((item) => {
+                  const selected = selectedEquipment.includes(item.id);
+                  return <button className={selected ? 'selected' : ''} aria-pressed={selected} type="button" key={item.id} onClick={() => toggleEquipment(item.id)}>
+                    <span>{item.icon}</span><strong>{item.label}</strong><small>{selected ? 'In today&apos;s gym' : 'Tap to add'}</small><b>{selected ? '✓' : '+'}</b>
+                  </button>;
+                })}
+              </div>
+              <p className="equipment-note">No equipment? Leave these unselected. You&apos;ll still get a complete plan.</p>
+              <div className="setup-actions"><button type="button" onClick={() => setSetupStep(1)}>← Back</button><button className="setup-next" type="button" onClick={() => setSetupStep(3)}>Build my plan <span>→</span></button></div>
+            </div>
+          </section>}
+
+          {setupStep === 3 && <section className="setup-panel setup-review-panel">
+            <div className="setup-video"><PhaseGuide key={activeWorkout[0].id} exercise={activeWorkout[0]} compact /></div>
+            <div className="setup-copy">
+              <p className="kicker">STEP 3 · YOUR PLAN IS READY</p>
+              <h1>{focusInfo.label}.<br />Zero guesswork.</h1>
+              <div className="setup-facts"><span><strong>{workoutStats.minutes}</strong><small>MINUTES</small></span><span><strong>{workoutStats.moves}</strong><small>MOVES</small></span><span><strong>{workoutStats.sets}</strong><small>SETS</small></span></div>
+              <div className="plan-mini-list">
+                {activeWorkout.map((item, index) => <span key={item.id}><b>{index + 1}</b><strong>{item.name}</strong><small>{item.equipment === 'bodyweight' ? 'Bodyweight' : equipmentOptions.find((option) => option.id === item.equipment)?.label}</small></span>)}
+              </div>
+              <p className="coach-choice-label">HOW SHOULD RELAY GUIDE YOU?</p>
+              <div className="coach-choice compact" role="radiogroup" aria-label="Coaching mode">
+                <button className={coachingMode === 'photos' ? 'selected' : ''} role="radio" aria-checked={coachingMode === 'photos'} type="button" onClick={() => setCoachingMode('photos')}>
+                  <span className="choice-icon">1·2·3</span><div><strong>Follow 3 clear steps</strong><small>Set up, move, finish</small></div><b>{coachingMode === 'photos' ? '✓' : ''}</b>
                 </button>
                 <button className={coachingMode === 'camera' ? 'selected' : ''} role="radio" aria-checked={coachingMode === 'camera'} type="button" onClick={() => setCoachingMode('camera')}>
-                  <span className="choice-icon camera-choice-icon"><i /></span><div><strong>Use live camera coach</strong><small>Rep counting and one form cue at a time</small></div><b>{coachingMode === 'camera' ? '✓' : ''}</b>
+                  <span className="choice-icon camera-choice-icon"><i /></span><div><strong>Use live camera coach</strong><small>Rep counting and form cues</small></div><b>{coachingMode === 'camera' ? '✓' : ''}</b>
                 </button>
               </div>
-              <div className="setup-actions"><button type="button" onClick={() => setSetupStep(1)}>← Back</button><button className="setup-next" type="button" onClick={() => setSetupStep(3)}>Next <span>→</span></button></div>
+              <div className="setup-actions"><button type="button" onClick={() => setSetupStep(2)}>← Back</button><button className="setup-next" type="button" onClick={() => setSetupStep(4)}>Ready check <span>→</span></button></div>
             </div>
           </section>}
 
-          {setupStep === 3 && <section className="setup-panel setup-ready-panel">
+          {setupStep === 4 && <section className="setup-panel setup-ready-panel">
             <div className="ready-mark">✓</div>
             <div className="setup-copy">
-              <p className="kicker">STEP 3 · QUICK READY CHECK</p>
+              <p className="kicker">STEP 4 · QUICK READY CHECK</p>
               <h1>Set your space.<br />Then press start.</h1>
-              <div className="ready-list"><span><b>1</b><strong>Clear one arm-span of floor space</strong></span><span><b>2</b><strong>Keep water within reach</strong></span><span><b>3</b><strong>{coachingMode === 'camera' ? 'Prop your phone 2–3 metres away' : 'Keep your phone where the video is easy to see'}</strong></span></div>
-              <p className="ready-mode">YOUR MODE <strong>{coachingMode === 'camera' ? 'Live camera coach' : 'Looping video guides'}</strong></p>
-              <div className="setup-actions"><button type="button" onClick={() => setSetupStep(2)}>← Back</button><button className="setup-next start-workout-now" type="button" onClick={() => setStage(coachingMode === 'camera' ? 'camera' : 'guide')}>Start move 1 <span>→</span></button></div>
+              <div className="ready-list"><span><b>1</b><strong>Clear one arm-span of floor space</strong></span><span><b>2</b><strong>Place your selected equipment within reach</strong></span><span><b>3</b><strong>{coachingMode === 'camera' ? 'Prop your phone 2–3 metres away' : 'Keep your phone where each photo is easy to see'}</strong></span></div>
+              <p className="ready-mode">TODAY <strong>{focusInfo.label} · {equipmentSummary}</strong></p>
+              <p className="ready-mode">YOUR MODE <strong>{coachingMode === 'camera' ? 'Live camera coach' : 'Step-by-step photo guide'}</strong></p>
+              <div className="setup-actions"><button type="button" onClick={() => setSetupStep(3)}>← Back</button><button className="setup-next start-workout-now" type="button" onClick={() => setStage(coachingMode === 'camera' ? 'camera' : 'guide')}>Start move 1 <span>→</span></button></div>
             </div>
           </section>}
         </main>
@@ -320,12 +415,12 @@ export default function Home() {
     }
 
     if (stage === 'rest') {
-      const nextExercise = workout[pendingExerciseIndex];
+      const nextExercise = activeWorkout[pendingExerciseIndex];
       return (
         <main className="rest-screen">
           <header className="session-top">
             <button type="button" onClick={() => setSessionOpen(false)} aria-label="Exit workout">×</button>
-            <div><span>FOUNDATION 01</span><strong>{completedSetCount} of {totalSets} sets</strong></div>
+            <div><span>{planName.toUpperCase()}</span><strong>{completedSetCount} of {totalSets} sets</strong></div>
             <span>{formatClock(elapsed)}</span>
           </header>
           <div className="rest-content">
@@ -351,7 +446,7 @@ export default function Home() {
           <div className="summary-stats">
             <span><strong>{formatClock(elapsed)}</strong><small>TIME</small></span>
             <span><strong>{totalSets}</strong><small>SETS</small></span>
-            <span><strong>6</strong><small>MOVES</small></span>
+            <span><strong>{activeWorkout.length}</strong><small>MOVES</small></span>
           </div>
           <div className="summary-coach">
             <span>COACH NOTE</span>
@@ -369,15 +464,15 @@ export default function Home() {
       <main className="guided-session">
         <header className="session-top">
           <button type="button" onClick={() => setSessionOpen(false)} aria-label="Exit workout">×</button>
-          <div><span>FOUNDATION 01</span><strong>Move {exerciseIndex + 1} of {workout.length}</strong></div>
+          <div><span>{planName.toUpperCase()}</span><strong>Move {exerciseIndex + 1} of {activeWorkout.length}</strong></div>
           <button className={audioEnabled ? 'audio-on' : ''} type="button" onClick={() => setAudioEnabled((value) => !value)} aria-label="Toggle voice coaching">{audioEnabled ? '♪' : '×'}</button>
         </header>
         <div className="session-progress"><i style={{ width: `${Math.max(3, sessionPercent)}%` }} /></div>
         <section className="guide-layout">
           <div className="guide-visual">
-            <MovementVideo exercise={exercise} />
-            <span className="start-label">VIRTUAL COACH</span>
-            <span className="move-label">WATCH, THEN MOVE</span>
+            <PhaseGuide key={exercise.id} exercise={exercise} />
+            <span className="start-label">3-STEP COACH</span>
+            <span className="move-label">LOOK, THEN MOVE</span>
             <button type="button" onClick={() => setPreviewIndex(exerciseIndex)}>↗ <span>Full guide</span></button>
           </div>
           <div className="guide-copy">
@@ -395,7 +490,7 @@ export default function Home() {
           </div>
         </section>
         <div className="session-queue">
-          {workout.map((item, index) => (
+          {activeWorkout.map((item, index) => (
             <button
               className={`${index === exerciseIndex ? 'active' : ''} ${setsDone[index] >= item.sets ? 'done' : ''}`}
               type="button"
@@ -407,8 +502,8 @@ export default function Home() {
             </button>
           ))}
         </div>
-        {previewIndex !== null && (
-          <ExercisePreview index={previewIndex} onClose={() => setPreviewIndex(null)} onStartCamera={() => { setExerciseIndex(previewIndex); setPreviewIndex(null); setStage('camera'); }} />
+        {previewIndex !== null && activeWorkout[previewIndex] && (
+          <ExercisePreview exercise={activeWorkout[previewIndex]} index={previewIndex} total={activeWorkout.length} onClose={() => setPreviewIndex(null)} onStartCamera={() => { setExerciseIndex(previewIndex); setPreviewIndex(null); setStage('camera'); }} />
         )}
       </main>
     );
@@ -427,9 +522,19 @@ export default function Home() {
       {view === 'today' && (
         <>
           <section className="today-head">
-            <p className="kicker"><i /> {completedToday ? 'TODAY\'S WORK IS DONE' : 'YOUR WORKOUT IS READY'}</p>
-            <h1>{completedToday ? <>Strong work.<br />Recover well.</> : <>Full body.<br />Zero guesswork.</>}</h1>
-            <p>{completedToday ? '24 minutes completed · 6 movements' : '24 minutes · Beginner · No equipment'}</p>
+            <p className="kicker"><i /> {completedToday ? 'TODAY\'S WORK IS DONE' : selectedFocus === recommendedFocus ? 'RELAY\'S RECOMMENDATION' : 'YOUR CHOICE FOR TODAY'}</p>
+            <h1>{completedToday ? <>Strong work.<br />Recover well.</> : <>{focusInfo.label}.<br />Ready when you are.</>}</h1>
+            <p>{completedToday ? `${workoutStats.minutes} minutes completed · ${workoutStats.moves} movements` : `${workoutStats.minutes} minutes · Beginner-friendly · ${equipmentSummary}`}</p>
+          </section>
+
+          <section className="quick-plan" aria-label="Choose today&apos;s training focus">
+            <div className="quick-plan-heading">
+              <div><span>TODAY&apos;S FOCUS</span><strong>{focusInfo.label}</strong><small>{focusInfo.description}</small></div>
+              {selectedFocus !== recommendedFocus && <button type="button" onClick={() => setSelectedFocus(recommendedFocus)}>Use recommendation</button>}
+            </div>
+            <div className="quick-focus-tabs" role="radiogroup" aria-label="Body area">
+              {focusOptions.map((option) => <button className={selectedFocus === option.id ? 'selected' : ''} role="radio" aria-checked={selectedFocus === option.id} type="button" key={option.id} onClick={() => setSelectedFocus(option.id)}>{option.shortLabel}</button>)}
+            </div>
           </section>
 
           <section className={`account-strip ${accountStatus === 'signed-in' ? 'account-ready' : ''}`}>
@@ -450,32 +555,46 @@ export default function Home() {
 
           <section className={`session-card ${completedToday ? 'completed-card' : ''}`}>
             <div className="session-image">
-              <MovementVideo exercise={workout[0]} controls={false} />
-              <span className="guide-chip">{completedToday ? 'COMPLETED' : '6 VIDEO GUIDES'}</span>
+              <PhaseGuide key={activeWorkout[0].id} exercise={activeWorkout[0]} compact />
+              <span className="guide-chip">{completedToday ? 'COMPLETED' : `${workoutStats.moves} PHOTO GUIDES`}</span>
               <button type="button" className="preview-button" onClick={() => startSession()} aria-label="Start coached workout"><span>START</span>→</button>
             </div>
             <div className="session-info">
               <div>
-                <p>{completedToday ? 'SAVED TO YOUR HISTORY' : 'RECOMMENDED FOR TODAY'}</p>
-                <h2>Foundation 01</h2>
+                <p>{completedToday ? 'SAVED TO YOUR HISTORY' : selectedFocus === recommendedFocus ? 'RECOMMENDED FOR TODAY' : 'CUSTOMIZED FOR TODAY'}</p>
+                <h2>{planName}</h2>
+                <small className="plan-equipment">{equipmentSummary}</small>
               </div>
-              <div className="session-facts"><span><strong>24</strong> MIN</span><span><strong>6</strong> MOVES</span><span><strong>16</strong> SETS</span></div>
+              <div className="session-facts"><span><strong>{workoutStats.minutes}</strong> MIN</span><span><strong>{workoutStats.moves}</strong> MOVES</span><span><strong>{workoutStats.sets}</strong> SETS</span></div>
               <button className="start-session" type="button" onClick={() => startSession()}>{completedToday ? 'Do it again' : 'Start today’s workout'} <span>→</span></button>
               <p className="privacy-copy"><b>●</b> Camera coach is optional and runs on this device.</p>
+            </div>
+          </section>
+
+          <section className="weekly-rotation">
+            <div><p className="kicker">YOUR WEEKLY ROTATION</p><h2>Balanced across the week.</h2><span>Relay rotates muscle groups so one area is not trained hard every day. Tap any day to use its focus now.</span></div>
+            <div className="rotation-days">
+              {weekdayLabels.map((day, weekday) => {
+                const rotationFocus = getFocusOption(weeklyRotation[weekday]);
+                const today = weekday === new Date().getDay();
+                return <button className={`${today ? 'today' : ''} ${selectedFocus === weeklyRotation[weekday] ? 'selected' : ''}`} type="button" key={day} onClick={() => setSelectedFocus(weeklyRotation[weekday])}>
+                  <small>{day}</small><strong>{rotationFocus.shortLabel}</strong>{today && <b>TODAY</b>}
+                </button>;
+              })}
             </div>
           </section>
 
           <section className="route-section">
             <div className="route-title">
               <div><p className="kicker">TODAY&apos;S ROUTE</p><h2>Everything you&apos;ll do</h2></div>
-              <span>24 min total</span>
+              <span>{workoutStats.minutes} min total</span>
             </div>
             <div className="simple-list">
-              {workout.map((move, index) => (
+              {activeWorkout.map((move, index) => (
                 <button type="button" key={move.id} onClick={() => setPreviewIndex(index)}>
                   <span className="move-number">{(index + 1).toString().padStart(2, '0')}</span>
                   <span className="move-copy"><strong>{move.name}</strong><small>{move.sets} × {move.targetLabel} · {move.muscles}</small></span>
-                  <span className="move-tag">Guide + camera</span>
+                  <span className="move-tag">{move.equipment === 'bodyweight' ? 'Bodyweight' : equipmentOptions.find((option) => option.id === move.equipment)?.shortLabel}</span>
                   <span className="move-arrow">›</span>
                 </button>
               ))}
@@ -519,7 +638,7 @@ export default function Home() {
               {sessionHistory.map((item) => (
                 <article key={item.id}><span className="history-tick">✓</span><div><small>{formatSessionDate(item.completedAt)}</small><strong>{item.workoutName}</strong><p>{Math.max(1, Math.round(item.durationSeconds / 60))} min · {item.setsCompleted} sets</p></div><b>{item.cameraSets > 0 ? `${item.cameraSets} coached` : 'Complete'}</b></article>
               ))}
-            </div> : <div className="empty-history"><span>01</span><h2>Your first session starts here.</h2><p>Finish today&apos;s workout and it will appear here automatically.</p><button type="button" onClick={() => navigate('today')}>Start Foundation 01 <b>→</b></button></div>}
+            </div> : <div className="empty-history"><span>01</span><h2>Your first session starts here.</h2><p>Finish today&apos;s customized workout and it will appear here automatically.</p><button type="button" onClick={() => navigate('today')}>Choose today&apos;s workout <b>→</b></button></div>}
           </> : <AccountGate title="Your history, on every device." copy="Sign in with your email-based ChatGPT account to securely save completed workouts and progress." />}
         </section>
       )}
@@ -552,7 +671,7 @@ export default function Home() {
                   const item = account.schedule.find((entry) => entry.weekday === weekday);
                   return <label className={item?.enabled ? 'scheduled' : ''} key={day}>
                     <input type="checkbox" checked={item?.enabled ?? false} onChange={(event) => updateScheduleDay(weekday, { enabled: event.target.checked })} />
-                    <span>{day}</span><strong>{item?.enabled ? 'Foundation 01' : 'Recovery day'}</strong>
+                    <span>{day}</span><strong>{item?.enabled ? `${getFocusOption(weeklyRotation[weekday]).shortLabel} Day 01` : 'Recovery day'}</strong>
                     <select aria-label={`${day} workout time`} disabled={!item?.enabled} value={item?.startTime ?? account.profile.reminderTime} onChange={(event) => updateScheduleDay(weekday, { startTime: event.target.value, enabled: true })}><option value="06:30">6:30 AM</option><option value="07:30">7:30 AM</option><option value="12:00">12:00 PM</option><option value="17:30">5:30 PM</option><option value="18:00">6:00 PM</option><option value="19:00">7:00 PM</option><option value="20:30">8:30 PM</option></select>
                   </label>;
                 })}
@@ -577,29 +696,45 @@ export default function Home() {
       </nav>
       <footer><span>RELAY / TRAIN WITH CLARITY</span><span>PRIVATE BY DESIGN</span></footer>
 
-      {previewIndex !== null && (
-        <ExercisePreview index={previewIndex} onClose={() => setPreviewIndex(null)} onStartCamera={() => startSession(previewIndex)} />
+      {previewIndex !== null && activeWorkout[previewIndex] && (
+        <ExercisePreview exercise={activeWorkout[previewIndex]} index={previewIndex} total={activeWorkout.length} onClose={() => setPreviewIndex(null)} onStartCamera={() => startSession(previewIndex)} />
       )}
     </main>
   );
 }
 
-function MovementVideo({ exercise, controls = false }: { exercise: Exercise; controls?: boolean }) {
+function PhaseGuide({ exercise, compact = false }: { exercise: Exercise; compact?: boolean }) {
+  const [phaseIndex, setPhaseIndex] = useState(0);
+  const phase = exercise.phases[phaseIndex] ?? exercise.phases[0];
+
   return (
-    <video
-      key={exercise.video}
-      src={exercise.video}
-      poster={exercise.image}
-      autoPlay
-      loop
-      muted
-      playsInline
-      controls={controls}
-      preload="auto"
-      aria-label={`Looping movement demonstration for ${exercise.name}`}
-    >
-      Your browser does not support the movement video.
-    </video>
+    <div className={`phase-guide ${compact ? 'phase-guide-compact' : ''}`}>
+      <div className="phase-frame">
+        <Image key={phase.image} src={phase.image} alt={`${exercise.name}: ${phase.label.toLowerCase()} position`} fill sizes={compact ? '(max-width: 760px) 100vw, 65vw' : '(max-width: 760px) 100vw, 55vw'} />
+        <span className="phase-step-badge">STEP {phaseIndex + 1} OF 3</span>
+      </div>
+      {!compact && <>
+        <div className="phase-tabs" role="tablist" aria-label={`${exercise.name} movement steps`}>
+          {exercise.phases.map((item, index) => (
+            <button
+              className={index === phaseIndex ? 'active' : ''}
+              type="button"
+              role="tab"
+              aria-selected={index === phaseIndex}
+              key={item.id}
+              onClick={() => setPhaseIndex(index)}
+            >
+              <small>{index + 1}</small><strong>{item.label}</strong>
+            </button>
+          ))}
+        </div>
+        <div className="phase-cue">
+          <button type="button" disabled={phaseIndex === 0} onClick={() => setPhaseIndex((value) => Math.max(0, value - 1))} aria-label="Previous movement step">‹</button>
+          <p><span>{phase.label}</span>{phase.cue}</p>
+          <button type="button" disabled={phaseIndex === exercise.phases.length - 1} onClick={() => setPhaseIndex((value) => Math.min(exercise.phases.length - 1, value + 1))} aria-label="Next movement step">›</button>
+        </div>
+      </>}
+    </div>
   );
 }
 
@@ -616,18 +751,17 @@ function AccountGate({ title, copy }: { title: string; copy: string }) {
   );
 }
 
-function ExercisePreview({ index, onClose, onStartCamera }: { index: number; onClose: () => void; onStartCamera: () => void }) {
-  const item = workout[index];
+function ExercisePreview({ exercise: item, index, total, onClose, onStartCamera }: { exercise: Exercise; index: number; total: number; onClose: () => void; onStartCamera: () => void }) {
   return (
     <div className="preview-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
       <section className="exercise-preview" role="dialog" aria-modal="true" aria-label={`${item.name} movement guide`}>
         <button className="preview-close" type="button" onClick={onClose} aria-label="Close movement guide">×</button>
         <div className="preview-visual">
-          <MovementVideo exercise={item} controls />
-          <span>VIRTUAL COACH</span><span>WATCH FIRST</span>
+          <PhaseGuide key={item.id} exercise={item} />
+          <span>3-STEP COACH</span><span>LOOK FIRST</span>
         </div>
         <div className="preview-body">
-          <p className="kicker">MOVEMENT {index + 1} OF {workout.length}</p>
+          <p className="kicker">MOVEMENT {index + 1} OF {total}</p>
           <h2>{item.name}</h2>
           <p>{item.intro}</p>
           <div className="preview-dose"><span><small>DO</small><strong>{item.sets} × {item.targetLabel}</strong></span><span><small>REST</small><strong>{item.rest} sec</strong></span></div>

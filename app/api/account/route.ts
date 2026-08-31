@@ -32,6 +32,8 @@ export async function POST(request: Request) {
 
   if (action === 'save-workout') {
     await saveWorkout(user.userId, {
+      workoutId: typeof body.workoutId === 'string' ? body.workoutId.slice(0, 80) : 'custom-day-01',
+      workoutName: typeof body.workoutName === 'string' ? body.workoutName.slice(0, 80) : 'Custom Day 01',
       durationSeconds: Math.round(clamp(body.durationSeconds, 1, 14400)),
       setsCompleted: Math.round(clamp(body.setsCompleted, 1, 100)),
       movementsCompleted: Math.round(clamp(body.movementsCompleted, 1, 50)),
@@ -70,7 +72,7 @@ export async function POST(request: Request) {
       if (seen.has(weekday)) return [];
       seen.add(weekday);
       return [{
-        id: '', weekday, workoutName: 'Foundation 01',
+        id: '', weekday, workoutName: typeof item.workoutName === 'string' ? item.workoutName.slice(0, 80) : 'Training Day 01',
         startTime: typeof item.startTime === 'string' && /^\d{2}:\d{2}$/.test(item.startTime) ? item.startTime : '18:00',
         durationMinutes: Math.round(clamp(item.durationMinutes, 10, 120)), enabled: Boolean(item.enabled),
       }];

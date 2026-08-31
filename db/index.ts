@@ -96,17 +96,24 @@ export async function ensureUser(user: ChatGPTUser) {
       .bind(user.userId, user.email, user.displayName, now, now),
     db.prepare(`INSERT OR IGNORE INTO profiles
       (user_id, goal, level, days_per_week, session_minutes, hydration_target_ml, sleep_target_hours, injuries, reminder_time, updated_at)
-      VALUES (?, 'Build strength', 'Beginner', 3, 24, 2500, 8, '', '18:00', ?)`)
+      VALUES (?, 'Build strength', 'Beginner', 5, 24, 2500, 8, '', '18:00', ?)`)
       .bind(user.userId, now),
   ]);
 
   const scheduleCount = await db.prepare('SELECT COUNT(*) AS count FROM training_schedule WHERE user_id = ?')
     .bind(user.userId).first<{ count: number }>();
   if (!scheduleCount?.count) {
-    await db.batch([1, 3, 6].map((weekday) => db.prepare(`INSERT OR IGNORE INTO training_schedule
+    const defaultSchedule = [
+      { weekday: 1, workoutName: 'Legs Day 01' },
+      { weekday: 2, workoutName: 'Chest Day 01' },
+      { weekday: 3, workoutName: 'Back Day 01' },
+      { weekday: 4, workoutName: 'Neck Day 01' },
+      { weekday: 6, workoutName: 'Cardio Day 01' },
+    ];
+    await db.batch(defaultSchedule.map(({ weekday, workoutName }) => db.prepare(`INSERT OR IGNORE INTO training_schedule
       (id, user_id, weekday, workout_name, start_time, duration_minutes, enabled)
-      VALUES (?, ?, ?, 'Foundation 01', '18:00', 24, 1)`)
-      .bind(crypto.randomUUID(), user.userId, weekday)));
+      VALUES (?, ?, ?, ?, '18:00', 24, 1)`)
+      .bind(crypto.randomUUID(), user.userId, weekday, workoutName)));
   }
 }
 
@@ -163,13 +170,13 @@ export async function getAccountSnapshot(user: ChatGPTUser, logDate: string): Pr
   return { user: { userId: user.userId, displayName: user.displayName, email: user.email }, profile, sessions, todayLog, schedule };
 }
 
-export async function saveWorkout(userId: string, input: { durationSeconds: number; setsCompleted: number; movementsCompleted: number; cameraSets: number; notes?: string }) {
+export async function saveWorkout(userId: string, input: { workoutId: string; workoutName: string; durationSeconds: number; setsCompleted: number; movementsCompleted: number; cameraSets: number; notes?: string }) {
   await ensureSchema();
   const db = getD1();
   await db.prepare(`INSERT INTO workout_sessions
     (id, user_id, workout_id, workout_name, completed_at, duration_seconds, sets_completed, movements_completed, camera_sets, notes)
-    VALUES (?, ?, 'foundation-01', 'Foundation 01', ?, ?, ?, ?, ?, ?)`)
-    .bind(crypto.randomUUID(), userId, new Date().toISOString(), input.durationSeconds, input.setsCompleted, input.movementsCompleted, input.cameraSets, input.notes ?? '').run();
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+    .bind(crypto.randomUUID(), userId, input.workoutId, input.workoutName, new Date().toISOString(), input.durationSeconds, input.setsCompleted, input.movementsCompleted, input.cameraSets, input.notes ?? '').run();
 }
 
 export async function saveDailyLog(userId: string, input: DailyLog) {
