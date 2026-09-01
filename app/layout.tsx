@@ -12,15 +12,18 @@ const geistMono = Geist_Mono({
   subsets: ['latin'],
 });
 
+const publicBasePath = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
+const githubSite = 'https://junweijayli-cell.github.io/personal-trainer';
+
 export const metadata: Metadata = {
-  metadataBase: new URL('https://relay-coach-jay.junwei-jay-li.chatgpt.site'),
+  metadataBase: new URL(`${githubSite}/`),
   title: 'Relay Coach — See it. Do it. Move better.',
   description: 'A phone-first virtual trainer with guided workouts, private on-device pose tracking, rep counting, and live form cues.',
   applicationName: 'Relay Coach',
-  manifest: '/manifest.webmanifest',
+  manifest: `${publicBasePath}/manifest.webmanifest`,
   icons: {
-    icon: '/icon.png',
-    apple: '/icon.png',
+    icon: `${publicBasePath}/icon.png`,
+    apple: `${publicBasePath}/icon.png`,
   },
   appleWebApp: {
     capable: true,
@@ -34,13 +37,13 @@ export const metadata: Metadata = {
     title: 'Relay Coach — Your next right move',
     description: 'Follow today’s workout, learn every movement, and get live camera form cues.',
     type: 'website',
-    images: [{ url: '/og.png', width: 1730, height: 909, alt: 'Relay — Your next right move' }],
+    images: [{ url: `${githubSite}/og.png`, width: 1730, height: 909, alt: 'Relay — Your next right move' }],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'Relay Coach — Your next right move',
     description: 'Guided workouts and private, on-device camera coaching.',
-    images: ['/og.png'],
+    images: [`${githubSite}/og.png`],
   },
 };
 

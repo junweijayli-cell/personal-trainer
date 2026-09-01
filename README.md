@@ -7,9 +7,9 @@ Relay is a phone-first virtual personal trainer: open it, see today’s complete
 - A three-step phone setup that previews the plan, selects video or camera coaching, and checks the training space
 - A focused 24-minute workout with six demonstrations animated by one consistent digital coach, plus reps, sets, rest, and form cues
 - Optional on-device pose tracking, rep counting, joint-angle feedback, and voice cues
-- Secure ChatGPT account sign-in using the visitor’s email-based account
-- Account-bound workout history, daily wellness check-ins, goals, and weekly training schedule
-- Water, sleep, meal quality, energy, and recovery notes stored in Cloudflare D1
+- Phone-first landing page with English and Chinese switching
+- Email, password, six-digit verification, seven-day trial, and monthly/annual subscription demo
+- Device-local workout history, daily wellness check-ins, goals, and weekly training schedule
 - A responsive, installable mobile web app with camera processing that stays in the browser
 
 ## Local development
@@ -19,7 +19,13 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:3000`. The local Sites runtime supplies a test identity and a local D1 database. Camera access is optional; production camera access requires HTTPS.
+Open `http://localhost:3000`. Camera access is optional; production camera access requires HTTPS.
+
+## GitHub Pages demo
+
+Every push to `main` builds and deploys the static application through `.github/workflows/pages.yml`.
+
+The GitHub Pages build intentionally labels account verification as a demo. Static hosting cannot securely send email, store credentials, or process subscriptions. A real launch should replace the local demo adapter with a managed email-auth service and payment provider. See `QA_REPORT.md` for the tested journey and launch boundary.
 
 ## Quality checks
 

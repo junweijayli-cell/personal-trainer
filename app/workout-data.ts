@@ -30,7 +30,8 @@ export type FocusOption = { id: FocusId; label: string; shortLabel: string; desc
 export type EquipmentOption = { id: EquipmentId; label: string; shortLabel: string; icon: string };
 
 const mediaVersion = '20260901-photos';
-const media = (path: string) => `${path}?v=${mediaVersion}`;
+const publicBasePath = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
+const media = (path: string) => `${publicBasePath}${path}?v=${mediaVersion}`;
 
 export const focusOptions: FocusOption[] = [
   { id: 'legs', label: 'Legs & glutes', shortLabel: 'Legs', description: 'Squat, hinge and single-leg strength' },

@@ -6,9 +6,9 @@
     "node": ">=22.13.0"
   },
   "scripts": {
-    "dev": "vinext dev",
-    "build": "vinext build",
-    "start": "vinext start",
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next dev",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next --ignore-pattern .video-tools --ignore-pattern public/mediapipe",
     "db:generate": "drizzle-kit generate",
     "coach:build": "node scripts/build-photoreal-coach-videos.mjs"

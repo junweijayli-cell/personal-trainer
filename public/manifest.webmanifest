@@ -2,14 +2,14 @@
   "name": "Relay Coach",
   "short_name": "Relay",
   "description": "Guided workouts with private on-device camera coaching.",
-  "start_url": "/",
+  "start_url": "./",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#fbfaf6",
   "theme_color": "#151715",
   "icons": [
     {
-      "src": "/icon.png",
+      "src": "./icon.png",
       "sizes": "1024x1024",
       "type": "image/png",
       "purpose": "any maskable"

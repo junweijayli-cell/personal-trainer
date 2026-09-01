@@ -302,11 +302,12 @@ export default function CameraCoach({ exercise, audioEnabled, onClose, onSetComp
       if (!video) throw new Error('Video element unavailable');
       video.srcObject = stream;
       await video.play();
-      const vision = await FilesetResolver.forVisionTasks('/mediapipe/wasm');
+      const publicBasePath = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
+      const vision = await FilesetResolver.forVisionTasks(`${publicBasePath}/mediapipe/wasm`);
       let landmarker;
       try {
         landmarker = await PoseLandmarker.createFromOptions(vision, {
-          baseOptions: { modelAssetPath: '/models/pose_landmarker_lite.task', delegate: 'GPU' },
+          baseOptions: { modelAssetPath: `${publicBasePath}/models/pose_landmarker_lite.task`, delegate: 'GPU' },
           runningMode: 'VIDEO',
           numPoses: 1,
           minPoseDetectionConfidence: 0.55,
@@ -315,7 +316,7 @@ export default function CameraCoach({ exercise, audioEnabled, onClose, onSetComp
         });
       } catch {
         landmarker = await PoseLandmarker.createFromOptions(vision, {
-          baseOptions: { modelAssetPath: '/models/pose_landmarker_lite.task' },
+          baseOptions: { modelAssetPath: `${publicBasePath}/models/pose_landmarker_lite.task` },
           runningMode: 'VIDEO',
           numPoses: 1,
           minPoseDetectionConfidence: 0.5,

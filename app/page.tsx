@@ -3,6 +3,18 @@
 import { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import CameraCoach from './camera-coach';
+import LandingAuth, { LanguageSwitch, type Language } from './landing-auth';
+import {
+  getActiveMember,
+  hasProductAccess,
+  loadDemoSnapshot,
+  saveDemoSnapshot,
+  signOutDemoMember,
+  trialDaysRemaining,
+  updateDemoBilling,
+  type BillingPlan,
+  type DemoMember,
+} from './demo-auth';
 import type { AccountSnapshot, DailyLog, ScheduleItem } from './account-types';
 import {
   buildWorkout,
@@ -38,6 +50,31 @@ function formatSessionDate(value: string) {
 }
 
 const weekdayLabels = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+const weekdayChinese = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+const focusChinese: Record<FocusId, string> = { legs: '腿部与臀部', chest: '胸部与推力', back: '背部与拉力', neck: '颈部与体态', core: '核心与稳定', mobility: '灵活性与恢复', cardio: '有氧与耐力', 'full-body': '全身训练' };
+const focusShortChinese: Record<FocusId, string> = { legs: '腿部', chest: '胸部', back: '背部', neck: '颈部', core: '核心', mobility: '拉伸', cardio: '有氧', 'full-body': '全身' };
+const focusDescriptionChinese: Record<FocusId, string> = { legs: '深蹲、髋部铰链与单腿力量', chest: '胸部、肩部与肱三头肌', back: '上背、背阔肌与体态', neck: '温和的颈部力量与对齐', core: '躯干控制与稳定动作', mobility: '恢复日的轻松活动', cardio: '低冲击耐力训练', 'full-body': '从头到脚的均衡训练' };
+const equipmentChinese: Record<EquipmentId, string> = { dumbbells: '哑铃', 'resistance-band': '弹力带', bench: '训练凳', kettlebell: '壶铃', barbell: '杠铃', 'cable-machine': '龙门架', 'leg-press': '腿举机', 'suspension-trainer': '悬挂带', 'stability-ball': '健身球', 'medicine-ball': '药球', 'stationary-bike': '健身车' };
+const exerciseChinese: Record<string, string> = {
+  squat: '徒手深蹲', 'reverse-lunge': '后撤弓步', 'incline-pushup': '上斜俯卧撑', 'glute-bridge': '臀桥', 'plank-rotation': '高位平板旋转', 'forearm-plank': '前臂平板支撑', 'bird-dog': '鸟狗式', 'dead-bug': '死虫式', 'goblet-squat': '高脚杯深蹲', 'dumbbell-rdl': '哑铃罗马尼亚硬拉', 'dumbbell-floor-press': '哑铃地板卧推', 'dumbbell-row': '支撑哑铃划船', 'band-row': '弹力带划船', 'bench-step-up': '训练凳踏步', 'kettlebell-deadlift': '壶铃硬拉', 'barbell-squat': '杠铃后蹲', 'lat-pulldown': '高位下拉', 'leg-press': '腿举', 'cable-chest-press': '站姿绳索推胸', 'suspension-row': '悬挂划船', 'stability-ball-curl': '健身球腿弯举', 'medicine-ball-press': '药球深蹲推举', 'stationary-bike': '健身车间歇训练', 'chin-tuck': '站姿收下巴', 'side-neck-isometric': '颈侧等长训练', 'upper-trap-stretch': '上斜方肌拉伸',
+};
+const phaseChinese: Record<'start' | 'middle' | 'finish', string> = { start: '准备', middle: '动作', finish: '完成' };
+
+function equipmentSummaryChinese(selected: EquipmentId[]) {
+  return selected.length ? selected.map((id) => equipmentChinese[id]).join(' · ') : '仅徒手训练';
+}
+
+const muscleChinese: Record<string, string> = {
+  Quads: '股四头肌', glutes: '臀肌', Glutes: '臀肌', core: '核心', Core: '核心', Chest: '胸部', shoulders: '肩部', Shoulders: '肩部', triceps: '肱三头肌', Triceps: '肱三头肌', hamstrings: '腘绳肌', Hamstrings: '腘绳肌', balance: '平衡', Back: '背部', lats: '背阔肌', posture: '体态', 'Upper back': '上背', 'Deep core': '深层核心', 'hip flexors': '髋屈肌', coordination: '协调', 'Upper traps': '上斜方肌', neck: '颈部', Neck: '颈部', calves: '小腿', 'lower back': '下背', biceps: '肱二头肌', adductors: '内收肌', cardio: '有氧', stamina: '耐力', mobility: '灵活性', recovery: '恢复',
+};
+
+function translateTarget(value: string) {
+  return value.replace('reps', '次').replace('/ side', '每侧').replace('sec', '秒').replace('min', '分钟');
+}
+
+function translateMuscles(value: string) {
+  return value.split(' · ').map((item) => muscleChinese[item] ?? item).join(' · ');
+}
 
 function calculateStreak(dates: string[]) {
   const unique = new Set(dates.map((value) => localDateKey(new Date(value))));
@@ -52,6 +89,8 @@ function calculateStreak(dates: string[]) {
 }
 
 export default function Home() {
+  const [language, setLanguage] = useState<Language>('en');
+  const [member, setMember] = useState<DemoMember | null>(null);
   const [recommendedFocus, setRecommendedFocus] = useState<FocusId>('full-body');
   const [view, setView] = useState<View>('today');
   const [sessionOpen, setSessionOpen] = useState(false);
@@ -70,6 +109,7 @@ export default function Home() {
   const focusInfo = getFocusOption(selectedFocus);
   const recommendedFocusInfo = getFocusOption(recommendedFocus);
   const planName = `${focusInfo.shortLabel} Day 01`;
+  const displayPlanName = language === 'zh' ? `${focusShortChinese[selectedFocus]}训练 01` : planName;
   const equipmentSummary = selectedEquipment.length > 0
     ? selectedEquipment.map((id) => equipmentOptions.find((item) => item.id === id)?.shortLabel).filter(Boolean).join(' · ')
     : 'Bodyweight only';
@@ -87,7 +127,6 @@ export default function Home() {
   const [accountStatus, setAccountStatus] = useState<'loading' | 'signed-out' | 'signed-in' | 'error'>('loading');
   const [saveStatus, setSaveStatus] = useState('');
   const [pendingExerciseIndex, setPendingExerciseIndex] = useState(0);
-  const [dateLabel, setDateLabel] = useState('TODAY');
   const [todayWeekday, setTodayWeekday] = useState(-1);
   const exercise = activeWorkout[exerciseIndex] ?? activeWorkout[0];
   const completedSetCount = setsDone.reduce((sum, count) => sum + count, 0);
@@ -97,6 +136,8 @@ export default function Home() {
     ? Math.max(1, Math.round(sessionHistory.reduce((sum, session) => sum + session.durationSeconds, 0) / 60))
     : 0;
   const trainingStreak = calculateStreak(sessionHistory.map((session) => session.completedAt));
+  const trialRemaining = member ? trialDaysRemaining(member) : null;
+  const tr = (english: string, chinese: string) => language === 'zh' ? chinese : english;
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -104,34 +145,44 @@ export default function Home() {
       setRecommendedFocus(todayFocus);
       setSelectedFocus(todayFocus);
       setTodayWeekday(new Date().getDay());
-      setDateLabel(new Intl.DateTimeFormat('en', { weekday: 'short', day: 'numeric', month: 'short' }).format(new Date()).toUpperCase());
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);
 
   useEffect(() => {
-    const controller = new AbortController();
-    fetch(`/api/account?date=${localDateKey()}`, { signal: controller.signal })
-      .then(async (response) => {
-        if (response.status === 401) {
+    const timer = window.setTimeout(() => {
+      try {
+        const savedLanguage = window.localStorage.getItem('relay-language');
+        if (savedLanguage === 'zh' || savedLanguage === 'en') setLanguage(savedLanguage);
+        const activeMember = getActiveMember();
+        if (!activeMember) {
           setAccountStatus('signed-out');
-          return null;
+          return;
         }
-        if (!response.ok) throw new Error('Account data could not be loaded.');
-        return response.json() as Promise<AccountSnapshot>;
-      })
-      .then((snapshot) => {
-        if (!snapshot) return;
+        const snapshot = loadDemoSnapshot(activeMember);
+        setMember(activeMember);
         setAccount(snapshot);
         setAccountStatus('signed-in');
         setCompletedToday(snapshot.sessions.some((session) => localDateKey(new Date(session.completedAt)) === localDateKey()));
-      })
-      .catch((error) => {
-        if (error instanceof Error && error.name === 'AbortError') return;
+      } catch {
         setAccountStatus('error');
-      });
-    return () => controller.abort();
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem('relay-language', language);
+      document.documentElement.lang = language === 'zh' ? 'zh-CN' : 'en';
+    } catch {
+      // Language preferences are optional.
+    }
+  }, [language]);
+
+  useEffect(() => {
+    if (member && account) saveDemoSnapshot(member.email, account);
+  }, [member, account]);
 
   useEffect(() => {
     try {
@@ -190,6 +241,11 @@ export default function Home() {
     return () => window.clearTimeout(timer);
   }, [stage, restSeconds, pendingExerciseIndex]);
 
+  useEffect(() => {
+    if (!sessionOpen) return;
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  }, [sessionOpen, setupStep, stage, exerciseIndex]);
+
   function startSession(startAt = 0) {
     setSessionOpen(true);
     setStage('setup');
@@ -227,16 +283,47 @@ export default function Home() {
   }
 
   async function postAccount(action: string, data?: unknown) {
-    const response = await fetch('/api/account', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ action, data, logDate: localDateKey(), ...(action === 'save-workout' && typeof data === 'object' ? data : {}) }),
-    });
-    if (!response.ok) throw new Error(response.status === 401 ? 'Sign in to save this.' : 'Could not save. Try again.');
-    const snapshot = await response.json() as AccountSnapshot;
+    if (!account || !member) throw new Error(tr('Sign in to save this.', '请先登录后保存。'));
+    let snapshot = { ...account };
+    if (action === 'save-workout') {
+      const workout = data as { workoutName: string; durationSeconds: number; setsCompleted: number; movementsCompleted: number; cameraSets: number };
+      snapshot = {
+        ...snapshot,
+        sessions: [{
+          id: crypto.randomUUID(), workoutName: workout.workoutName, completedAt: new Date().toISOString(),
+          durationSeconds: workout.durationSeconds, setsCompleted: workout.setsCompleted,
+          movementsCompleted: workout.movementsCompleted, cameraSets: workout.cameraSets,
+        }, ...snapshot.sessions],
+      };
+    }
+    saveDemoSnapshot(member.email, snapshot);
     setAccount(snapshot);
     setAccountStatus('signed-in');
     return snapshot;
+  }
+
+  function completeAuthentication(nextMember: DemoMember) {
+    const snapshot = loadDemoSnapshot(nextMember);
+    setMember(nextMember);
+    setAccount(snapshot);
+    setAccountStatus('signed-in');
+    setView('today');
+    window.scrollTo({ top: 0 });
+  }
+
+  function signOut() {
+    signOutDemoMember();
+    setMember(null);
+    setAccount(null);
+    setAccountStatus('signed-out');
+    setView('today');
+    window.scrollTo({ top: 0 });
+  }
+
+  function selectSubscription(plan: Exclude<BillingPlan, 'trial'>) {
+    if (!member) return;
+    setMember(updateDemoBilling(member, plan));
+    setSaveStatus(tr(`${plan === 'monthly' ? 'Monthly' : 'Annual'} demo access activated. No payment was taken.`, `${plan === 'monthly' ? '月付' : '年付'}演示权限已开启，未产生任何付款。`));
   }
 
   async function saveWorkout() {
@@ -322,13 +409,25 @@ export default function Home() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
+  if (accountStatus === 'loading') {
+    return <main className="relay-loading"><span>R</span><p>{tr('Preparing your coach…', '正在准备你的教练…')}</p></main>;
+  }
+
+  if (!member || !account) {
+    return <LandingAuth language={language} onLanguageChange={setLanguage} onAuthenticated={completeAuthentication} />;
+  }
+
+  if (!hasProductAccess(member)) {
+    return <TrialPaywall language={language} member={member} onLanguageChange={setLanguage} onSubscribe={selectSubscription} onSignOut={signOut} />;
+  }
+
   if (sessionOpen) {
     if (stage === 'setup') {
       return (
         <main className="workout-setup">
           <header className="setup-header">
             <button type="button" onClick={() => setSessionOpen(false)} aria-label="Exit workout setup">×</button>
-            <div><span>{planName.toUpperCase()}</span><strong>Build today&apos;s session</strong></div>
+            <div><span>{displayPlanName.toUpperCase()}</span><strong>{tr('Build today’s session', '创建今天的训练')}</strong></div>
             <span>{setupStep} / 4</span>
           </header>
           <div className="setup-progress" aria-label={`Workout setup step ${setupStep} of 4`}>
@@ -337,51 +436,51 @@ export default function Home() {
 
           {setupStep === 1 && <section className="setup-panel setup-builder-panel">
             <div className="setup-copy">
-              <p className="kicker">STEP 1 · CHOOSE TODAY&apos;S FOCUS</p>
-              <h1>What do you want<br />to train today?</h1>
-              <p>Follow Relay&apos;s rotation or choose what feels right. Your choice only changes today&apos;s session.</p>
+              <p className="kicker">{tr('STEP 1 · CHOOSE TODAY\'S FOCUS', '第 1 步 · 选择今日部位')}</p>
+              <h1>{tr('What do you want', '今天你想训练')}<br />{tr('to train today?', '哪个部位？')}</h1>
+              <p>{tr('Follow Relay’s rotation or choose what feels right. Your choice only changes today’s session.', '你可以跟随 Relay 的轮换推荐，也可以选择今天最想练的部位。')}</p>
               <button className={`recommended-focus ${selectedFocus === recommendedFocus ? 'selected' : ''}`} type="button" onClick={() => setSelectedFocus(recommendedFocus)}>
-                <span><small>RECOMMENDED TODAY</small><strong>{recommendedFocusInfo.label}</strong><em>{recommendedFocusInfo.description}</em></span>
-                <b>{selectedFocus === recommendedFocus ? '✓' : 'Use this'}</b>
+                <span><small>{tr('RECOMMENDED TODAY', '今日推荐')}</small><strong>{language === 'zh' ? focusChinese[recommendedFocus] : recommendedFocusInfo.label}</strong><em>{language === 'zh' ? focusDescriptionChinese[recommendedFocus] : recommendedFocusInfo.description}</em></span>
+                <b>{selectedFocus === recommendedFocus ? '✓' : tr('Use this', '使用')}</b>
               </button>
               <div className="focus-grid" role="radiogroup" aria-label="Body area to train">
                 {focusOptions.map((option) => (
                   <button className={selectedFocus === option.id ? 'selected' : ''} role="radio" aria-checked={selectedFocus === option.id} type="button" key={option.id} onClick={() => setSelectedFocus(option.id)}>
-                    <span>{option.shortLabel}</span><small>{option.description}</small><b>{selectedFocus === option.id ? '✓' : '→'}</b>
+                    <span>{language === 'zh' ? focusShortChinese[option.id] : option.shortLabel}</span><small>{language === 'zh' ? focusDescriptionChinese[option.id] : option.description}</small><b>{selectedFocus === option.id ? '✓' : '→'}</b>
                   </button>
                 ))}
               </div>
-              <button className="setup-next" type="button" onClick={() => setSetupStep(2)}>Next: my equipment <span>→</span></button>
+              <button className="setup-next" type="button" onClick={() => setSetupStep(2)}>{tr('Next: my equipment', '下一步：我的器械')} <span>→</span></button>
             </div>
           </section>}
 
           {setupStep === 2 && <section className="setup-panel setup-choice-panel setup-builder-panel">
             <div className="setup-copy">
-              <p className="kicker">STEP 2 · WHAT DO YOU HAVE?</p>
-              <h1>Pick your<br />equipment.</h1>
-              <p>Select everything available today. Relay will use it where it helps and keep a bodyweight option in every plan.</p>
-              <div className="bodyweight-default"><span>YOU ALWAYS HAVE</span><strong>Bodyweight training</strong><b>✓ Included</b></div>
+              <p className="kicker">{tr('STEP 2 · WHAT DO YOU HAVE?', '第 2 步 · 你有什么器械？')}</p>
+              <h1>{tr('Pick your', '选择你的')}<br />{tr('equipment.', '训练器械。')}</h1>
+              <p>{tr('Select everything available today. Relay will use it where it helps and keep a bodyweight option in every plan.', '选择今天可用的全部器械。Relay 会合理使用，并为每个计划保留徒手选项。')}</p>
+              <div className="bodyweight-default"><span>{tr('YOU ALWAYS HAVE', '默认拥有')}</span><strong>{tr('Bodyweight training', '徒手训练')}</strong><b>✓ {tr('Included', '已包含')}</b></div>
               <div className="equipment-grid" role="group" aria-label="Available equipment">
                 {equipmentOptions.map((item) => {
                   const selected = selectedEquipment.includes(item.id);
                   return <button className={selected ? 'selected' : ''} aria-pressed={selected} type="button" key={item.id} onClick={() => toggleEquipment(item.id)}>
-                    <span>{item.icon}</span><strong>{item.label}</strong><small>{selected ? 'In today&apos;s gym' : 'Tap to add'}</small><b>{selected ? '✓' : '+'}</b>
+                    <span>{item.icon}</span><strong>{language === 'zh' ? equipmentChinese[item.id] : item.label}</strong><small>{selected ? tr('In today’s gym', '今天可用') : tr('Tap to add', '点击添加')}</small><b>{selected ? '✓' : '+'}</b>
                   </button>;
                 })}
               </div>
-              <p className="equipment-note">No equipment? Leave these unselected. You&apos;ll still get a complete plan.</p>
-              <div className="setup-actions"><button type="button" onClick={() => setSetupStep(1)}>← Back</button><button className="setup-next" type="button" onClick={() => setSetupStep(3)}>Build my plan <span>→</span></button></div>
+              <p className="equipment-note">{tr('No equipment? Leave these unselected. You’ll still get a complete plan.', '没有器械？保持未选择即可，你仍会获得完整计划。')}</p>
+              <div className="setup-actions"><button type="button" onClick={() => setSetupStep(1)}>← {tr('Back', '返回')}</button><button className="setup-next" type="button" onClick={() => setSetupStep(3)}>{tr('Build my plan', '生成我的计划')} <span>→</span></button></div>
             </div>
           </section>}
 
           {setupStep === 3 && <section className="setup-panel setup-review-panel">
-            <div className="setup-video"><PhaseGuide key={activeWorkout[0].id} exercise={activeWorkout[0]} compact /></div>
+            <div className="setup-video"><PhaseGuide key={activeWorkout[0].id} exercise={activeWorkout[0]} compact language={language} /></div>
             <div className="setup-copy">
-              <p className="kicker">STEP 3 · YOUR PLAN IS READY</p>
-              <h1>{focusInfo.label}.<br />Zero guesswork.</h1>
-              <div className="setup-facts"><span><strong>{workoutStats.minutes}</strong><small>MINUTES</small></span><span><strong>{workoutStats.moves}</strong><small>MOVES</small></span><span><strong>{workoutStats.sets}</strong><small>SETS</small></span></div>
+              <p className="kicker">{tr('STEP 3 · YOUR PLAN IS READY', '第 3 步 · 计划已准备好')}</p>
+              <h1>{language === 'zh' ? focusChinese[selectedFocus] : focusInfo.label}.<br />{tr('Zero guesswork.', '无需猜测。')}</h1>
+              <div className="setup-facts"><span><strong>{workoutStats.minutes}</strong><small>{tr('MINUTES', '分钟')}</small></span><span><strong>{workoutStats.moves}</strong><small>{tr('MOVES', '动作')}</small></span><span><strong>{workoutStats.sets}</strong><small>{tr('SETS', '组数')}</small></span></div>
               <div className="plan-mini-list">
-                {activeWorkout.map((item, index) => <span key={item.id}><b>{index + 1}</b><strong>{item.name}</strong><small>{item.equipment === 'bodyweight' ? 'Bodyweight' : equipmentOptions.find((option) => option.id === item.equipment)?.label}</small></span>)}
+                {activeWorkout.map((item, index) => <span key={item.id}><b>{index + 1}</b><strong>{language === 'zh' ? exerciseChinese[item.id] ?? item.name : item.name}</strong><small>{item.equipment === 'bodyweight' ? tr('Bodyweight', '徒手') : language === 'zh' ? equipmentChinese[item.equipment] : equipmentOptions.find((option) => option.id === item.equipment)?.label}</small></span>)}
               </div>
               <p className="coach-choice-label">HOW SHOULD RELAY GUIDE YOU?</p>
               <div className="coach-choice compact" role="radiogroup" aria-label="Coaching mode">
@@ -392,7 +491,7 @@ export default function Home() {
                   <span className="choice-icon camera-choice-icon"><i /></span><div><strong>Use live camera coach</strong><small>Rep counting and form cues</small></div><b>{coachingMode === 'camera' ? '✓' : ''}</b>
                 </button>
               </div>
-              <div className="setup-actions"><button type="button" onClick={() => setSetupStep(2)}>← Back</button><button className="setup-next" type="button" onClick={() => setSetupStep(4)}>Ready check <span>→</span></button></div>
+              <div className="setup-actions"><button type="button" onClick={() => setSetupStep(2)}>← {tr('Back', '返回')}</button><button className="setup-next" type="button" onClick={() => setSetupStep(4)}>{tr('Ready check', '准备检查')} <span>→</span></button></div>
             </div>
           </section>}
 
@@ -478,7 +577,7 @@ export default function Home() {
         <div className="session-progress"><i style={{ width: `${Math.max(3, sessionPercent)}%` }} /></div>
         <section className="guide-layout">
           <div className="guide-visual">
-            <PhaseGuide key={exercise.id} exercise={exercise} />
+            <PhaseGuide key={exercise.id} exercise={exercise} language={language} />
             <span className="start-label">3-STEP COACH</span>
             <span className="move-label">LOOK, THEN MOVE</span>
             <button type="button" onClick={() => setPreviewIndex(exerciseIndex)}>↗ <span>Full guide</span></button>
@@ -511,7 +610,7 @@ export default function Home() {
           ))}
         </div>
         {previewIndex !== null && activeWorkout[previewIndex] && (
-          <ExercisePreview exercise={activeWorkout[previewIndex]} index={previewIndex} total={activeWorkout.length} onClose={() => setPreviewIndex(null)} onStartCamera={() => { setExerciseIndex(previewIndex); setPreviewIndex(null); setStage('camera'); }} />
+          <ExercisePreview exercise={activeWorkout[previewIndex]} index={previewIndex} total={activeWorkout.length} language={language} onClose={() => setPreviewIndex(null)} onStartCamera={() => { setExerciseIndex(previewIndex); setPreviewIndex(null); setStage('camera'); }} />
         )}
       </main>
     );
@@ -521,41 +620,38 @@ export default function Home() {
     <main className="coach-app">
       <header className="coach-header">
         <button className="wordmark" type="button" onClick={() => navigate('today')} aria-label="Relay home"><span>R</span>RELAY</button>
-        <p>{dateLabel}</p>
-        <button className="avatar" type="button" aria-label="Open profile" onClick={() => navigate('you')}>
-          {account?.user.displayName?.charAt(0).toUpperCase() ?? 'R'}
-        </button>
+        <p>{trialRemaining !== null ? tr(`${trialRemaining} trial days left`, `试用剩余 ${trialRemaining} 天`) : tr(`${member.billingPlan} member`, `${member.billingPlan === 'monthly' ? '月付' : '年付'}会员`)}</p>
+        <div className="coach-header-actions"><LanguageSwitch language={language} onChange={setLanguage} /><button className="avatar" type="button" aria-label="Open profile" onClick={() => navigate('you')}>{account.user.displayName?.charAt(0).toUpperCase() ?? 'R'}</button></div>
       </header>
 
       {view === 'today' && (
         <>
           <section className="today-head">
-            <p className="kicker"><i /> {completedToday ? 'TODAY\'S WORK IS DONE' : selectedFocus === recommendedFocus ? 'RELAY\'S RECOMMENDATION' : 'YOUR CHOICE FOR TODAY'}</p>
-            <h1>{completedToday ? <>Strong work.<br />Recover well.</> : <>{focusInfo.label}.<br />Ready when you are.</>}</h1>
-            <p>{completedToday ? `${workoutStats.minutes} minutes completed · ${workoutStats.moves} movements` : `${workoutStats.minutes} minutes · Beginner-friendly · ${equipmentSummary}`}</p>
+            <p className="kicker"><i /> {completedToday ? tr('TODAY\'S WORK IS DONE', '今天的训练已完成') : selectedFocus === recommendedFocus ? tr('RELAY\'S RECOMMENDATION', 'RELAY 今日推荐') : tr('YOUR CHOICE FOR TODAY', '你今天的选择')}</p>
+            <h1>{completedToday ? <>{tr('Strong work.', '做得很好。')}<br />{tr('Recover well.', '好好恢复。')}</> : <>{language === 'zh' ? focusChinese[selectedFocus] : focusInfo.label}{tr('.', '。')}<br />{tr('Ready when you are.', '准备好就开始。')}</>}</h1>
+            <p>{completedToday ? tr(`${workoutStats.minutes} minutes completed · ${workoutStats.moves} movements`, `已完成 ${workoutStats.minutes} 分钟 · ${workoutStats.moves} 个动作`) : tr(`${workoutStats.minutes} minutes · Beginner-friendly · ${equipmentSummary}`, `${workoutStats.minutes} 分钟 · 新手友好 · ${equipmentSummaryChinese(selectedEquipment)}`)}</p>
           </section>
 
           <section className="quick-plan" aria-label="Choose today&apos;s training focus">
             <div className="quick-plan-heading">
-              <div><span>TODAY&apos;S FOCUS</span><strong>{focusInfo.label}</strong><small>{focusInfo.description}</small></div>
-              {selectedFocus !== recommendedFocus && <button type="button" onClick={() => setSelectedFocus(recommendedFocus)}>Use recommendation</button>}
+              <div><span>{tr('TODAY\'S FOCUS', '今日训练部位')}</span><strong>{language === 'zh' ? focusChinese[selectedFocus] : focusInfo.label}</strong><small>{language === 'zh' ? focusDescriptionChinese[selectedFocus] : focusInfo.description}</small></div>
+              {selectedFocus !== recommendedFocus && <button type="button" onClick={() => setSelectedFocus(recommendedFocus)}>{tr('Use recommendation', '使用推荐')}</button>}
             </div>
             <div className="quick-focus-tabs" role="radiogroup" aria-label="Body area">
-              {focusOptions.map((option) => <button className={selectedFocus === option.id ? 'selected' : ''} role="radio" aria-checked={selectedFocus === option.id} type="button" key={option.id} onClick={() => setSelectedFocus(option.id)}>{option.shortLabel}</button>)}
+              {focusOptions.map((option) => <button className={selectedFocus === option.id ? 'selected' : ''} role="radio" aria-checked={selectedFocus === option.id} type="button" key={option.id} onClick={() => setSelectedFocus(option.id)}>{language === 'zh' ? focusShortChinese[option.id] : option.shortLabel}</button>)}
             </div>
           </section>
 
           <section className={`account-strip ${accountStatus === 'signed-in' ? 'account-ready' : ''}`}>
-            {accountStatus === 'loading' && <><span className="account-pulse" /><div><strong>Loading your training</strong><small>Getting today ready…</small></div></>}
             {accountStatus === 'signed-in' && account && <>
               <span className="account-check">✓</span>
-              <div><strong>{account.user.displayName}, your progress is synced</strong><small>{account.user.email} · workouts, wellness and schedule stay with your account</small></div>
-              <button type="button" onClick={() => navigate('you')}>My plan <span>→</span></button>
+              <div><strong>{tr(`${account.user.displayName}, your progress is saved`, `${account.user.displayName}，你的进度已保存`)}</strong><small>{account.user.email} · {tr('workouts, wellness and schedule stay on this device in the GitHub demo', 'GitHub 演示中的训练、健康与日程保存在此设备')}</small></div>
+              <button type="button" onClick={() => navigate('you')}>{tr('My plan', '我的计划')} <span>→</span></button>
             </>}
             {(accountStatus === 'signed-out' || accountStatus === 'error') && <>
               <span className="account-lock">R</span>
-              <div><strong>Keep your progress on every phone</strong><small>Sign in with the email on your ChatGPT account. No extra password.</small></div>
-              <a href="/signin-with-chatgpt?return_to=%2F">Sign in securely <span>→</span></a>
+              <div><strong>Keep your progress on this device</strong><small>Return to the Relay demo account screen.</small></div>
+              <button type="button" onClick={signOut}>Open account screen <span>→</span></button>
             </>}
           </section>
 
@@ -563,30 +659,30 @@ export default function Home() {
 
           <section className={`session-card ${completedToday ? 'completed-card' : ''}`}>
             <div className="session-image">
-              <PhaseGuide key={activeWorkout[0].id} exercise={activeWorkout[0]} compact />
-              <span className="guide-chip">{completedToday ? 'COMPLETED' : `${workoutStats.moves} PHOTO GUIDES`}</span>
+              <PhaseGuide key={activeWorkout[0].id} exercise={activeWorkout[0]} compact language={language} />
+              <span className="guide-chip">{completedToday ? tr('COMPLETED', '已完成') : tr(`${workoutStats.moves} PHOTO GUIDES`, `${workoutStats.moves} 个图片指导`)}</span>
               <button type="button" className="preview-button" onClick={() => startSession()} aria-label="Start coached workout"><span>START</span>→</button>
             </div>
             <div className="session-info">
               <div>
-                <p>{completedToday ? 'SAVED TO YOUR HISTORY' : selectedFocus === recommendedFocus ? 'RECOMMENDED FOR TODAY' : 'CUSTOMIZED FOR TODAY'}</p>
-                <h2>{planName}</h2>
-                <small className="plan-equipment">{equipmentSummary}</small>
+                <p>{completedToday ? tr('SAVED TO YOUR HISTORY', '已保存到训练记录') : selectedFocus === recommendedFocus ? tr('RECOMMENDED FOR TODAY', '今日推荐') : tr('CUSTOMIZED FOR TODAY', '今日定制')}</p>
+                <h2>{language === 'zh' ? `${focusShortChinese[selectedFocus]}训练 01` : planName}</h2>
+                <small className="plan-equipment">{language === 'zh' ? equipmentSummaryChinese(selectedEquipment) : equipmentSummary}</small>
               </div>
-              <div className="session-facts"><span><strong>{workoutStats.minutes}</strong> MIN</span><span><strong>{workoutStats.moves}</strong> MOVES</span><span><strong>{workoutStats.sets}</strong> SETS</span></div>
-              <button className="start-session" type="button" onClick={() => startSession()}>{completedToday ? 'Do it again' : 'Start today’s workout'} <span>→</span></button>
-              <p className="privacy-copy"><b>●</b> Camera coach is optional and runs on this device.</p>
+              <div className="session-facts"><span><strong>{workoutStats.minutes}</strong> {tr('MIN', '分钟')}</span><span><strong>{workoutStats.moves}</strong> {tr('MOVES', '动作')}</span><span><strong>{workoutStats.sets}</strong> {tr('SETS', '组')}</span></div>
+              <button className="start-session" type="button" onClick={() => startSession()}>{completedToday ? tr('Do it again', '再练一次') : tr('Start today’s workout', '开始今天的训练')} <span>→</span></button>
+              <p className="privacy-copy"><b>●</b> {tr('Camera coach is optional and runs on this device.', '摄像指导可选，并且只在本设备运行。')}</p>
             </div>
           </section>
 
           <section className="weekly-rotation">
-            <div><p className="kicker">YOUR WEEKLY ROTATION</p><h2>Balanced across the week.</h2><span>Relay rotates muscle groups so one area is not trained hard every day. Tap any day to use its focus now.</span></div>
+            <div><p className="kicker">{tr('YOUR WEEKLY ROTATION', '你的每周轮换')}</p><h2>{tr('Balanced across the week.', '一周均衡训练。')}</h2><span>{tr('Relay rotates muscle groups so one area is not trained hard every day. Tap any day to use its focus now.', 'Relay 会轮换训练部位，避免同一部位连续高强度训练。点击任意一天即可使用该计划。')}</span></div>
             <div className="rotation-days">
               {weekdayLabels.map((day, weekday) => {
                 const rotationFocus = getFocusOption(weeklyRotation[weekday]);
                 const today = weekday === todayWeekday;
                 return <button className={`${today ? 'today' : ''} ${selectedFocus === weeklyRotation[weekday] ? 'selected' : ''}`} type="button" key={day} onClick={() => setSelectedFocus(weeklyRotation[weekday])}>
-                  <small>{day}</small><strong>{rotationFocus.shortLabel}</strong>{today && <b>TODAY</b>}
+                  <small>{language === 'zh' ? weekdayChinese[weekday] : day}</small><strong>{language === 'zh' ? focusShortChinese[weeklyRotation[weekday]] : rotationFocus.shortLabel}</strong>{today && <b>{tr('TODAY', '今天')}</b>}
                 </button>;
               })}
             </div>
@@ -594,15 +690,15 @@ export default function Home() {
 
           <section className="route-section">
             <div className="route-title">
-              <div><p className="kicker">TODAY&apos;S ROUTE</p><h2>Everything you&apos;ll do</h2></div>
-              <span>{workoutStats.minutes} min total</span>
+              <div><p className="kicker">{tr('TODAY\'S ROUTE', '今天的训练路线')}</p><h2>{tr('Everything you’ll do', '今天的全部动作')}</h2></div>
+              <span>{tr(`${workoutStats.minutes} min total`, `共 ${workoutStats.minutes} 分钟`)}</span>
             </div>
             <div className="simple-list">
               {activeWorkout.map((move, index) => (
                 <button type="button" key={move.id} onClick={() => setPreviewIndex(index)}>
                   <span className="move-number">{(index + 1).toString().padStart(2, '0')}</span>
-                  <span className="move-copy"><strong>{move.name}</strong><small>{move.sets} × {move.targetLabel} · {move.muscles}</small></span>
-                  <span className="move-tag">{move.equipment === 'bodyweight' ? 'Bodyweight' : equipmentOptions.find((option) => option.id === move.equipment)?.shortLabel}</span>
+                  <span className="move-copy"><strong>{language === 'zh' ? exerciseChinese[move.id] ?? move.name : move.name}</strong><small>{move.sets} × {language === 'zh' ? translateTarget(move.targetLabel) : move.targetLabel} · {language === 'zh' ? translateMuscles(move.muscles) : move.muscles}</small></span>
+                  <span className="move-tag">{move.equipment === 'bodyweight' ? tr('Bodyweight', '徒手') : language === 'zh' ? equipmentChinese[move.equipment] : equipmentOptions.find((option) => option.id === move.equipment)?.shortLabel}</span>
                   <span className="move-arrow">›</span>
                 </button>
               ))}
@@ -611,27 +707,27 @@ export default function Home() {
 
           <section className="checkin-section">
             <div className="checkin-heading">
-              <div><p className="kicker">DAILY CHECK-IN</p><h2>Train the person, not just the plan.</h2></div>
-              <span>{accountStatus === 'signed-in' ? 'Saved to your account' : 'Sign in to save'}</span>
+              <div><p className="kicker">{tr('DAILY CHECK-IN', '每日健康记录')}</p><h2>{tr('Train the person, not just the plan.', '训练的是完整的你，而不只是一张计划。')}</h2></div>
+              <span>{accountStatus === 'signed-in' ? tr('Saved to your account', '已保存到你的账户') : tr('Sign in to save', '登录后保存')}</span>
             </div>
             {accountStatus === 'signed-in' && account ? (
               <form className="checkin-form" onSubmit={saveCheckin}>
-                <label><span>Water today</span><div><input inputMode="numeric" type="number" min="0" max="10000" step="250" value={account.todayLog.waterMl} onChange={(event) => updateLog({ waterMl: Number(event.target.value) })} /><small>ML</small></div></label>
-                <label><span>Sleep</span><div><input inputMode="decimal" type="number" min="0" max="16" step="0.5" value={account.todayLog.sleepHours} onChange={(event) => updateLog({ sleepHours: Number(event.target.value) })} /><small>HRS</small></div></label>
-                <label><span>Meals</span><select value={account.todayLog.meals} onChange={(event) => updateLog({ meals: event.target.value })}><option>Needs attention</option><option>Balanced</option><option>On track</option></select></label>
-                <label><span>Energy</span><select value={account.todayLog.energy} onChange={(event) => updateLog({ energy: Number(event.target.value) })}><option value="1">1 · Very low</option><option value="2">2 · Low</option><option value="3">3 · Steady</option><option value="4">4 · Good</option><option value="5">5 · Excellent</option></select></label>
-                <label className="checkin-notes"><span>Anything your coach should know?</span><input type="text" maxLength={500} placeholder="Soreness, stress, appetite, recovery…" value={account.todayLog.notes} onChange={(event) => updateLog({ notes: event.target.value })} /></label>
-                <button type="submit">Save check-in <span>→</span></button>
+                <label><span>{tr('Water today', '今日饮水')}</span><div><input inputMode="numeric" type="number" min="0" max="10000" step="250" value={account.todayLog.waterMl} onChange={(event) => updateLog({ waterMl: Number(event.target.value) })} /><small>ML</small></div></label>
+                <label><span>{tr('Sleep', '睡眠')}</span><div><input inputMode="decimal" type="number" min="0" max="16" step="0.5" value={account.todayLog.sleepHours} onChange={(event) => updateLog({ sleepHours: Number(event.target.value) })} /><small>{tr('HRS', '小时')}</small></div></label>
+                <label><span>{tr('Meals', '饮食')}</span><select value={account.todayLog.meals} onChange={(event) => updateLog({ meals: event.target.value })}><option value="Needs attention">{tr('Needs attention', '需要注意')}</option><option value="Balanced">{tr('Balanced', '均衡')}</option><option value="On track">{tr('On track', '状态良好')}</option></select></label>
+                <label><span>{tr('Energy', '精力')}</span><select value={account.todayLog.energy} onChange={(event) => updateLog({ energy: Number(event.target.value) })}><option value="1">1 · {tr('Very low', '很低')}</option><option value="2">2 · {tr('Low', '较低')}</option><option value="3">3 · {tr('Steady', '稳定')}</option><option value="4">4 · {tr('Good', '良好')}</option><option value="5">5 · {tr('Excellent', '极佳')}</option></select></label>
+                <label className="checkin-notes"><span>{tr('Anything your coach should know?', '有什么需要教练了解的吗？')}</span><input type="text" maxLength={500} placeholder={tr('Soreness, stress, appetite, recovery…', '酸痛、压力、食欲、恢复情况…')} value={account.todayLog.notes} onChange={(event) => updateLog({ notes: event.target.value })} /></label>
+                <button type="submit">{tr('Save check-in', '保存健康记录')} <span>→</span></button>
               </form>
             ) : (
-              <div className="checkin-gate"><p>Your water, sleep, food quality and energy stay private and help keep future training realistic.</p><a href="/signin-with-chatgpt?return_to=%2F">Create my training account <span>→</span></a></div>
+              <div className="checkin-gate"><p>Your water, sleep, food quality and energy stay private and help keep future training realistic.</p><button type="button" onClick={signOut}>Open account screen <span>→</span></button></div>
             )}
           </section>
 
           <section className="camera-promise">
             <div className="camera-icon"><i /><span /></div>
-            <div><p className="kicker">LIVE FORM COACH</p><h2>Your phone can watch the rep—not record your room.</h2><p>Set it 2–3 metres away. Relay maps visible joint positions, counts completed reps, and gives one useful correction at a time.</p></div>
-            <button type="button" onClick={() => { setSessionOpen(true); setStage('camera'); }}>Try camera coach <span>→</span></button>
+            <div><p className="kicker">{tr('LIVE FORM COACH', '实时动作教练')}</p><h2>{tr('Your phone can watch the rep—not record your room.', '手机只看动作，不记录你的房间。')}</h2><p>{tr('Set it 2–3 metres away. Relay maps visible joint positions, counts completed reps, and gives one useful correction at a time.', '将手机放在 2–3 米外。Relay 会识别可见关节、计算次数，并一次给出一个实用纠正建议。')}</p></div>
+            <button type="button" onClick={() => { setSessionOpen(true); setStage('camera'); }}>{tr('Try camera coach', '体验摄像指导')} <span>→</span></button>
           </section>
         </>
       )}
@@ -647,7 +743,7 @@ export default function Home() {
                 <article key={item.id}><span className="history-tick">✓</span><div><small>{formatSessionDate(item.completedAt)}</small><strong>{item.workoutName}</strong><p>{Math.max(1, Math.round(item.durationSeconds / 60))} min · {item.setsCompleted} sets</p></div><b>{item.cameraSets > 0 ? `${item.cameraSets} coached` : 'Complete'}</b></article>
               ))}
             </div> : <div className="empty-history"><span>01</span><h2>Your first session starts here.</h2><p>Finish today&apos;s customized workout and it will appear here automatically.</p><button type="button" onClick={() => navigate('today')}>Choose today&apos;s workout <b>→</b></button></div>}
-          </> : <AccountGate title="Your history, on every device." copy="Sign in with your email-based ChatGPT account to securely save completed workouts and progress." />}
+          </> : <AccountGate title="Your history, ready when you return." copy="Sign in to your Relay demo account to save completed workouts and progress on this device." />}
         </section>
       )}
 
@@ -656,7 +752,8 @@ export default function Home() {
           <p className="kicker">YOUR COACH</p>
           <h1>Simple choices.<br />Clear training.</h1>
           {accountStatus === 'signed-in' && account ? <>
-            <article className="profile-card"><span className="large-avatar">{account.user.displayName.charAt(0).toUpperCase()}</span><div><strong>{account.user.displayName}</strong><small>{account.user.email} · {account.profile.level}</small></div><a href="/signout-with-chatgpt?return_to=%2F">Sign out</a></article>
+            <article className="profile-card"><span className="large-avatar">{account.user.displayName.charAt(0).toUpperCase()}</span><div><strong>{account.user.displayName}</strong><small>{account.user.email} · {account.profile.level}</small></div><button type="button" onClick={signOut}>{tr('Sign out', '退出登录')}</button></article>
+            <article className="membership-card"><div><small>{tr('MEMBERSHIP', '会员状态')}</small><h2>{member.billingPlan === 'trial' ? tr('7-day free trial', '7 天免费试用') : member.billingPlan === 'monthly' ? tr('Monthly membership', '月付会员') : tr('Annual membership', '年付会员')}</h2><p>{trialRemaining !== null ? tr(`${trialRemaining} days remaining. Pricing is still to be announced.`, `剩余 ${trialRemaining} 天。正式价格尚待公布。`) : tr('Demo subscription active. No payment was taken.', '演示订阅已开启，未产生付款。')}</p></div><span>{member.billingPlan === 'trial' ? `${trialRemaining}/7` : '✓'}</span></article>
 
             <article className="profile-form-card">
               <div className="card-heading"><div><small>TRAINING PROFILE</small><h2>Make the plan fit your life.</h2></div><span>Private to your account</span></div>
@@ -693,25 +790,25 @@ export default function Home() {
               <button className={audioEnabled ? 'switch on' : 'switch'} type="button" onClick={() => setAudioEnabled((value) => !value)} aria-pressed={audioEnabled}><i /></button>
             </article>
             <article className="privacy-card"><span className="shield">✓</span><div><small>CAMERA PRIVACY</small><h2>Your video stays yours.</h2><p>Pose tracking runs in your browser. Relay never saves or uploads camera frames; only your completed workout totals are stored.</p></div></article>
-          </> : <AccountGate title="One account. Your complete routine." copy="Sign in with the email on your ChatGPT account to save workouts, daily wellness, goals and your weekly schedule." />}
+          </> : <AccountGate title="One account. Your complete routine." copy="Sign in to your Relay demo account to save workouts, daily wellness, goals and your weekly schedule on this device." />}
         </section>
       )}
 
       <nav className="phone-nav" aria-label="Primary navigation">
-        <button className={view === 'today' ? 'active' : ''} type="button" onClick={() => navigate('today')}><span>●</span>Today</button>
-        <button className={view === 'history' ? 'active' : ''} type="button" onClick={() => navigate('history')}><span>◫</span>History</button>
-        <button className={view === 'you' ? 'active' : ''} type="button" onClick={() => navigate('you')}><span>◌</span>You</button>
+        <button className={view === 'today' ? 'active' : ''} type="button" onClick={() => navigate('today')}><span>●</span>{tr('Today', '今天')}</button>
+        <button className={view === 'history' ? 'active' : ''} type="button" onClick={() => navigate('history')}><span>◫</span>{tr('History', '记录')}</button>
+        <button className={view === 'you' ? 'active' : ''} type="button" onClick={() => navigate('you')}><span>◌</span>{tr('You', '我的')}</button>
       </nav>
-      <footer><span>RELAY / TRAIN WITH CLARITY</span><span>PRIVATE BY DESIGN</span></footer>
+      <footer><span>RELAY / {tr('TRAIN WITH CLARITY', '清晰训练')}</span><span>{tr('PRIVATE BY DESIGN', '隐私优先设计')}</span></footer>
 
       {previewIndex !== null && activeWorkout[previewIndex] && (
-        <ExercisePreview exercise={activeWorkout[previewIndex]} index={previewIndex} total={activeWorkout.length} onClose={() => setPreviewIndex(null)} onStartCamera={() => startSession(previewIndex)} />
+        <ExercisePreview exercise={activeWorkout[previewIndex]} index={previewIndex} total={activeWorkout.length} language={language} onClose={() => setPreviewIndex(null)} onStartCamera={() => startSession(previewIndex)} />
       )}
     </main>
   );
 }
 
-function PhaseGuide({ exercise, compact = false }: { exercise: Exercise; compact?: boolean }) {
+function PhaseGuide({ exercise, compact = false, language = 'en' }: { exercise: Exercise; compact?: boolean; language?: Language }) {
   const [phaseIndex, setPhaseIndex] = useState(0);
   const phase = exercise.phases[phaseIndex] ?? exercise.phases[0];
 
@@ -719,8 +816,8 @@ function PhaseGuide({ exercise, compact = false }: { exercise: Exercise; compact
     <div className={`phase-guide ${compact ? 'phase-guide-compact' : ''}`}>
       <div className="phase-frame">
         <Image className="phase-backdrop" key={`${phase.image}-backdrop`} src={phase.image} alt="" aria-hidden="true" fill sizes={compact ? '(max-width: 760px) 100vw, 65vw' : '(max-width: 760px) 100vw, 55vw'} />
-        <Image className="phase-subject" key={phase.image} src={phase.image} alt={`${exercise.name}: ${phase.label.toLowerCase()} position`} fill sizes={compact ? '(max-width: 760px) 100vw, 65vw' : '(max-width: 760px) 100vw, 55vw'} />
-        <span className="phase-step-badge">STEP {phaseIndex + 1} OF 3</span>
+        <Image className="phase-subject" key={phase.image} src={phase.image} alt={`${language === 'zh' ? exerciseChinese[exercise.id] ?? exercise.name : exercise.name}: ${phase.label.toLowerCase()} position`} fill sizes={compact ? '(max-width: 760px) 100vw, 65vw' : '(max-width: 760px) 100vw, 55vw'} />
+        <span className="phase-step-badge">{language === 'zh' ? `第 ${phaseIndex + 1} 步 / 共 3 步` : `STEP ${phaseIndex + 1} OF 3`}</span>
       </div>
       {!compact && <>
         <div className="phase-tabs" role="tablist" aria-label={`${exercise.name} movement steps`}>
@@ -733,13 +830,13 @@ function PhaseGuide({ exercise, compact = false }: { exercise: Exercise; compact
               key={item.id}
               onClick={() => setPhaseIndex(index)}
             >
-              <small>{index + 1}</small><strong>{item.label}</strong>
+              <small>{index + 1}</small><strong>{language === 'zh' ? phaseChinese[item.id] : item.label}</strong>
             </button>
           ))}
         </div>
         <div className="phase-cue">
           <button type="button" disabled={phaseIndex === 0} onClick={() => setPhaseIndex((value) => Math.max(0, value - 1))} aria-label="Previous movement step">‹</button>
-          <p><span>{phase.label}</span>{phase.cue}</p>
+          <p><span>{language === 'zh' ? phaseChinese[phase.id] : phase.label}</span>{phase.cue}</p>
           <button type="button" disabled={phaseIndex === exercise.phases.length - 1} onClick={() => setPhaseIndex((value) => Math.min(exercise.phases.length - 1, value + 1))} aria-label="Next movement step">›</button>
         </div>
       </>}
@@ -754,24 +851,35 @@ function AccountGate({ title, copy }: { title: string; copy: string }) {
       <small>YOUR PRIVATE TRAINING ACCOUNT</small>
       <h2>{title}</h2>
       <p>{copy}</p>
-      <a href="/signin-with-chatgpt?return_to=%2F">Continue securely <span>→</span></a>
-      <em>No extra password · camera video never uploads</em>
+      <button type="button" onClick={() => window.location.reload()}>Continue securely <span>→</span></button>
+      <em>Camera video never uploads</em>
     </article>
   );
 }
 
-function ExercisePreview({ exercise: item, index, total, onClose, onStartCamera }: { exercise: Exercise; index: number; total: number; onClose: () => void; onStartCamera: () => void }) {
+function TrialPaywall({ language, member, onLanguageChange, onSubscribe, onSignOut }: {
+  language: Language;
+  member: DemoMember;
+  onLanguageChange: (language: Language) => void;
+  onSubscribe: (plan: 'monthly' | 'annual') => void;
+  onSignOut: () => void;
+}) {
+  const tr = (english: string, chinese: string) => language === 'zh' ? chinese : english;
+  return <main className="paywall-shell"><header><button className="wordmark" type="button"><span>R</span>RELAY</button><LanguageSwitch language={language} onChange={onLanguageChange} /></header><section><p className="kicker">{tr('YOUR TRIAL IS COMPLETE', '免费试用已结束')}</p><h1>{tr('Keep your momentum.', '继续保持训练节奏。')}</h1><p>{tr(`Thanks for training with Relay, ${member.displayName}. Choose a plan to keep your history, schedule, and personalized workouts. Prices are not set yet, so these buttons only activate demo access.`, `感谢你使用 Relay 训练，${member.displayName}。选择方案即可继续使用训练记录、日程与个性化计划。价格尚未确定，因此以下按钮只会开启演示权限。`)}</p><div className="paywall-options"><article><span>{tr('MONTHLY', '月付')}</span><h2>{tr('Price coming soon', '价格即将公布')}</h2><p>{tr('Flexible access, billed monthly after launch.', '正式上线后按月灵活付费。')}</p><button type="button" onClick={() => onSubscribe('monthly')}>{tr('Activate monthly demo', '开启月付演示')}<b>→</b></button></article><article className="featured"><small>BEST VALUE</small><span>{tr('ANNUAL', '年付')}</span><h2>{tr('Price coming soon', '价格即将公布')}</h2><p>{tr('One year of consistent coaching at the best value.', '以更优惠的方式获得一整年的持续指导。')}</p><button type="button" onClick={() => onSubscribe('annual')}>{tr('Activate annual demo', '开启年付演示')}<b>→</b></button></article></div><button className="paywall-signout" type="button" onClick={onSignOut}>{tr('Sign out and use another account', '退出并使用其他账户')}</button></section></main>;
+}
+
+function ExercisePreview({ exercise: item, index, total, language, onClose, onStartCamera }: { exercise: Exercise; index: number; total: number; language: Language; onClose: () => void; onStartCamera: () => void }) {
   return (
     <div className="preview-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
       <section className="exercise-preview" role="dialog" aria-modal="true" aria-label={`${item.name} movement guide`}>
         <button className="preview-close" type="button" onClick={onClose} aria-label="Close movement guide">×</button>
         <div className="preview-visual">
-          <PhaseGuide key={item.id} exercise={item} />
+          <PhaseGuide key={item.id} exercise={item} language={language} />
           <span>3-STEP COACH</span><span>LOOK FIRST</span>
         </div>
         <div className="preview-body">
           <p className="kicker">MOVEMENT {index + 1} OF {total}</p>
-          <h2>{item.name}</h2>
+          <h2>{language === 'zh' ? exerciseChinese[item.id] ?? item.name : item.name}</h2>
           <p>{item.intro}</p>
           <div className="preview-dose"><span><small>DO</small><strong>{item.sets} × {item.targetLabel}</strong></span><span><small>REST</small><strong>{item.rest} sec</strong></span></div>
           <ol>{item.tips.map((tip, tipIndex) => <li key={tip}><span>{tipIndex + 1}</span>{tip}</li>)}</ol>
