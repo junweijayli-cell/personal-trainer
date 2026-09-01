@@ -718,7 +718,8 @@ function PhaseGuide({ exercise, compact = false }: { exercise: Exercise; compact
   return (
     <div className={`phase-guide ${compact ? 'phase-guide-compact' : ''}`}>
       <div className="phase-frame">
-        <Image key={phase.image} src={phase.image} alt={`${exercise.name}: ${phase.label.toLowerCase()} position`} fill sizes={compact ? '(max-width: 760px) 100vw, 65vw' : '(max-width: 760px) 100vw, 55vw'} />
+        <Image className="phase-backdrop" key={`${phase.image}-backdrop`} src={phase.image} alt="" aria-hidden="true" fill sizes={compact ? '(max-width: 760px) 100vw, 65vw' : '(max-width: 760px) 100vw, 55vw'} />
+        <Image className="phase-subject" key={phase.image} src={phase.image} alt={`${exercise.name}: ${phase.label.toLowerCase()} position`} fill sizes={compact ? '(max-width: 760px) 100vw, 65vw' : '(max-width: 760px) 100vw, 55vw'} />
         <span className="phase-step-badge">STEP {phaseIndex + 1} OF 3</span>
       </div>
       {!compact && <>

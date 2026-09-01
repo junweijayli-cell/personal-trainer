@@ -595,14 +595,34 @@ footer { display: flex; justify-content: space-between; padding: 34px 2px; color
   flex: 1 1 auto;
   min-height: 280px;
   overflow: hidden;
+  isolation: isolate;
   background: #eadcca;
 }
 .phase-frame img {
   width: 100%;
   height: 100%;
   display: block;
+  object-position: center;
+}
+.phase-frame::after {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(250,247,240,.2), rgba(235,224,209,.34));
+  pointer-events: none;
+}
+.phase-frame .phase-backdrop {
+  z-index: 0;
   object-fit: cover;
-  object-position: center 43%;
+  transform: scale(1.12);
+  filter: blur(24px) saturate(.72);
+  opacity: .42;
+}
+.phase-frame .phase-subject {
+  z-index: 1;
+  object-fit: contain;
+  object-position: center;
 }
 .phase-step-badge {
   position: absolute;
@@ -702,15 +722,17 @@ footer { display: flex; justify-content: space-between; padding: 34px 2px; color
 .preview-visual .phase-step-badge { position: absolute; bottom: auto; left: 16px; top: 16px; background: var(--ink); color: #fff; }
 
 @media (max-width: 760px) {
+  .session-image { height: 56vh; min-height: 420px; max-height: 520px; }
+  .setup-review-panel .setup-video { height: 64vh; min-height: 470px; max-height: 580px; }
   .guide-visual { height: auto; min-height: 0; max-height: none; overflow: visible; }
-  .guide-visual .phase-frame { height: min(48vh, 430px); min-height: 310px; flex: 0 0 auto; }
+  .guide-visual .phase-frame { height: min(64vh, 560px); min-height: 470px; flex: 0 0 auto; }
   .guide-visual > span { display: none; }
   .guide-visual > button { z-index: 4; }
   .phase-tabs { position: sticky; bottom: 0; }
   .phase-tabs button { min-height: 50px; }
   .phase-cue p { font-size: 11px; }
   .preview-visual { min-height: 0; }
-  .preview-visual .phase-frame { min-height: 360px; }
+  .preview-visual .phase-frame { height: min(64vh, 560px); min-height: 470px; }
   .preview-visual > span { display: none; }
   .exercise-preview { display: block; }
 }
