@@ -27,8 +27,8 @@ jobs:
       OSS_ENDPOINT: ${{ vars.ALIBABA_OSS_ENDPOINT }}
       OSS_BUCKET: ${{ vars.ALIBABA_OSS_BUCKET }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -37,6 +37,8 @@ jobs:
       - run: npm test
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e:mobile
+        env:
+          DEPLOY_TARGET: local
       - run: npm run build
       - name: Install official Alibaba Cloud OSS client
         run: sudo -v && curl --fail --silent --show-error https://gosspublic.alicdn.com/ossutil/install.sh | sudo bash
