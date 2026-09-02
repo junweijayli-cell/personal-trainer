@@ -164,10 +164,19 @@ set search_path = ''
 as $$
 begin
   new.updated_at = now();
-  if tg_table_name = 'training_preferences'
-    and new.consent_health_data = true
-    and (old.consent_health_data is distinct from true)
-  then
+  return new;
+end;
+$$;
+
+create or replace function private.set_preferences_updated_at()
+returns trigger
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+begin
+  new.updated_at = now();
+  if new.consent_health_data = true and (old.consent_health_data is distinct from true) then
     new.consent_health_data_at = now();
   end if;
   return new;
@@ -175,7 +184,7 @@ end;
 $$;
 
 create trigger profiles_updated_at before update on public.profiles for each row execute function private.set_updated_at();
-create trigger training_preferences_updated_at before update on public.training_preferences for each row execute function private.set_updated_at();
+create trigger training_preferences_updated_at before update on public.training_preferences for each row execute function private.set_preferences_updated_at();
 create trigger memberships_updated_at before update on public.memberships for each row execute function private.set_updated_at();
 create trigger training_plans_updated_at before update on public.training_plans for each row execute function private.set_updated_at();
 create trigger scheduled_workouts_updated_at before update on public.scheduled_workouts for each row execute function private.set_updated_at();
