@@ -13,6 +13,7 @@ export type Exercise = {
   id: string;
   name: string;
   image: string;
+  video?: string;
   phases: ExercisePhase[];
   sets: number;
   target: number;
@@ -29,9 +30,16 @@ export type Exercise = {
 export type FocusOption = { id: FocusId; label: string; shortLabel: string; description: string };
 export type EquipmentOption = { id: EquipmentId; label: string; shortLabel: string; icon: string };
 
-const mediaVersion = '20260901-photos';
+const mediaVersion = '20260903-higgsfield-video';
 const publicBasePath = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
 const media = (path: string) => `${publicBasePath}${path}?v=${mediaVersion}`;
+
+const exerciseVideos: Record<string, string> = {
+  squat: '/exercises/videos/squat.mp4',
+  'incline-pushup': '/exercises/videos/incline-pushup.mp4',
+  'reverse-lunge': '/exercises/videos/reverse-lunge.mp4',
+  'barbell-squat': '/exercises/videos/barbell-squat.mp4',
+};
 
 export const focusOptions: FocusOption[] = [
   { id: 'legs', label: 'Legs & glutes', shortLabel: 'Legs', description: 'Squat, hinge and single-leg strength' },
@@ -69,7 +77,7 @@ export function getFocusOption(focus: FocusId) {
   return focusOptions.find((option) => option.id === focus) ?? focusOptions[7];
 }
 
-type ExerciseInput = Omit<Exercise, 'image' | 'phases'> & {
+type ExerciseInput = Omit<Exercise, 'image' | 'video' | 'phases'> & {
   phaseCues: [string, string, string];
   finishLabel?: string;
 };
@@ -81,7 +89,8 @@ function makeExercise({ phaseCues, finishLabel = 'Finish', ...exercise }: Exerci
     { id: 'middle', label: 'Move', image: phaseImage('middle'), cue: phaseCues[1] },
     { id: 'finish', label: finishLabel, image: phaseImage('finish'), cue: phaseCues[2] },
   ];
-  return { ...exercise, phases, image: phases[1].image };
+  const video = exerciseVideos[exercise.id] ? media(exerciseVideos[exercise.id]) : undefined;
+  return { ...exercise, phases, image: phases[1].image, video };
 }
 
 const exerciseList: Exercise[] = [

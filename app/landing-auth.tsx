@@ -1,6 +1,5 @@
 'use client';
 
-import Image from 'next/image';
 import { useMemo, useState } from 'react';
 import type { MemberAccount } from './account-types';
 import {
@@ -27,7 +26,7 @@ const copy = {
     phoneKicker: 'TODAY · LEGS', phoneTitle: 'Strong legs. Zero guesswork.', phoneMeta: '20 MIN · 5 MOVES · BARBELL + BENCH', phoneButton: 'Start workout',
     howKicker: 'BUILT FOR REAL LIFE', howTitle: 'Open. Choose. Train.',
     step1: 'Tell Relay what you have', step1c: 'Pick your focus, available equipment, and time.',
-    step2: 'See every movement clearly', step2c: 'Follow setup, movement, and finish photos without cropped limbs.',
+    step2: 'See every movement clearly', step2c: 'Watch a consistent full-body coach video, then inspect the three key positions.',
     step3: 'Build momentum', step3c: 'Log workouts, wellness, and your weekly schedule in one secure account.',
     trialKicker: 'MEMBERSHIP', trialTitle: 'Seven days to feel the difference.', trialCopy: 'Explore the complete product free. After your trial, choose monthly or annual access. No card is required to begin.',
     monthly: 'Monthly', annual: 'Annual', bestValue: 'BEST VALUE', priceTbd: 'Price coming soon', planMonthly: 'Flexible month-to-month access', planAnnual: 'Best value for consistent training', startTrial: 'Start free trial',
@@ -47,7 +46,7 @@ const copy = {
     phoneKicker: '今天 · 腿部', phoneTitle: '练强双腿。无需猜测。', phoneMeta: '20 分钟 · 5 个动作 · 杠铃 + 训练凳', phoneButton: '开始训练',
     howKicker: '为真实生活而设计', howTitle: '打开。选择。训练。',
     step1: '告诉 Relay 你有什么', step1c: '选择训练部位、可用器械与时间。',
-    step2: '看清每一个动作', step2c: '按照准备、动作、完成三张全身图片练习。',
+    step2: '看清每一个动作', step2c: '先看完整全身动作视频，再查看准备、动作与完成三个关键姿势。',
     step3: '持续积累进步', step3c: '用一个安全账户记录训练、健康状态与每周安排。',
     trialKicker: '会员方案', trialTitle: '七天，感受真正的改变。', trialCopy: '免费体验完整产品。试用结束后可选择月付或年付，开始试用无需绑卡。',
     monthly: '月付', annual: '年付', bestValue: '最超值', priceTbd: '价格即将公布', planMonthly: '灵活的按月使用方式', planAnnual: '长期坚持训练的最佳价值', startTrial: '开始免费试用',
@@ -167,7 +166,7 @@ export default function LandingAuth({ language, onLanguageChange, onAuthenticate
 
       <section className="landing-hero">
         <div className="hero-copy"><p className="kicker"><i /> {text.eyebrow}</p><h1>{text.heroA}<br /><em>{text.heroB}</em></h1><p>{text.heroCopy}</p><button type="button" onClick={() => openAuth('signup')}>{text.cta}<span>→</span></button><small>✓ {text.noCharge}</small><div className="hero-stats"><span><b>01</b>{text.stat1}</span><span><b>02</b>{text.stat2}</span><span><b>03</b>{text.stat3}</span></div></div>
-        <div className="hero-device" aria-label="Relay workout preview"><div className="device-top"><span>9:41</span><b>RELAY</b><i>●</i></div><div className="device-copy"><small>{text.phoneKicker}</small><h2>{text.phoneTitle}</h2><p>{text.phoneMeta}</p></div><div className="device-image"><Image src={asset('/exercises/phase-guides/barbell-squat-middle.webp')} alt="Full-body barbell squat coach" fill sizes="(max-width: 760px) 88vw, 420px" /></div><button type="button" onClick={() => openAuth('signup')}>{text.phoneButton}<span>→</span></button></div>
+        <div className="hero-device" aria-label="Relay workout preview"><div className="device-top"><span>9:41</span><b>RELAY</b><i>●</i></div><div className="device-copy"><small>{text.phoneKicker}</small><h2>{text.phoneTitle}</h2><p>{text.phoneMeta}</p></div><div className="device-image"><video autoPlay muted loop playsInline controls preload="metadata" poster={asset('/exercises/phase-guides/barbell-squat-middle.webp')} aria-label={language === 'zh' ? '杠铃深蹲完整动作视频' : 'Full-body barbell squat movement video'}><source src={asset('/exercises/videos/barbell-squat.mp4')} type="video/mp4" />{language === 'zh' ? '你的浏览器无法播放此视频。' : 'Your browser cannot play this video.'}</video></div><button type="button" onClick={() => openAuth('signup')}>{text.phoneButton}<span>→</span></button></div>
       </section>
 
       <section className="landing-steps" id="how"><div className="landing-section-title"><p className="kicker">{text.howKicker}</p><h2>{text.howTitle}</h2></div><div className="step-cards" id="benefits"><article><b>01</b><h3>{text.step1}</h3><p>{text.step1c}</p></article><article><b>02</b><h3>{text.step2}</h3><p>{text.step2c}</p></article><article><b>03</b><h3>{text.step3}</h3><p>{text.step3c}</p></article></div></section>

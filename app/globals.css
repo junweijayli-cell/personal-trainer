@@ -652,7 +652,7 @@ footer { display: flex; justify-content: space-between; padding: 34px 2px; color
   .coach-choice.compact { grid-template-columns: 1fr; }
 }
 
-/* Three-phase photo coaching */
+/* Movement video and three-phase photo coaching */
 .phase-guide {
   width: 100%;
   height: 100%;
@@ -662,6 +662,38 @@ footer { display: flex; justify-content: space-between; padding: 34px 2px; color
   background: #f7f2e9;
   color: var(--ink);
 }
+.guide-mode-switch {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+  padding: 8px;
+  border-bottom: 1px solid var(--line);
+  background: var(--card);
+}
+.guide-mode-switch button {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  background: transparent;
+  color: #676b65;
+  font-size: 9px;
+  font-weight: 900;
+  cursor: pointer;
+}
+.guide-mode-switch button.active {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: #fff;
+}
+.guide-mode-switch button span {
+  color: var(--lime);
+  font-size: 10px;
+}
 .phase-frame {
   position: relative;
   flex: 1 1 auto;
@@ -670,6 +702,19 @@ footer { display: flex; justify-content: space-between; padding: 34px 2px; color
   isolation: isolate;
   background: #eadcca;
 }
+.movement-video-frame { background: #181b18; }
+.movement-video {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+  object-position: center;
+  background: #181b18;
+}
+.movement-video-frame::after { display: none; }
+.video-badge { background: rgba(21,23,21,.88); color: var(--lime); }
 .phase-frame img {
   width: 100%;
   height: 100%;
@@ -785,6 +830,51 @@ footer { display: flex; justify-content: space-between; padding: 34px 2px; color
   letter-spacing: .1em;
   text-transform: uppercase;
 }
+.video-coach-note {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: stretch;
+  padding: 10px 11px 11px;
+  background: var(--card);
+}
+.video-coach-note p {
+  min-height: 53px;
+  display: grid;
+  align-content: center;
+  margin: 0;
+  border-radius: 12px;
+  background: var(--ink);
+  color: #fff;
+  padding: 9px 13px;
+  font-size: 10px;
+  line-height: 1.4;
+}
+.video-coach-note p span {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--lime);
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: .1em;
+}
+.video-coach-note button {
+  min-width: 132px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--ink);
+  padding: 10px 12px;
+  font-size: 8px;
+  font-weight: 900;
+  cursor: pointer;
+}
+.video-coach-note button b { font-size: 14px; }
 .phase-guide-compact .phase-frame { height: 100%; min-height: 100%; }
 .phase-guide-compact .phase-step-badge { display: none; }
 .setup-video .phase-guide-compact,
@@ -803,6 +893,9 @@ footer { display: flex; justify-content: space-between; padding: 34px 2px; color
   .phase-tabs { position: sticky; bottom: 0; }
   .phase-tabs button { min-height: 50px; }
   .phase-cue p { font-size: 11px; }
+  .guide-mode-switch { position: sticky; top: 0; z-index: 3; }
+  .video-coach-note { grid-template-columns: 1fr; }
+  .video-coach-note button { min-height: 44px; }
   .preview-visual { min-height: 0; }
   .preview-visual .phase-frame { height: min(64vh, 560px); min-height: 470px; }
   .preview-visual > span { display: none; }
@@ -843,6 +936,7 @@ footer { display: flex; justify-content: space-between; padding: 34px 2px; color
 .device-copy p { margin: 10px 0 0; color: var(--muted); font-size: 8px; font-weight: 750; }
 .device-image { position: relative; height: 420px; margin: 0 11px; overflow: hidden; border: 1px solid var(--line); border-radius: 22px; background: #e6dbcb; }
 .device-image img { object-fit: contain; }
+.device-image video { width: 100%; height: 100%; display: block; object-fit: contain; background: #181b18; }
 .hero-device > button { width: calc(100% - 36px); display: flex; justify-content: space-between; margin: 16px 18px 19px; border: 0; border-radius: 13px; background: var(--ink); color: white; padding: 15px 16px; font-size: 10px; font-weight: 850; cursor: pointer; }
 .landing-steps { background: var(--ink); color: white; padding: 92px max(28px, calc((100% - 1240px) / 2)); }
 .landing-section-title h2 { margin: 0; font-size: clamp(46px, 6vw, 78px); line-height: .9; letter-spacing: -.065em; }

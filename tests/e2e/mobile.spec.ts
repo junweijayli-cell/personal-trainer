@@ -3,6 +3,12 @@ import { expect, test } from '@playwright/test';
 test('landing and secure signup are usable on a phone', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { name: /Train with clarity/i })).toBeVisible();
+  const previewVideo = page.getByLabel('Full-body barbell squat movement video');
+  await expect(previewVideo).toBeVisible();
+  await expect.poll(() => previewVideo.evaluate((element: HTMLVideoElement) => element.readyState)).toBeGreaterThan(0);
+  const videoBox = await previewVideo.boundingBox();
+  expect(videoBox?.width).toBeGreaterThan(250);
+  expect(videoBox?.height).toBeGreaterThan(300);
   await page.getByRole('button', { name: /Start 7-day free trial/i }).first().click();
   await expect(page.getByRole('dialog')).toBeVisible();
   await expect(page.getByRole('heading', { name: /Create your Relay account/i })).toBeVisible();
