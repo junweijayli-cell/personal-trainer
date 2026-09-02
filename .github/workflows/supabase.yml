@@ -1,0 +1,45 @@
+name: Deploy Relay Supabase backend
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/**'
+      - '.github/workflows/supabase.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: vars.SUPABASE_DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: supabase/setup-cli@v3
+        with:
+          version: latest
+      - name: Link production project
+        run: supabase link --project-ref "$PROJECT_ID"
+      - name: Validate and apply migrations
+        run: supabase db push --include-all
+      - name: Deploy server functions
+        run: |
+          supabase functions deploy create-checkout-session --project-ref "$PROJECT_ID"
+          supabase functions deploy create-customer-portal-session --project-ref "$PROJECT_ID"
+          supabase functions deploy get-billing-catalog --project-ref "$PROJECT_ID" --no-verify-jwt
+          supabase functions deploy delete-account --project-ref "$PROJECT_ID"
+          supabase functions deploy stripe-webhook --project-ref "$PROJECT_ID" --no-verify-jwt

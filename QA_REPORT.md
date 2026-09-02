@@ -1,38 +1,49 @@
-# Relay Coach launch-demo QA report
+# Relay Coach production-foundation QA report
 
 Date: 2026-09-02
 
-## Test profile
+## Completed verification
 
-- Phone viewport: 390 × 844
-- Test identity: `victoryg•••@gmail.com` (masked for the public repository)
-- Test password: generated only for the local demo and intentionally not recorded
-- Account type: seven-day trial
+- Production Next.js static build: passed
+- ESLint and TypeScript checks: passed
+- Server-time membership/trial unit tests: 4 passed
+- Mobile journeys at 360, 390, and 430 pixels: 9 passed
+- Staging account tests: present and intentionally skipped until protected staging credentials are supplied
+- Browser user review: landing page loaded, English and Chinese modes switched, signup modal opened, password and consent controls were present, and no browser errors or warnings were reported
+- GitHub Pages base-path build: covered by the deployment workflow
+- Database migrations and RLS pgTAP tests: automated in the database security workflow
 
-## User journey tested
+## User journey covered by automation
 
-1. Opened the public landing experience on a phone-sized screen.
-2. Switched English → Chinese → English.
-3. Opened the seven-day trial form.
-4. Entered name, email, password, password confirmation, and consent.
-5. Generated and entered a six-digit demo verification code.
-6. Reached the signed-in workout product with seven trial days remaining.
-7. Signed out, then signed back in with the same local demo account.
-8. Opened the member profile and confirmed trial status, training profile, and weekly schedule.
-9. Built an equipment workout using a barbell rack and bench.
-10. Advanced through the ready check into the full-body three-step movement guide.
+1. Open the landing page on each supported phone width.
+2. Switch from English to Chinese and confirm the translated account entry points.
+3. Open the seven-day trial form.
+4. Confirm name, email, strong-password, confirmation, consent, CAPTCHA, and six-digit verification surfaces.
+5. Confirm that an unconfigured deployment cannot silently fall back to browser-only credentials.
+6. With protected staging credentials, sign in to a real server-backed member account and open its plan.
 
-## Feedback found and improvements applied
+## Security checks encoded in the product
 
-- Returning-user sign-in was hidden on small screens. The mobile header now keeps Sign in visible.
-- Chinese mode still showed English units, workout metrics, muscle groups, and wellness labels. The primary training and health surfaces now translate these values.
-- Entering a workout after scrolling left the page below the top of the coach image, which made the person look cropped. Every setup, exercise, and stage transition now returns to the top automatically.
-- Account language previously referred to ChatGPT sign-in and cloud sync. It now accurately describes the GitHub demo and its on-device storage.
-- Password requirements were easy to miss. The sign-up form now includes validation and a visible strength meter.
-- Pricing is undecided. Monthly and annual plans clearly say “Price coming soon,” and the demo never presents a real charge.
+- Trial dates are created only after email verification and compared using PostgreSQL server time.
+- Clearing browser storage or changing a device clock cannot grant a second trial.
+- Browser clients can only select `monthly` or `annual`; Price IDs and access durations are server-controlled.
+- A Checkout return URL does not grant access. Only a signed Stripe webhook can change membership access.
+- Webhook event IDs are persisted and duplicate delivery is idempotent.
+- RLS tests cover cross-account profile and wellness access and membership write denial.
+- Demo passwords, demo trial dates, and demo billing state are never imported.
+- Password reset responses are generic to prevent account discovery.
 
-## Production-readiness boundary
+## External tests required before accepting real customers
 
-GitHub Pages is static hosting. It cannot securely send email, store password credentials, manage server-side trials, or charge subscriptions. The public demo therefore uses an explicit on-device verification simulator and hashes the demo password before local storage. It must not be treated as production authentication.
+These checks require service accounts and cannot be truthfully completed in an unconfigured repository:
 
-Before taking payments or onboarding real customers, connect a managed authentication and billing backend. Recommended minimum: Supabase Auth with email OTP, a database row for trial/subscription state, and Stripe Checkout with verified webhooks.
+- deliver a real signup OTP and password-reset email through staging SMTP
+- test incorrect, expired, reused, and rate-limited OTPs
+- test second-device synchronization and deletion using a verified staging account
+- complete Stripe monthly/annual lifecycle tests, webhook replay/out-of-order tests, and test-clock renewal/failure tests
+- complete China Alipay asynchronous success/failure, prepaid renewal, and expiry tests
+- run both regional k6 profiles at 500 concurrent users for 30 minutes
+- restore a production-like backup into an isolated environment and document recovery time
+- confirm Sentry, uptime, database, webhook, and backup alerts reach the operating team
+
+No production claim should be made for an unchecked item above. Automated payments must remain in Stripe test mode until every applicable launch gate passes.

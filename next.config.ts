@@ -1,6 +1,7 @@
 import type { NextConfig } from 'next';
 
-const isGitHubPages = process.env.GITHUB_ACTIONS === 'true';
+const deployTarget = process.env.DEPLOY_TARGET ?? (process.env.GITHUB_ACTIONS === 'true' ? 'github-pages' : 'local');
+const isGitHubPages = deployTarget === 'github-pages';
 const repositoryName = process.env.GITHUB_REPOSITORY?.split('/')[1] ?? 'personal-trainer';
 const basePath = isGitHubPages ? `/${repositoryName}` : '';
 

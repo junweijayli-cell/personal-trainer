@@ -10,6 +10,78 @@
   --orange: #ff6737;
 }
 
+/* Production account, privacy, and migration states */
+.backend-notice {
+  width: min(1180px, calc(100% - 32px));
+  margin: 0 auto 28px;
+  padding: 18px 22px;
+  border: 1px solid #b56a24;
+  border-radius: 16px;
+  background: #fff7e7;
+  color: #3f2a17;
+}
+
+.backend-notice strong { display: block; margin-bottom: 5px; font-size: 15px; }
+.backend-notice p { margin: 0; color: #684a2d; line-height: 1.5; }
+.auth-notice { border-radius: 10px; background: #edf7ef; color: #194d36; padding: 12px 14px; line-height: 1.5; }
+.forgot-link { display: block; margin: 12px auto 0; border: 0; background: transparent; color: #315f4c; text-decoration: underline; cursor: pointer; }
+.turnstile-frame { min-height: 65px; display: grid; place-items: center; margin: 12px 0; }
+
+.health-consent {
+  grid-column: 1 / -1;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: flex-start !important;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 12px;
+  background: #f1f7f2;
+  color: #29463b;
+  line-height: 1.45;
+}
+.health-consent input { width: 18px !important; height: 18px; margin-top: 2px; flex: 0 0 auto; }
+
+.legacy-import-card,
+.account-actions-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 22px;
+  padding: 24px;
+  border: 1px solid #d8ddcf;
+  border-radius: 18px;
+  background: #fff;
+}
+.legacy-import-card { background: #fff7d9; border-color: #d8bd68; }
+.legacy-import-card small,
+.account-actions-card small { color: #47715f; font-weight: 800; letter-spacing: .14em; }
+.legacy-import-card h2,
+.account-actions-card h2 { margin: 7px 0; font-size: clamp(21px, 4vw, 29px); }
+.legacy-import-card p,
+.account-actions-card p { margin: 0; color: #617069; line-height: 1.55; }
+.legacy-import-card > button {
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 999px;
+  padding: 13px 18px;
+  background: #173f32;
+  color: white;
+  font-weight: 800;
+  cursor: pointer;
+}
+.account-actions-card > div:last-child { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.account-actions-card button { border: 1px solid #b7c5bc; border-radius: 999px; padding: 11px 14px; background: #fff; color: #173f32; font-weight: 750; cursor: pointer; }
+.account-actions-card button.danger { border-color: #d8a39c; color: #8f3027; }
+.account-save-status { margin: 0; padding: 12px 14px; border-radius: 12px; background: #edf7ef; color: #194d36; }
+
+@media (max-width: 720px) {
+  .legacy-import-card,
+  .account-actions-card { align-items: stretch; flex-direction: column; }
+  .legacy-import-card > button { width: 100%; }
+  .account-actions-card > div:last-child { justify-content: stretch; }
+  .account-actions-card button { flex: 1 1 100%; }
+}
+
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
 body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--font-geist-sans), Arial, sans-serif; }
@@ -786,6 +858,7 @@ footer { display: flex; justify-content: space-between; padding: 34px 2px; color
 .landing-pricing h2 { max-width: 620px; margin: 0; font-size: clamp(49px, 5.6vw, 77px); line-height: .88; letter-spacing: -.068em; }
 .landing-pricing > div:first-child > p:not(.kicker) { max-width: 590px; margin: 22px 0 28px; color: var(--muted); font-size: 13px; line-height: 1.65; }
 .price-options { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; }
+.price-options.single-plan { grid-template-columns: minmax(0, 1fr); }
 .price-options article { min-height: 270px; display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 22px; background: var(--card); padding: 24px; }
 .price-options article.annual { position: relative; border-color: var(--ink); background: var(--ink); color: white; }
 .price-options article > small { position: absolute; top: -12px; right: 18px; border-radius: 99px; background: var(--lime); color: var(--ink); padding: 7px 9px; font-size: 7px; font-weight: 950; }

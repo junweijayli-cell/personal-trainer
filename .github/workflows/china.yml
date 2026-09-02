@@ -1,0 +1,44 @@
+name: Build and publish Relay China frontend
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: china-production
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: china-production
+    env:
+      DEPLOY_TARGET: china
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.CHINA_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.CHINA_SUPABASE_PUBLISHABLE_KEY }}
+      NEXT_PUBLIC_MARKET: cn
+      NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${{ secrets.CHINA_CAPTCHA_SITE_KEY }}
+      NEXT_PUBLIC_SENTRY_DSN: ${{ secrets.CHINA_SENTRY_DSN }}
+      OSS_ACCESS_KEY_ID: ${{ secrets.ALIBABA_OSS_ACCESS_KEY_ID }}
+      OSS_ACCESS_KEY_SECRET: ${{ secrets.ALIBABA_OSS_ACCESS_KEY_SECRET }}
+      OSS_REGION: ${{ vars.ALIBABA_OSS_REGION }}
+      OSS_ENDPOINT: ${{ vars.ALIBABA_OSS_ENDPOINT }}
+      OSS_BUCKET: ${{ vars.ALIBABA_OSS_BUCKET }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e:mobile
+      - run: npm run build
+      - name: Install official Alibaba Cloud OSS client
+        run: sudo -v && curl --fail --silent --show-error https://gosspublic.alicdn.com/ossutil/install.sh | sudo bash
+      - name: Publish immutable build to OSS
+        run: ossutil cp out/ "oss://${OSS_BUCKET}/" --recursive --force

@@ -5,17 +5,24 @@ import Image from 'next/image';
 import CameraCoach from './camera-coach';
 import LandingAuth, { LanguageSwitch, type Language } from './landing-auth';
 import {
-  getActiveMember,
-  hasProductAccess,
-  loadDemoSnapshot,
-  saveDemoSnapshot,
-  signOutDemoMember,
-  trialDaysRemaining,
-  updateDemoBilling,
-  type BillingPlan,
-  type DemoMember,
-} from './demo-auth';
-import type { AccountSnapshot, DailyLog, ScheduleItem } from './account-types';
+  createCheckout,
+  createCustomerPortal,
+  deleteAccount,
+  downloadAccountExport,
+  getActiveSession,
+  importLegacySnapshot,
+  loadAccountSnapshot,
+  loadMember,
+  observeAuth,
+  readLegacySnapshot,
+  saveTrainingProfile,
+  saveTrainingSchedule,
+  saveWellnessLog,
+  saveWorkout as saveWorkoutToAccount,
+  signOutAccount,
+} from './account-service';
+import { membershipDaysRemaining, membershipHasAccess } from './membership';
+import type { AccountSnapshot, DailyLog, MemberAccount, ScheduleItem } from './account-types';
 import {
   buildWorkout,
   equipmentOptions,
@@ -90,7 +97,7 @@ function calculateStreak(dates: string[]) {
 
 export default function Home() {
   const [language, setLanguage] = useState<Language>('en');
-  const [member, setMember] = useState<DemoMember | null>(null);
+  const [member, setMember] = useState<MemberAccount | null>(null);
   const [recommendedFocus, setRecommendedFocus] = useState<FocusId>('full-body');
   const [view, setView] = useState<View>('today');
   const [sessionOpen, setSessionOpen] = useState(false);
@@ -128,6 +135,8 @@ export default function Home() {
   const [saveStatus, setSaveStatus] = useState('');
   const [pendingExerciseIndex, setPendingExerciseIndex] = useState(0);
   const [todayWeekday, setTodayWeekday] = useState(-1);
+  const [passwordRecovery, setPasswordRecovery] = useState(false);
+  const [legacySnapshot, setLegacySnapshot] = useState<AccountSnapshot | null>(null);
   const exercise = activeWorkout[exerciseIndex] ?? activeWorkout[0];
   const completedSetCount = setsDone.reduce((sum, count) => sum + count, 0);
   const sessionPercent = Math.round(completedSetCount / totalSets * 100);
@@ -136,7 +145,7 @@ export default function Home() {
     ? Math.max(1, Math.round(sessionHistory.reduce((sum, session) => sum + session.durationSeconds, 0) / 60))
     : 0;
   const trainingStreak = calculateStreak(sessionHistory.map((session) => session.completedAt));
-  const trialRemaining = member ? trialDaysRemaining(member) : null;
+  const trialRemaining = member ? membershipDaysRemaining(member.membership) : null;
   const tr = (english: string, chinese: string) => language === 'zh' ? chinese : english;
 
   useEffect(() => {
@@ -150,25 +159,50 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
+    let cancelled = false;
+    async function hydrate() {
       try {
         const savedLanguage = window.localStorage.getItem('relay-language');
         if (savedLanguage === 'zh' || savedLanguage === 'en') setLanguage(savedLanguage);
-        const activeMember = getActiveMember();
-        if (!activeMember) {
-          setAccountStatus('signed-out');
+        const isReset = new URLSearchParams(window.location.search).get('reset') === '1';
+        if (isReset) {
+          if (!cancelled) { setPasswordRecovery(true); setAccountStatus('signed-out'); }
           return;
         }
-        const snapshot = loadDemoSnapshot(activeMember);
+        const session = await getActiveSession();
+        if (!session) {
+          if (!cancelled) setAccountStatus('signed-out');
+          return;
+        }
+        const activeMember = await loadMember(session);
+        const snapshot = await loadAccountSnapshot(activeMember);
+        if (cancelled) return;
         setMember(activeMember);
         setAccount(snapshot);
+        setSelectedEquipment(snapshot.profile.equipment.filter((item): item is EquipmentId => equipmentOptions.some((option) => option.id === item)));
+        setLegacySnapshot(readLegacySnapshot(activeMember.email));
+        setLanguage(activeMember.locale);
         setAccountStatus('signed-in');
-        setCompletedToday(snapshot.sessions.some((session) => localDateKey(new Date(session.completedAt)) === localDateKey()));
+        setCompletedToday(snapshot.sessions.some((item) => localDateKey(new Date(item.completedAt)) === localDateKey()));
       } catch {
-        setAccountStatus('error');
+        if (!cancelled) setAccountStatus('error');
       }
-    }, 0);
-    return () => window.clearTimeout(timer);
+    }
+    void hydrate();
+    const unsubscribe = observeAuth((event) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setPasswordRecovery(true);
+        setMember(null);
+        setAccount(null);
+        setAccountStatus('signed-out');
+      }
+      if (event === 'SIGNED_OUT') {
+        setMember(null);
+        setAccount(null);
+        setAccountStatus('signed-out');
+      }
+    });
+    return () => { cancelled = true; unsubscribe(); };
   }, []);
 
   useEffect(() => {
@@ -179,10 +213,6 @@ export default function Home() {
       // Language preferences are optional.
     }
   }, [language]);
-
-  useEffect(() => {
-    if (member && account) saveDemoSnapshot(member.email, account);
-  }, [member, account]);
 
   useEffect(() => {
     try {
@@ -284,46 +314,87 @@ export default function Home() {
 
   async function postAccount(action: string, data?: unknown) {
     if (!account || !member) throw new Error(tr('Sign in to save this.', '请先登录后保存。'));
-    let snapshot = { ...account };
     if (action === 'save-workout') {
-      const workout = data as { workoutName: string; durationSeconds: number; setsCompleted: number; movementsCompleted: number; cameraSets: number };
-      snapshot = {
-        ...snapshot,
-        sessions: [{
-          id: crypto.randomUUID(), workoutName: workout.workoutName, completedAt: new Date().toISOString(),
-          durationSeconds: workout.durationSeconds, setsCompleted: workout.setsCompleted,
-          movementsCompleted: workout.movementsCompleted, cameraSets: workout.cameraSets,
-        }, ...snapshot.sessions],
-      };
+      await saveWorkoutToAccount(member, data as Parameters<typeof saveWorkoutToAccount>[1]);
+    } else if (action === 'save-checkin') {
+      await saveWellnessLog(member, data as DailyLog);
+    } else if (action === 'save-profile') {
+      await saveTrainingProfile(member, data as AccountSnapshot['profile']);
+    } else if (action === 'save-schedule') {
+      await saveTrainingSchedule(member, data as ScheduleItem[]);
+    } else {
+      throw new Error('Unsupported account update.');
     }
-    saveDemoSnapshot(member.email, snapshot);
+    const snapshot = await loadAccountSnapshot(member);
     setAccount(snapshot);
     setAccountStatus('signed-in');
     return snapshot;
   }
 
-  function completeAuthentication(nextMember: DemoMember) {
-    const snapshot = loadDemoSnapshot(nextMember);
-    setMember(nextMember);
-    setAccount(snapshot);
-    setAccountStatus('signed-in');
-    setView('today');
-    window.scrollTo({ top: 0 });
+  async function completeAuthentication(nextMember: MemberAccount) {
+    setAccountStatus('loading');
+    try {
+      const snapshot = await loadAccountSnapshot(nextMember);
+      setMember(nextMember);
+      setAccount(snapshot);
+      setSelectedEquipment(snapshot.profile.equipment.filter((item): item is EquipmentId => equipmentOptions.some((option) => option.id === item)));
+      setLegacySnapshot(readLegacySnapshot(nextMember.email));
+      setLanguage(nextMember.locale);
+      setPasswordRecovery(false);
+      setAccountStatus('signed-in');
+      setView('today');
+      window.scrollTo({ top: 0 });
+    } catch {
+      setAccountStatus('error');
+    }
   }
 
   function signOut() {
-    signOutDemoMember();
     setMember(null);
     setAccount(null);
+    setLegacySnapshot(null);
     setAccountStatus('signed-out');
     setView('today');
     window.scrollTo({ top: 0 });
+    void signOutAccount();
   }
 
-  function selectSubscription(plan: Exclude<BillingPlan, 'trial'>) {
+  async function selectSubscription(plan: 'monthly' | 'annual') {
     if (!member) return;
-    setMember(updateDemoBilling(member, plan));
-    setSaveStatus(tr(`${plan === 'monthly' ? 'Monthly' : 'Annual'} demo access activated. No payment was taken.`, `${plan === 'monthly' ? '月付' : '年付'}演示权限已开启，未产生任何付款。`));
+    setSaveStatus(tr('Opening secure checkout…', '正在打开安全支付页面…'));
+    try {
+      window.location.assign(await createCheckout(plan));
+    } catch (error) {
+      setSaveStatus(error instanceof Error ? error.message : tr('Checkout is unavailable.', '暂时无法支付。'));
+    }
+  }
+
+  async function manageBilling() {
+    setSaveStatus(tr('Opening billing settings…', '正在打开账单设置…'));
+    try { window.location.assign(await createCustomerPortal()); }
+    catch (error) { setSaveStatus(error instanceof Error ? error.message : tr('Billing settings are unavailable.', '暂时无法打开账单设置。')); }
+  }
+
+  async function importDeviceData() {
+    if (!member || !legacySnapshot) return;
+    setSaveStatus(tr('Importing this device’s history…', '正在导入此设备的记录…'));
+    try {
+      await importLegacySnapshot(member, legacySnapshot);
+      const imported = await loadAccountSnapshot(member);
+      setAccount(imported);
+      setSelectedEquipment(imported.profile.equipment.filter((item): item is EquipmentId => equipmentOptions.some((option) => option.id === item)));
+      setLegacySnapshot(null);
+      setSaveStatus(tr('Your device history is now secured in your account.', '此设备的记录已安全导入账户。'));
+    } catch (error) { setSaveStatus(error instanceof Error ? error.message : tr('Import failed.', '导入失败。')); }
+  }
+
+  async function removeAccount() {
+    if (!member) return;
+    const confirmed = window.confirm(tr('Delete your Relay account and all saved data? Active billing will be canceled. This cannot be undone.', '删除 Relay 账户及全部数据？当前订阅也会取消，此操作无法撤销。'));
+    if (!confirmed) return;
+    setSaveStatus(tr('Deleting your account…', '正在删除账户…'));
+    try { await deleteAccount(); signOut(); }
+    catch (error) { setSaveStatus(error instanceof Error ? error.message : tr('Account deletion failed.', '账户删除失败。')); }
   }
 
   async function saveWorkout() {
@@ -350,11 +421,30 @@ export default function Home() {
     setView('today');
   }
 
+  async function beginWorkout() {
+    if (member && account) {
+      const nextProfile = {
+        ...account.profile,
+        equipment: selectedEquipment,
+        preferredFocus: [selectedFocus],
+      };
+      setAccount({ ...account, profile: nextProfile });
+      try { await saveTrainingProfile(member, nextProfile); }
+      catch (error) { setSaveStatus(error instanceof Error ? error.message : tr('Could not save your training preferences.', '无法保存你的训练偏好。')); }
+    }
+    setStage(coachingMode === 'camera' ? 'camera' : 'guide');
+  }
+
   async function saveCheckin(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!account) return;
+    if (!account.profile.consentHealthData) {
+      setSaveStatus(tr('Please consent before saving wellness information.', '保存健康信息前请先同意数据处理。'));
+      return;
+    }
     setSaveStatus('Saving today’s check-in…');
     try {
+      if (member) await saveTrainingProfile(member, account.profile);
       await postAccount('save-checkin', account.todayLog);
       setSaveStatus('Today’s check-in is saved.');
     } catch (error) {
@@ -414,10 +504,10 @@ export default function Home() {
   }
 
   if (!member || !account) {
-    return <LandingAuth language={language} onLanguageChange={setLanguage} onAuthenticated={completeAuthentication} />;
+    return <LandingAuth language={language} onLanguageChange={setLanguage} onAuthenticated={completeAuthentication} initialMode={passwordRecovery ? 'reset' : undefined} />;
   }
 
-  if (!hasProductAccess(member)) {
+  if (!membershipHasAccess(member.membership)) {
     return <TrialPaywall language={language} member={member} onLanguageChange={setLanguage} onSubscribe={selectSubscription} onSignOut={signOut} />;
   }
 
@@ -482,13 +572,13 @@ export default function Home() {
               <div className="plan-mini-list">
                 {activeWorkout.map((item, index) => <span key={item.id}><b>{index + 1}</b><strong>{language === 'zh' ? exerciseChinese[item.id] ?? item.name : item.name}</strong><small>{item.equipment === 'bodyweight' ? tr('Bodyweight', '徒手') : language === 'zh' ? equipmentChinese[item.equipment] : equipmentOptions.find((option) => option.id === item.equipment)?.label}</small></span>)}
               </div>
-              <p className="coach-choice-label">HOW SHOULD RELAY GUIDE YOU?</p>
+              <p className="coach-choice-label">{tr('HOW SHOULD RELAY GUIDE YOU?', '你希望 RELAY 如何指导？')}</p>
               <div className="coach-choice compact" role="radiogroup" aria-label="Coaching mode">
                 <button className={coachingMode === 'photos' ? 'selected' : ''} role="radio" aria-checked={coachingMode === 'photos'} type="button" onClick={() => setCoachingMode('photos')}>
-                  <span className="choice-icon">1·2·3</span><div><strong>Follow 3 clear steps</strong><small>Set up, move, finish</small></div><b>{coachingMode === 'photos' ? '✓' : ''}</b>
+                  <span className="choice-icon">1·2·3</span><div><strong>{tr('Follow 3 clear steps', '跟随 3 个清晰步骤')}</strong><small>{tr('Set up, move, finish', '准备、动作、完成')}</small></div><b>{coachingMode === 'photos' ? '✓' : ''}</b>
                 </button>
                 <button className={coachingMode === 'camera' ? 'selected' : ''} role="radio" aria-checked={coachingMode === 'camera'} type="button" onClick={() => setCoachingMode('camera')}>
-                  <span className="choice-icon camera-choice-icon"><i /></span><div><strong>Use live camera coach</strong><small>Rep counting and form cues</small></div><b>{coachingMode === 'camera' ? '✓' : ''}</b>
+                  <span className="choice-icon camera-choice-icon"><i /></span><div><strong>{tr('Use live camera coach', '使用实时摄像指导')}</strong><small>{tr('Rep counting and form cues', '计数与动作纠正提示')}</small></div><b>{coachingMode === 'camera' ? '✓' : ''}</b>
                 </button>
               </div>
               <div className="setup-actions"><button type="button" onClick={() => setSetupStep(2)}>← {tr('Back', '返回')}</button><button className="setup-next" type="button" onClick={() => setSetupStep(4)}>{tr('Ready check', '准备检查')} <span>→</span></button></div>
@@ -498,12 +588,12 @@ export default function Home() {
           {setupStep === 4 && <section className="setup-panel setup-ready-panel">
             <div className="ready-mark">✓</div>
             <div className="setup-copy">
-              <p className="kicker">STEP 4 · QUICK READY CHECK</p>
-              <h1>Set your space.<br />Then press start.</h1>
-              <div className="ready-list"><span><b>1</b><strong>Clear one arm-span of floor space</strong></span><span><b>2</b><strong>Place your selected equipment within reach</strong></span><span><b>3</b><strong>{coachingMode === 'camera' ? 'Prop your phone 2–3 metres away' : 'Keep your phone where each photo is easy to see'}</strong></span></div>
-              <p className="ready-mode">TODAY <strong>{focusInfo.label} · {equipmentSummary}</strong></p>
-              <p className="ready-mode">YOUR MODE <strong>{coachingMode === 'camera' ? 'Live camera coach' : 'Step-by-step photo guide'}</strong></p>
-              <div className="setup-actions"><button type="button" onClick={() => setSetupStep(3)}>← Back</button><button className="setup-next start-workout-now" type="button" onClick={() => setStage(coachingMode === 'camera' ? 'camera' : 'guide')}>Start move 1 <span>→</span></button></div>
+              <p className="kicker">{tr('STEP 4 · QUICK READY CHECK', '第 4 步 · 快速准备检查')}</p>
+              <h1>{tr('Set your space.', '准备训练空间。')}<br />{tr('Then press start.', '然后开始。')}</h1>
+              <div className="ready-list"><span><b>1</b><strong>{tr('Clear one arm-span of floor space', '清理出一臂宽的地面空间')}</strong></span><span><b>2</b><strong>{tr('Place your selected equipment within reach', '把选择的器械放在伸手可及的位置')}</strong></span><span><b>3</b><strong>{coachingMode === 'camera' ? tr('Prop your phone 2–3 metres away', '将手机固定在 2–3 米外') : tr('Keep your phone where each photo is easy to see', '将手机放在便于看清每张图片的位置')}</strong></span></div>
+              <p className="ready-mode">{tr('TODAY', '今天')} <strong>{language === 'zh' ? focusChinese[selectedFocus] : focusInfo.label} · {language === 'zh' ? equipmentSummaryChinese(selectedEquipment) : equipmentSummary}</strong></p>
+              <p className="ready-mode">{tr('YOUR MODE', '指导模式')} <strong>{coachingMode === 'camera' ? tr('Live camera coach', '实时摄像指导') : tr('Step-by-step photo guide', '分步图片指导')}</strong></p>
+              <div className="setup-actions"><button type="button" onClick={() => setSetupStep(3)}>← {tr('Back', '返回')}</button><button className="setup-next start-workout-now" type="button" onClick={() => void beginWorkout()}>{tr('Start move 1', '开始第 1 个动作')} <span>→</span></button></div>
             </div>
           </section>}
         </main>
@@ -620,7 +710,7 @@ export default function Home() {
     <main className="coach-app">
       <header className="coach-header">
         <button className="wordmark" type="button" onClick={() => navigate('today')} aria-label="Relay home"><span>R</span>RELAY</button>
-        <p>{trialRemaining !== null ? tr(`${trialRemaining} trial days left`, `试用剩余 ${trialRemaining} 天`) : tr(`${member.billingPlan} member`, `${member.billingPlan === 'monthly' ? '月付' : '年付'}会员`)}</p>
+        <p>{trialRemaining !== null ? tr(`${trialRemaining} trial days left`, `试用剩余 ${trialRemaining} 天`) : tr(`${member.membership.plan} member`, `${member.membership.plan === 'monthly' ? '月付' : '年付'}会员`)}</p>
         <div className="coach-header-actions"><LanguageSwitch language={language} onChange={setLanguage} /><button className="avatar" type="button" aria-label="Open profile" onClick={() => navigate('you')}>{account.user.displayName?.charAt(0).toUpperCase() ?? 'R'}</button></div>
       </header>
 
@@ -645,12 +735,12 @@ export default function Home() {
           <section className={`account-strip ${accountStatus === 'signed-in' ? 'account-ready' : ''}`}>
             {accountStatus === 'signed-in' && account && <>
               <span className="account-check">✓</span>
-              <div><strong>{tr(`${account.user.displayName}, your progress is saved`, `${account.user.displayName}，你的进度已保存`)}</strong><small>{account.user.email} · {tr('workouts, wellness and schedule stay on this device in the GitHub demo', 'GitHub 演示中的训练、健康与日程保存在此设备')}</small></div>
+              <div><strong>{tr(`${account.user.displayName}, your progress is saved`, `${account.user.displayName}，你的进度已保存`)}</strong><small>{account.user.email} · {tr('workouts, wellness, and schedule sync securely across your devices', '训练、健康与日程会在你的设备间安全同步')}</small></div>
               <button type="button" onClick={() => navigate('you')}>{tr('My plan', '我的计划')} <span>→</span></button>
             </>}
             {(accountStatus === 'signed-out' || accountStatus === 'error') && <>
               <span className="account-lock">R</span>
-              <div><strong>Keep your progress on this device</strong><small>Return to the Relay demo account screen.</small></div>
+              <div><strong>Keep your progress secure</strong><small>Return to the Relay account screen.</small></div>
               <button type="button" onClick={signOut}>Open account screen <span>→</span></button>
             </>}
           </section>
@@ -717,6 +807,7 @@ export default function Home() {
                 <label><span>{tr('Meals', '饮食')}</span><select value={account.todayLog.meals} onChange={(event) => updateLog({ meals: event.target.value })}><option value="Needs attention">{tr('Needs attention', '需要注意')}</option><option value="Balanced">{tr('Balanced', '均衡')}</option><option value="On track">{tr('On track', '状态良好')}</option></select></label>
                 <label><span>{tr('Energy', '精力')}</span><select value={account.todayLog.energy} onChange={(event) => updateLog({ energy: Number(event.target.value) })}><option value="1">1 · {tr('Very low', '很低')}</option><option value="2">2 · {tr('Low', '较低')}</option><option value="3">3 · {tr('Steady', '稳定')}</option><option value="4">4 · {tr('Good', '良好')}</option><option value="5">5 · {tr('Excellent', '极佳')}</option></select></label>
                 <label className="checkin-notes"><span>{tr('Anything your coach should know?', '有什么需要教练了解的吗？')}</span><input type="text" maxLength={500} placeholder={tr('Soreness, stress, appetite, recovery…', '酸痛、压力、食欲、恢复情况…')} value={account.todayLog.notes} onChange={(event) => updateLog({ notes: event.target.value })} /></label>
+                <label className="health-consent"><input type="checkbox" checked={account.profile.consentHealthData} onChange={(event) => updateProfile({ consentHealthData: event.target.checked })} /><span>{tr('I consent to securely storing this wellness information so Relay can personalize my training. I can export or delete it at any time.', '我同意安全存储这些健康信息，以便 Relay 个性化训练。我可以随时导出或删除。')}</span></label>
                 <button type="submit">{tr('Save check-in', '保存健康记录')} <span>→</span></button>
               </form>
             ) : (
@@ -743,7 +834,7 @@ export default function Home() {
                 <article key={item.id}><span className="history-tick">✓</span><div><small>{formatSessionDate(item.completedAt)}</small><strong>{item.workoutName}</strong><p>{Math.max(1, Math.round(item.durationSeconds / 60))} min · {item.setsCompleted} sets</p></div><b>{item.cameraSets > 0 ? `${item.cameraSets} coached` : 'Complete'}</b></article>
               ))}
             </div> : <div className="empty-history"><span>01</span><h2>Your first session starts here.</h2><p>Finish today&apos;s customized workout and it will appear here automatically.</p><button type="button" onClick={() => navigate('today')}>Choose today&apos;s workout <b>→</b></button></div>}
-          </> : <AccountGate title="Your history, ready when you return." copy="Sign in to your Relay demo account to save completed workouts and progress on this device." />}
+          </> : <AccountGate title="Your history, ready when you return." copy="Sign in to save completed workouts and securely sync progress across your devices." />}
         </section>
       )}
 
@@ -753,7 +844,9 @@ export default function Home() {
           <h1>Simple choices.<br />Clear training.</h1>
           {accountStatus === 'signed-in' && account ? <>
             <article className="profile-card"><span className="large-avatar">{account.user.displayName.charAt(0).toUpperCase()}</span><div><strong>{account.user.displayName}</strong><small>{account.user.email} · {account.profile.level}</small></div><button type="button" onClick={signOut}>{tr('Sign out', '退出登录')}</button></article>
-            <article className="membership-card"><div><small>{tr('MEMBERSHIP', '会员状态')}</small><h2>{member.billingPlan === 'trial' ? tr('7-day free trial', '7 天免费试用') : member.billingPlan === 'monthly' ? tr('Monthly membership', '月付会员') : tr('Annual membership', '年付会员')}</h2><p>{trialRemaining !== null ? tr(`${trialRemaining} days remaining. Pricing is still to be announced.`, `剩余 ${trialRemaining} 天。正式价格尚待公布。`) : tr('Demo subscription active. No payment was taken.', '演示订阅已开启，未产生付款。')}</p></div><span>{member.billingPlan === 'trial' ? `${trialRemaining}/7` : '✓'}</span></article>
+            <article className="membership-card"><div><small>{tr('MEMBERSHIP', '会员状态')}</small><h2>{member.membership.plan === 'trial' ? tr('7-day free trial', '7 天免费试用') : member.membership.plan === 'monthly' ? tr('Monthly membership', '月付会员') : tr('Annual membership', '年付会员')}</h2><p>{trialRemaining !== null ? tr(`${trialRemaining} days remaining. No card is required during the trial.`, `剩余 ${trialRemaining} 天。试用期间无需绑卡。`) : member.membership.cancelAtPeriodEnd ? tr('Active until the current paid period ends.', '当前付费周期结束前仍可使用。') : tr('Secure subscription access is active.', '安全订阅权限已开启。')}</p></div><span>{member.membership.plan === 'trial' ? `${trialRemaining}/7` : '✓'}</span></article>
+
+            {legacySnapshot && <article className="legacy-import-card"><div><small>{tr('DEVICE HISTORY FOUND', '发现设备历史记录')}</small><h2>{tr('Bring your previous Relay activity with you.', '导入之前的 Relay 训练记录。')}</h2><p>{tr('Only workouts, wellness, and schedule data will be imported. Demo passwords and billing status are never copied.', '仅导入训练、健康记录与日程。演示密码和账单状态绝不会被复制。')}</p></div><button type="button" onClick={importDeviceData}>{tr('Import securely', '安全导入')} <span>→</span></button></article>}
 
             <article className="profile-form-card">
               <div className="card-heading"><div><small>TRAINING PROFILE</small><h2>Make the plan fit your life.</h2></div><span>Private to your account</span></div>
@@ -790,7 +883,9 @@ export default function Home() {
               <button className={audioEnabled ? 'switch on' : 'switch'} type="button" onClick={() => setAudioEnabled((value) => !value)} aria-pressed={audioEnabled}><i /></button>
             </article>
             <article className="privacy-card"><span className="shield">✓</span><div><small>CAMERA PRIVACY</small><h2>Your video stays yours.</h2><p>Pose tracking runs in your browser. Relay never saves or uploads camera frames; only your completed workout totals are stored.</p></div></article>
-          </> : <AccountGate title="One account. Your complete routine." copy="Sign in to your Relay demo account to save workouts, daily wellness, goals and your weekly schedule on this device." />}
+            <article className="account-actions-card"><div><small>{tr('ACCOUNT & PRIVACY', '账户与隐私')}</small><h2>{tr('You control your data.', '你的数据由你掌控。')}</h2><p>{tr('Download a copy, manage billing, or permanently delete your account.', '下载数据副本、管理账单，或永久删除账户。')}</p></div><div><button type="button" onClick={() => downloadAccountExport(member, account)}>{tr('Export my data', '导出我的数据')}</button>{member.membership.plan !== 'trial' && <button type="button" onClick={manageBilling}>{tr('Manage billing', '管理账单')}</button>}<button className="danger" type="button" onClick={removeAccount}>{tr('Delete account', '删除账户')}</button></div></article>
+            {saveStatus && <p className="account-save-status" role="status">{saveStatus}</p>}
+          </> : <AccountGate title="One account. Your complete routine." copy="Sign in to securely save workouts, daily wellness, goals, and your weekly schedule." />}
         </section>
       )}
 
@@ -859,13 +954,13 @@ function AccountGate({ title, copy }: { title: string; copy: string }) {
 
 function TrialPaywall({ language, member, onLanguageChange, onSubscribe, onSignOut }: {
   language: Language;
-  member: DemoMember;
+  member: MemberAccount;
   onLanguageChange: (language: Language) => void;
   onSubscribe: (plan: 'monthly' | 'annual') => void;
   onSignOut: () => void;
 }) {
   const tr = (english: string, chinese: string) => language === 'zh' ? chinese : english;
-  return <main className="paywall-shell"><header><button className="wordmark" type="button"><span>R</span>RELAY</button><LanguageSwitch language={language} onChange={onLanguageChange} /></header><section><p className="kicker">{tr('YOUR TRIAL IS COMPLETE', '免费试用已结束')}</p><h1>{tr('Keep your momentum.', '继续保持训练节奏。')}</h1><p>{tr(`Thanks for training with Relay, ${member.displayName}. Choose a plan to keep your history, schedule, and personalized workouts. Prices are not set yet, so these buttons only activate demo access.`, `感谢你使用 Relay 训练，${member.displayName}。选择方案即可继续使用训练记录、日程与个性化计划。价格尚未确定，因此以下按钮只会开启演示权限。`)}</p><div className="paywall-options"><article><span>{tr('MONTHLY', '月付')}</span><h2>{tr('Price coming soon', '价格即将公布')}</h2><p>{tr('Flexible access, billed monthly after launch.', '正式上线后按月灵活付费。')}</p><button type="button" onClick={() => onSubscribe('monthly')}>{tr('Activate monthly demo', '开启月付演示')}<b>→</b></button></article><article className="featured"><small>BEST VALUE</small><span>{tr('ANNUAL', '年付')}</span><h2>{tr('Price coming soon', '价格即将公布')}</h2><p>{tr('One year of consistent coaching at the best value.', '以更优惠的方式获得一整年的持续指导。')}</p><button type="button" onClick={() => onSubscribe('annual')}>{tr('Activate annual demo', '开启年付演示')}<b>→</b></button></article></div><button className="paywall-signout" type="button" onClick={onSignOut}>{tr('Sign out and use another account', '退出并使用其他账户')}</button></section></main>;
+  return <main className="paywall-shell"><header><button className="wordmark" type="button"><span>R</span>RELAY</button><LanguageSwitch language={language} onChange={onLanguageChange} /></header><section><p className="kicker">{tr('YOUR TRIAL IS COMPLETE', '免费试用已结束')}</p><h1>{tr('Keep your momentum.', '继续保持训练节奏。')}</h1><p>{tr(`Thanks for training with Relay, ${member.displayName}. Your history remains safe. Choose secure access to continue personalized workouts.`, `感谢你使用 Relay 训练，${member.displayName}。你的记录仍被安全保存。选择安全方案即可继续个性化训练。`)}</p><div className="paywall-options">{member.market === 'global' && <article><span>{tr('MONTHLY', '月付')}</span><h2>{tr('Monthly access', '月付会员')}</h2><p>{tr('Flexible recurring access. Cancel from the secure billing portal.', '灵活按月续费，可在安全账单页面取消。')}</p><button type="button" onClick={() => onSubscribe('monthly')}>{tr('Choose monthly', '选择月付')}<b>→</b></button></article>}<article className="featured"><small>BEST VALUE</small><span>{tr('ANNUAL', '年付')}</span><h2>{member.market === 'cn' ? tr('One secure annual payment', '一次安全年付') : tr('Annual membership', '年付会员')}</h2><p>{member.market === 'cn' ? tr('365 days of access with Alipay or an eligible card. It does not auto-renew.', '可使用支付宝或支持的银行卡购买 365 天权限，不会自动续费。') : tr('One year of consistent coaching at the best value.', '以更优惠的方式获得一整年的持续指导。')}</p><button type="button" onClick={() => onSubscribe('annual')}>{tr('Choose annual', '选择年付')}<b>→</b></button></article></div><button className="paywall-signout" type="button" onClick={onSignOut}>{tr('Sign out and use another account', '退出并使用其他账户')}</button></section></main>;
 }
 
 function ExercisePreview({ exercise: item, index, total, language, onClose, onStartCamera }: { exercise: Exercise; index: number; total: number; language: Language; onClose: () => void; onStartCamera: () => void }) {
