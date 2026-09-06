@@ -12,10 +12,14 @@ const fakeUser = {
   created_at: '2026-09-01T00:00:00.000Z',
 };
 
-async function mockCaptcha(page: Page) {
-  await page.route('https://challenges.cloudflare.com/turnstile/v0/api.js*', (route) => route.fulfill({
+async function mockCaptcha(page: Page, behavior: { failFirst?: boolean; controls?: boolean; missing?: boolean } = {}) {
+  let scriptRequests = 0;
+  await page.route('https://challenges.cloudflare.com/turnstile/v0/api.js*', (route) => {
+    scriptRequests += 1;
+    if (behavior.failFirst && scriptRequests === 1) return route.abort();
+    return route.fulfill({
     contentType: 'application/javascript',
-    body: `
+    body: behavior.missing ? '' : `
       let sequence = 0;
       const widgets = new Map();
       window.turnstile = {
@@ -26,13 +30,26 @@ async function mockCaptcha(page: Page) {
           button.textContent = 'Complete security check';
           button.onclick = () => { options.callback('captcha-' + id); button.remove(); };
           element.appendChild(button);
+          if (${Boolean(behavior.controls)}) {
+            const expire = document.createElement('button');
+            expire.type = 'button';
+            expire.textContent = 'Expire security check';
+            expire.onclick = () => options['expired-callback']();
+            element.appendChild(expire);
+            const fail = document.createElement('button');
+            fail.type = 'button';
+            fail.textContent = 'Fail security check';
+            fail.onclick = () => options['timeout-callback']();
+            element.appendChild(fail);
+          }
           widgets.set(id, element);
           return id;
         },
         remove(id) { widgets.get(id)?.replaceChildren(); widgets.delete(id); }
       };
     `,
-  }));
+    });
+  });
 }
 
 for (const language of ['en', 'zh'] as const) {
@@ -92,6 +109,7 @@ test('signup and every resend require a fresh challenge after the 60-second wait
   await page.getByLabel('Create password', { exact: true }).fill('TestPassword123!');
   await page.getByLabel('Confirm password', { exact: true }).fill('TestPassword123!');
   await page.getByRole('checkbox').check();
+  await expect(page.getByRole('button', { name: /Send verification code/ })).toBeDisabled();
   await page.getByRole('button', { name: 'Complete security check' }).click();
   await page.getByRole('button', { name: /Send verification code/ }).click();
   await expect(page.getByRole('heading', { name: 'Check your email' })).toBeVisible();
@@ -138,6 +156,83 @@ test('disabled email signup explains availability in both languages and keeps si
   await expect(dialog.getByRole('heading', { name: '欢迎回来' })).toBeVisible();
   await expect(dialog.getByLabel('邮箱地址')).toBeEditable();
   await expect(dialog.getByLabel('密码', { exact: true })).toBeEditable();
+  await expect(dialog.getByRole('button', { name: /^登录/ })).toBeDisabled();
+  await dialog.getByRole('button', { name: 'Complete security check' }).click();
   await expect(dialog.getByRole('button', { name: /^登录/ })).toBeEnabled();
   expect(signupRequests).toBe(0);
+});
+
+for (const language of ['en', 'zh'] as const) {
+  test(`signin and reset require security checks; reset delivery errors remain honest (${language})`, async ({ page }) => {
+    let resetRequests = 0;
+    await mockCaptcha(page);
+    await page.route('https://relay-auth-test.supabase.co/auth/v1/**', (route) => {
+      if (new URL(route.request().url()).pathname.endsWith('/recover')) {
+        resetRequests += 1;
+        return resetRequests === 1
+          ? route.fulfill({ status: 500, json: { message: 'SMTP provider internal detail', code: 'unexpected_failure' } })
+          : route.fulfill({ json: {} });
+      }
+      return route.fulfill({ status: 400, json: { message: 'Unexpected mocked auth request' } });
+    });
+    await page.addInitScript((locale) => localStorage.setItem('relay-language', locale), language);
+    await page.goto('/');
+    await page.locator('.landing-actions').getByRole('button', { name: language === 'en' ? 'Sign in' : '登录', exact: true }).click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog.locator('.auth-submit')).toBeDisabled();
+    await dialog.getByRole('button', { name: 'Complete security check' }).click();
+    await expect(dialog.locator('.auth-submit')).toBeEnabled();
+    await dialog.getByRole('button', { name: language === 'en' ? 'Forgot password?' : '忘记密码？' }).click();
+    await dialog.getByLabel(language === 'en' ? 'Email address' : '邮箱地址').fill('reset-test@example.invalid');
+    await expect(dialog.locator('.auth-submit')).toBeDisabled();
+    // Even programmatic form submission must not bypass the handler's token guard.
+    await dialog.locator('form').evaluate((form) => (form as HTMLFormElement).requestSubmit());
+    expect(resetRequests).toBe(0);
+    await expect(dialog.getByRole('alert')).toHaveText(language === 'en' ? 'Please complete the security check before continuing.' : '请先完成安全验证再继续。');
+    await dialog.getByRole('button', { name: 'Complete security check' }).click();
+    await dialog.locator('.auth-submit').click();
+    await expect(dialog.getByRole('alert')).toContainText(language === 'en' ? 'We could not request an email right now.' : '暂时无法请求发送邮件。');
+    await expect(dialog).not.toContainText('SMTP provider internal detail');
+    await expect(dialog.getByRole('status')).toHaveCount(0);
+    expect(resetRequests).toBe(1);
+    await expect(dialog.locator('.auth-submit')).toBeDisabled();
+    await dialog.getByRole('button', { name: 'Complete security check' }).click();
+    await dialog.locator('.auth-submit').click();
+    await expect(dialog.getByRole('status')).toHaveText(language === 'en' ? 'If that address has an account, a reset email is on its way.' : '如果此邮箱存在账户，重置邮件正在发送。');
+    await expect(dialog.getByRole('alert')).toHaveCount(0);
+    expect(resetRequests).toBe(2);
+  });
+
+  test(`security script failure can be retried and expired tokens disable submission (${language})`, async ({ page }) => {
+    await mockCaptcha(page, { failFirst: true, controls: true });
+    await page.addInitScript((locale) => localStorage.setItem('relay-language', locale), language);
+    await page.goto('/');
+    await page.locator('.landing-actions').getByRole('button', { name: language === 'en' ? 'Sign in' : '登录', exact: true }).click();
+    const dialog = page.getByRole('dialog');
+    const retry = dialog.getByRole('button', { name: language === 'en' ? 'Retry security check' : '重试安全验证' });
+    await expect(retry).toBeVisible();
+    await expect(dialog.locator('.auth-submit')).toBeDisabled();
+    await retry.click();
+    await dialog.getByRole('button', { name: 'Complete security check' }).click();
+    await expect(dialog.locator('.auth-submit')).toBeEnabled();
+    await dialog.getByRole('button', { name: 'Expire security check' }).click();
+    await expect(dialog.locator('.auth-submit')).toBeDisabled();
+    await dialog.getByRole('button', { name: 'Fail security check' }).click();
+    await expect(retry).toBeVisible();
+    await retry.click();
+    await dialog.getByRole('button', { name: 'Complete security check' }).click();
+    await expect(dialog.locator('.auth-submit')).toBeEnabled();
+  });
+}
+
+test('a security script that never initializes times out with a retry action', async ({ page }) => {
+  await page.clock.install();
+  await mockCaptcha(page, { missing: true });
+  await page.goto('/');
+  await page.locator('.landing-actions').getByRole('button', { name: 'Sign in', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.locator('.auth-submit')).toBeDisabled();
+  await page.clock.fastForward(16000);
+  await expect(dialog.getByRole('button', { name: 'Retry security check' })).toBeVisible();
+  await expect(dialog.locator('.auth-submit')).toBeDisabled();
 });

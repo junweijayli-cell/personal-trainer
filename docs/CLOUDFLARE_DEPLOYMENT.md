@@ -22,6 +22,15 @@ Do not place Stripe, SMTP, database, service-role, or other secret keys in this 
 
 Add both domains through Pages > Custom domains. Inspect existing DNS before accepting changes; preserve mail, domain-verification, and unrelated records. No paid plan or mainland hosting service is authorized by this deployment.
 
+Cloudflare Pages `_redirects` only supports path sources, not host-level rules. Configure a zone Single Redirect named `TrainWell www to canonical domain`, matching `https://www.trainwell.win/*`, redirecting to `https://trainwell.win/${1}` with status 301 and **Preserve query string** enabled. Keep the legacy path redirects in `public/_redirects`.
+
+### Completed domain cutover — 2026-09-06
+
+- Git-connected Cloudflare Pages project `trainwell` deployed from main; both apex and www report Active / SSL enabled.
+- `https://trainwell.win/` serves HTTP 200; HTTP upgrades to HTTPS. `https://www.trainwell.win/?reset=1` redirects 301 to `https://trainwell.win/?reset=1`.
+- Supabase Site URL, four exact apex/www return URLs, backend `APP_URL`, and allowed origins updated. Legacy return URLs retained; SMTP/security settings were not overwritten.
+- Public preview HTML and all 124 referenced/static assets passed HTTP/MIME checks; four MP4s have valid file signatures. Browser playback and account/email acceptance are separate checks.
+
 ## Backend cutover checklist
 
 After the domain has a valid HTTPS deployment:

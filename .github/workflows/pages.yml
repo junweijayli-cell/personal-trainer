@@ -22,7 +22,6 @@ jobs:
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
       NEXT_PUBLIC_MARKET: global
-      NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${{ secrets.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
       NEXT_PUBLIC_SENTRY_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN }}
     steps:
       - uses: actions/checkout@v5
@@ -43,9 +42,14 @@ jobs:
         run: npx playwright test --config tests/layout.playwright.config.ts
         env:
           DEPLOY_TARGET: local
+      - name: Check signup, CAPTCHA failures, and recovery feedback with mocks
+        run: npx playwright test --config tests/auth-ui.playwright.config.ts
+      - name: Check mobile terms and privacy notices in both languages
+        run: npx playwright test --config tests/legal-ui.playwright.config.ts
       - run: npm run build
         env:
           NEXT_PUBLIC_SIGNUP_ENABLED: ${{ secrets.NEXT_PUBLIC_SIGNUP_ENABLED }}
+          NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${{ secrets.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
       - run: touch out/.nojekyll
       - uses: actions/upload-pages-artifact@v3
         with:

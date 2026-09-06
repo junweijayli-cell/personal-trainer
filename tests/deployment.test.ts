@@ -43,7 +43,9 @@ describe('TrainWell custom-domain deployment', () => {
     expect(manifest.start_url).toBe('./');
     expect(manifest.icons.every((icon: { src: string }) => icon.src.startsWith('./'))).toBe(true);
     expect(source('public/_headers')).toContain('camera=(self)');
-    expect(source('public/_redirects')).toContain('https://www.trainwell.win/* https://trainwell.win/:splat 301');
+    const redirects = source('public/_redirects').split('\n').filter((line) => line.trim() && !line.startsWith('#'));
+    expect(redirects.every((line) => line.startsWith('/'))).toBe(true);
+    expect(source('public/_redirects')).toContain('/personal-trainer/ / 301');
   });
 
   it('includes exact production recovery redirects without a wildcard production host', () => {
