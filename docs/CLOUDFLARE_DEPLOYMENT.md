@@ -15,7 +15,7 @@ Hosting: Cloudflare Pages static export; accounts remain in the existing Supabas
 - `NEXT_PUBLIC_SUPABASE_URL=https://yvcdlrnjhhafywawuknj.supabase.co`
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`: existing project's public publishable key only.
 - `NEXT_PUBLIC_MARKET=global`
-- `NEXT_PUBLIC_SIGNUP_ENABLED=false` until the existing public-signup security gates pass.
+- `NEXT_PUBLIC_SIGNUP_ENABLED=true` for the protected preview after the 2026-09-06 signup fix; keep `false` on unconfigured deployments. Full staging/production acceptance remains a separate launch gate.
 - Copy the public Turnstile site key and Sentry DSN only after those services are configured for this hostname.
 
 Do not place Stripe, SMTP, database, service-role, or other secret keys in this static build or in GitHub source. Do not upload the old `out` build: its scripts were compiled with `/personal-trainer` as the base path. Cloudflare must build the new root-domain export from the reviewed commit.
@@ -29,6 +29,7 @@ Cloudflare Pages `_redirects` only supports path sources, not host-level rules. 
 - Git-connected Cloudflare Pages project `trainwell` deployed from main; both apex and www report Active / SSL enabled.
 - `https://trainwell.win/` serves HTTP 200; HTTP upgrades to HTTPS. `https://www.trainwell.win/?reset=1` redirects 301 to `https://trainwell.win/?reset=1`.
 - Supabase Site URL, four exact apex/www return URLs, backend `APP_URL`, and allowed origins updated. Legacy return URLs retained; SMTP/security settings were not overwritten.
+- Follow-up signup fix configured a real Cloudflare Turnstile widget on the frontend and Supabase Auth. Its secret is backend-only; the public site key is provided to Cloudflare/GitHub builds. See `AUTH_SIGNUP_FIX_2026_09_06.md` for test boundaries.
 - Public preview HTML and all 124 referenced/static assets passed HTTP/MIME checks; four MP4s have valid file signatures. Browser playback and account/email acceptance are separate checks.
 
 ## Backend cutover checklist

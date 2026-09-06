@@ -238,7 +238,7 @@ export default function LandingAuth({ language, onLanguageChange, onAuthenticate
           <div className="signup-legal">
             <p>{language === 'zh' ? '注册前请阅读以下说明：' : 'Please read before creating your account:'}</p>
             <div className="legal-links"><button type="button" onClick={() => setLegalDocument('terms')}>{language === 'zh' ? '使用条款' : 'Terms of use'}</button><button type="button" onClick={() => setLegalDocument('privacy')}>{language === 'zh' ? '隐私说明' : 'Privacy notice'}</button></div>
-            <label className="consent"><input type="checkbox" required checked={accepted} onChange={(event) => setAccepted(event.target.checked)} /><span>{language === 'zh' ? '我已阅读并同意使用条款和隐私说明。可选健康数据需另行同意。' : 'I have read and agree to the Terms of use and Privacy notice. Optional health data requires separate consent.'}</span></label>
+            <label className="consent"><input type="checkbox" required checked={accepted} onChange={(event) => setAccepted(event.target.checked)} /><span>{language === 'zh' ? '我已阅读并同意使用条款和隐私说明。健康日志需另行同意。' : 'I have read and agree to the Terms of use and Privacy notice. Wellness logging requires separate consent.'}</span></label>
           </div>
           {signupEnabled && <Turnstile key={`signup-${captchaVersion}`} language={language} onToken={setCaptchaToken} />}
           {!signupEnabled && <p className="auth-notice" role="status">{signupUnavailable}</p>}
