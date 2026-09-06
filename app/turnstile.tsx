@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 type TurnstileApi = {
-  render: (element: HTMLElement, options: { sitekey: string; callback: (token: string) => void; 'expired-callback': () => void; 'error-callback': () => void; 'timeout-callback': () => void; theme: 'light'; size: 'compact' | 'flexible'; language: 'en' | 'zh-CN' }) => string;
+  render: (element: HTMLElement, options: { sitekey: string; callback: (token: string) => void; 'expired-callback': () => void; 'error-callback': () => void; 'timeout-callback': () => void; theme: 'light'; size: 'compact' | 'flexible'; language: 'en' | 'zh-cn' }) => string;
   remove: (widgetId: string) => void;
 };
 
@@ -37,7 +37,7 @@ export default function Turnstile({ onToken, language = 'en' }: { onToken: (toke
         'timeout-callback': fail,
         theme: 'light',
         size: container.current.clientWidth < 300 ? 'compact' : 'flexible',
-        language: language === 'zh' ? 'zh-CN' : 'en',
+        language: language === 'zh' ? 'zh-cn' : 'en',
       });
     };
     let script = document.querySelector<HTMLScriptElement>('script[data-relay-turnstile]');
