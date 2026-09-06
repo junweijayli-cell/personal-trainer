@@ -1,4 +1,4 @@
-name: Deploy Relay Coach to GitHub Pages
+name: Deploy TrainWell to GitHub Pages
 
 on:
   push:
@@ -35,6 +35,12 @@ jobs:
       - run: npm test
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e:mobile
+        env:
+          DEPLOY_TARGET: local
+      - name: Install Chinese typography for layout checks
+        run: sudo apt-get update && sudo apt-get install -y fonts-noto-cjk
+      - name: Check bilingual layouts with isolated accounts
+        run: npx playwright test --config tests/layout.playwright.config.ts
         env:
           DEPLOY_TARGET: local
       - run: npm run build

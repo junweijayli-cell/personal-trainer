@@ -358,13 +358,13 @@ export default function CameraCoach({ exercise, audioEnabled, onClose, onSetComp
           <div className="camera-setup">
             <div className="phone-placement"><span /><i /><b>2–3 m</b></div>
             <p>PHONE PLACEMENT</p>
-            <h2>Let Relay see your whole movement.</h2>
+            <h2>Let TrainWell see your whole movement.</h2>
             <ol>
               <li><span>1</span>Prop your phone securely in landscape.</li>
               <li><span>2</span>Stand 2–3 metres away in good light.</li>
               <li><span>3</span>{exercise.view}.</li>
             </ol>
-            <div className="camera-privacy"><b>Processed on this device</b><span>No video is saved or uploaded by Relay.</span></div>
+            <div className="camera-privacy"><b>Processed on this device</b><span>No video is saved or uploaded by TrainWell.</span></div>
             <button className="camera-start" type="button" onClick={startCamera}>Enable camera <span>→</span></button>
           </div>
         )}

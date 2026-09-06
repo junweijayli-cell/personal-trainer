@@ -17,9 +17,9 @@ const githubSite = 'https://junweijayli-cell.github.io/personal-trainer';
 
 export const metadata: Metadata = {
   metadataBase: new URL(`${githubSite}/`),
-  title: 'Relay Coach — See it. Do it. Move better.',
+  title: 'TrainWell — See it. Do it. Move better.',
   description: 'A phone-first virtual trainer with guided workouts, private on-device pose tracking, rep counting, and live form cues.',
-  applicationName: 'Relay Coach',
+  applicationName: 'TrainWell',
   manifest: `${publicBasePath}/manifest.webmanifest`,
   icons: {
     icon: `${publicBasePath}/icon.png`,
@@ -28,22 +28,22 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'Relay',
+    title: 'TrainWell',
   },
   formatDetection: {
     telephone: false,
   },
   openGraph: {
-    title: 'Relay Coach — Your next right move',
+    title: 'TrainWell — Your next right move',
     description: 'Follow today’s workout, learn every movement, and get live camera form cues.',
     type: 'website',
-    images: [{ url: `${githubSite}/og.png`, width: 1730, height: 909, alt: 'Relay — Your next right move' }],
+    images: [{ url: `${githubSite}/og-trainwell.png`, width: 1730, height: 909, alt: 'TrainWell — Your next right move' }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Relay Coach — Your next right move',
+    title: 'TrainWell — Your next right move',
     description: 'Guided workouts and private, on-device camera coaching.',
-    images: [`${githubSite}/og.png`],
+    images: [`${githubSite}/og-trainwell.png`],
   },
 };
 

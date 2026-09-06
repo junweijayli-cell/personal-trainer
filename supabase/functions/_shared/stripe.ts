@@ -1,4 +1,5 @@
 import Stripe from 'npm:stripe@19.0.0';
+import { assertApprovedPrice, type BillingPlan } from './billing-policy.ts';
 
 export function stripeClient() {
   const secret = Deno.env.get('STRIPE_SECRET_KEY');
@@ -23,6 +24,12 @@ export function priceId(plan: 'monthly' | 'annual') {
     : plan === 'monthly' ? 'STRIPE_PRICE_MONTHLY' : 'STRIPE_PRICE_ANNUAL';
   const value = Deno.env.get(name);
   if (!value) throw new Error(`${name} is not configured.`);
-  if (market === 'cn' && plan !== 'annual') throw new Error('Mainland Relay currently offers annual prepaid access only.');
+  if (market === 'cn' && plan !== 'annual') throw new Error('Mainland TrainWell currently offers annual prepaid access only.');
   return value;
+}
+
+export async function approvedStripePrice(stripe: Stripe, plan: BillingPlan) {
+  const price = await stripe.prices.retrieve(priceId(plan));
+  assertApprovedPrice(price, plan, appMarket());
+  return price;
 }

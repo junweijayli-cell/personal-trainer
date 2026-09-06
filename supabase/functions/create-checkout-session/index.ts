@@ -1,7 +1,7 @@
 import { handleOptions } from '../_shared/cors.ts';
 import { authenticatedUser } from '../_shared/auth.ts';
 import { errorResponse, json } from '../_shared/response.ts';
-import { appMarket, appUrl, priceId, stripeClient } from '../_shared/stripe.ts';
+import { appMarket, appUrl, approvedStripePrice, stripeClient } from '../_shared/stripe.ts';
 
 Deno.serve(async (request) => {
   const options = handleOptions(request);
@@ -24,6 +24,8 @@ Deno.serve(async (request) => {
     }
 
     const stripe = stripeClient();
+    // Fail closed before creating any Stripe customer or Checkout if server pricing differs from the public offer.
+    const price = await approvedStripePrice(stripe, plan);
     let customerId = membership.stripe_customer_id as string | null;
     if (!customerId) {
       const customer = await stripe.customers.create({
@@ -42,7 +44,7 @@ Deno.serve(async (request) => {
       ? await stripe.checkout.sessions.create({
           mode: 'payment',
           customer: customerId,
-          line_items: [{ price: priceId('annual'), quantity: 1 }],
+          line_items: [{ price: price.id, quantity: 1 }],
           payment_method_types: ['card', 'alipay'],
           client_reference_id: user.id,
           metadata: { ...metadata, access_days: '365' },
@@ -52,7 +54,7 @@ Deno.serve(async (request) => {
       : await stripe.checkout.sessions.create({
           mode: 'subscription',
           customer: customerId,
-          line_items: [{ price: priceId(plan), quantity: 1 }],
+          line_items: [{ price: price.id, quantity: 1 }],
           client_reference_id: user.id,
           metadata,
           subscription_data: { metadata },

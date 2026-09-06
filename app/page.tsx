@@ -22,6 +22,7 @@ import {
   signOutAccount,
 } from './account-service';
 import { membershipDaysRemaining, membershipHasAccess } from './membership';
+import { annualSavingLabel, globalPriceLabel } from './pricing';
 import type { AccountSnapshot, DailyLog, MemberAccount, ScheduleItem } from './account-types';
 import {
   buildWorkout,
@@ -97,6 +98,7 @@ function calculateStreak(dates: string[]) {
 
 export default function Home() {
   const [language, setLanguage] = useState<Language>('en');
+  const [languageHydrated, setLanguageHydrated] = useState(false);
   const [member, setMember] = useState<MemberAccount | null>(null);
   const [recommendedFocus, setRecommendedFocus] = useState<FocusId>('full-body');
   const [view, setView] = useState<View>('today');
@@ -164,8 +166,12 @@ export default function Home() {
     let cancelled = false;
     async function hydrate() {
       try {
-        const savedLanguage = window.localStorage.getItem('relay-language');
-        if (savedLanguage === 'zh' || savedLanguage === 'en') setLanguage(savedLanguage);
+        try {
+          const savedLanguage = window.localStorage.getItem('relay-language');
+          if (savedLanguage === 'zh' || savedLanguage === 'en') setLanguage(savedLanguage);
+        } catch {
+          // Optional device preferences must not prevent account recovery.
+        }
         const isReset = new URLSearchParams(window.location.search).get('reset') === '1';
         if (isReset) {
           if (!cancelled) { setPasswordRecovery(true); setAccountStatus('signed-out'); }
@@ -188,6 +194,8 @@ export default function Home() {
         setCompletedToday(snapshot.sessions.some((item) => localDateKey(new Date(item.completedAt)) === localDateKey()));
       } catch {
         if (!cancelled) setAccountStatus('error');
+      } finally {
+        if (!cancelled) setLanguageHydrated(true);
       }
     }
     void hydrate();
@@ -208,13 +216,16 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    // Never overwrite the saved locale with the initial render's English default.
+    // This also protects the second hydration pass in React StrictMode.
+    if (!languageHydrated) return;
+    document.documentElement.lang = language === 'zh' ? 'zh-CN' : 'en';
     try {
       window.localStorage.setItem('relay-language', language);
-      document.documentElement.lang = language === 'zh' ? 'zh-CN' : 'en';
     } catch {
       // Language preferences are optional.
     }
-  }, [language]);
+  }, [language, languageHydrated]);
 
   useEffect(() => {
     try {
@@ -413,7 +424,7 @@ export default function Home() {
 
   async function removeAccount() {
     if (!member || accountActionBusy) return;
-    const confirmed = window.confirm(tr('Delete your Relay account and all saved data? Active billing will be canceled. This cannot be undone.', '删除 Relay 账户及全部数据？当前订阅也会取消，此操作无法撤销。'));
+    const confirmed = window.confirm(tr('Delete your TrainWell account and all saved data? Active billing will be canceled. This cannot be undone.', '删除 TrainWell 账户及全部数据？当前订阅也会取消，此操作无法撤销。'));
     if (!confirmed) return;
     setAccountActionBusy(true);
     setSaveStatus(tr('Deleting your account…', '正在删除账户…'));
@@ -539,7 +550,7 @@ export default function Home() {
   }
 
   if (accountStatus === 'loading') {
-    return <main className="relay-loading"><span>R</span><p>{tr('Preparing your coach…', '正在准备你的教练…')}</p></main>;
+    return <main className="relay-loading"><span>T</span><p>{tr('Preparing your coach…', '正在准备你的教练…')}</p></main>;
   }
 
   if (!member || !account) {
@@ -567,7 +578,7 @@ export default function Home() {
             <div className="setup-copy">
               <p className="kicker">{tr('STEP 1 · CHOOSE TODAY\'S FOCUS', '第 1 步 · 选择今日部位')}</p>
               <h1>{tr('What do you want', '今天你想训练')}<br />{tr('to train today?', '哪个部位？')}</h1>
-              <p>{tr('Follow Relay’s rotation or choose what feels right. Your choice only changes today’s session.', '你可以跟随 Relay 的轮换推荐，也可以选择今天最想练的部位。')}</p>
+              <p>{tr('Follow TrainWell’s rotation or choose what feels right. Your choice only changes today’s session.', '你可以跟随 TrainWell 的轮换推荐，也可以选择今天最想练的部位。')}</p>
               <button className={`recommended-focus ${selectedFocus === recommendedFocus ? 'selected' : ''}`} type="button" onClick={() => setSelectedFocus(recommendedFocus)}>
                 <span><small>{tr('RECOMMENDED TODAY', '今日推荐')}</small><strong>{language === 'zh' ? focusChinese[recommendedFocus] : recommendedFocusInfo.label}</strong><em>{language === 'zh' ? focusDescriptionChinese[recommendedFocus] : recommendedFocusInfo.description}</em></span>
                 <b>{selectedFocus === recommendedFocus ? '✓' : tr('Use this', '使用')}</b>
@@ -587,7 +598,7 @@ export default function Home() {
             <div className="setup-copy">
               <p className="kicker">{tr('STEP 2 · WHAT DO YOU HAVE?', '第 2 步 · 你有什么器械？')}</p>
               <h1>{tr('Pick your', '选择你的')}<br />{tr('equipment.', '训练器械。')}</h1>
-              <p>{tr('Select everything available today. Relay will use it where it helps and keep a bodyweight option in every plan.', '选择今天可用的全部器械。Relay 会合理使用，并为每个计划保留徒手选项。')}</p>
+              <p>{tr('Select everything available today. TrainWell will use it where it helps and keep a bodyweight option in every plan.', '选择今天可用的全部器械。TrainWell 会合理使用，并为每个计划保留徒手选项。')}</p>
               <div className="bodyweight-default"><span>{tr('YOU ALWAYS HAVE', '默认拥有')}</span><strong>{tr('Bodyweight training', '徒手训练')}</strong><b>✓ {tr('Included', '已包含')}</b></div>
               <div className="equipment-grid" role="group" aria-label="Available equipment">
                 {equipmentOptions.map((item) => {
@@ -611,7 +622,7 @@ export default function Home() {
               <div className="plan-mini-list">
                 {activeWorkout.map((item, index) => <span key={item.id}><b>{index + 1}</b><strong>{language === 'zh' ? exerciseChinese[item.id] ?? item.name : item.name}</strong><small>{item.equipment === 'bodyweight' ? tr('Bodyweight', '徒手') : language === 'zh' ? equipmentChinese[item.equipment] : equipmentOptions.find((option) => option.id === item.equipment)?.label}</small></span>)}
               </div>
-              <p className="coach-choice-label">{tr('HOW SHOULD RELAY GUIDE YOU?', '你希望 RELAY 如何指导？')}</p>
+              <p className="coach-choice-label">{tr('How should TrainWell guide you?', '你希望 TrainWell 如何指导？')}</p>
               <div className="coach-choice compact" role="radiogroup" aria-label="Coaching mode">
                 <button className={coachingMode === 'photos' ? 'selected' : ''} role="radio" aria-checked={coachingMode === 'photos'} type="button" onClick={() => setCoachingMode('photos')}>
                   <span className="choice-icon">1·2·3</span><div><strong>{tr('Follow 3 clear steps', '跟随 3 个清晰步骤')}</strong><small>{tr('Set up, move, finish', '准备、动作、完成')}</small></div><b>{coachingMode === 'photos' ? '✓' : ''}</b>
@@ -676,7 +687,7 @@ export default function Home() {
       return (
         <main className="summary-screen">
           <div className="summary-confetti"><i /><i /><i /><i /><i /></div>
-          <div className="summary-mark">R</div>
+          <div className="summary-mark">T</div>
           <p>WORKOUT COMPLETE</p>
           <h1>You showed up.<br />That&apos;s the win.</h1>
           <div className="summary-stats">
@@ -748,15 +759,15 @@ export default function Home() {
   return (
     <main className="coach-app">
       <header className="coach-header">
-        <button className="wordmark" type="button" onClick={() => navigate('today')} aria-label="Relay home"><span>R</span>RELAY</button>
+        <button className="wordmark" type="button" onClick={() => navigate('today')} aria-label="TrainWell home"><span>T</span>TrainWell</button>
         <p>{trialRemaining !== null ? tr(`${trialRemaining} trial days left`, `试用剩余 ${trialRemaining} 天`) : tr(`${member.membership.plan} member`, `${member.membership.plan === 'monthly' ? '月付' : '年付'}会员`)}</p>
-        <div className="coach-header-actions"><LanguageSwitch language={language} onChange={setLanguage} /><button className="avatar" type="button" aria-label="Open profile" onClick={() => navigate('you')}>{account.user.displayName?.charAt(0).toUpperCase() ?? 'R'}</button></div>
+        <div className="coach-header-actions"><LanguageSwitch language={language} onChange={setLanguage} /><button className="avatar" type="button" aria-label="Open profile" onClick={() => navigate('you')}>{account.user.displayName?.charAt(0).toUpperCase() ?? 'T'}</button></div>
       </header>
 
       {view === 'today' && (
         <>
           <section className="today-head">
-            <p className="kicker"><i /> {completedToday ? tr('TODAY\'S WORK IS DONE', '今天的训练已完成') : selectedFocus === recommendedFocus ? tr('RELAY\'S RECOMMENDATION', 'RELAY 今日推荐') : tr('YOUR CHOICE FOR TODAY', '你今天的选择')}</p>
+            <p className="kicker"><i /> {completedToday ? tr('TODAY\'S WORK IS DONE', '今天的训练已完成') : selectedFocus === recommendedFocus ? tr('TrainWell\'s recommendation', 'TrainWell 今日推荐') : tr('YOUR CHOICE FOR TODAY', '你今天的选择')}</p>
             <h1>{completedToday ? <>{tr('Strong work.', '做得很好。')}<br />{tr('Recover well.', '好好恢复。')}</> : <>{language === 'zh' ? focusChinese[selectedFocus] : focusInfo.label}{tr('.', '。')}<br />{tr('Ready when you are.', '准备好就开始。')}</>}</h1>
             <p>{completedToday ? tr(`${workoutStats.minutes} minutes completed · ${workoutStats.moves} movements`, `已完成 ${workoutStats.minutes} 分钟 · ${workoutStats.moves} 个动作`) : tr(`${workoutStats.minutes} minutes · Beginner-friendly · ${equipmentSummary}`, `${workoutStats.minutes} 分钟 · 新手友好 · ${equipmentSummaryChinese(selectedEquipment)}`)}</p>
           </section>
@@ -778,8 +789,8 @@ export default function Home() {
               <button type="button" onClick={() => navigate('you')}>{tr('My plan', '我的计划')} <span>→</span></button>
             </>}
             {(accountStatus === 'signed-out' || accountStatus === 'error') && <>
-              <span className="account-lock">R</span>
-              <div><strong>Keep your progress secure</strong><small>Return to the Relay account screen.</small></div>
+              <span className="account-lock">T</span>
+              <div><strong>Keep your progress secure</strong><small>Return to the TrainWell account screen.</small></div>
               <button type="button" onClick={signOut}>Open account screen <span>→</span></button>
             </>}
           </section>
@@ -805,7 +816,7 @@ export default function Home() {
           </section>
 
           <section className="weekly-rotation">
-            <div><p className="kicker">{tr('YOUR WEEKLY ROTATION', '你的每周轮换')}</p><h2>{tr('Balanced across the week.', '一周均衡训练。')}</h2><span>{tr('Relay rotates muscle groups so one area is not trained hard every day. Tap any day to use its focus now.', 'Relay 会轮换训练部位，避免同一部位连续高强度训练。点击任意一天即可使用该计划。')}</span></div>
+            <div><p className="kicker">{tr('YOUR WEEKLY ROTATION', '你的每周轮换')}</p><h2>{tr('Balanced across the week.', '一周均衡训练。')}</h2><span>{tr('TrainWell rotates muscle groups so one area is not trained hard every day. Tap any day to use its focus now.', 'TrainWell 会轮换训练部位，避免同一部位连续高强度训练。点击任意一天即可使用该计划。')}</span></div>
             <div className="rotation-days">
               {weekdayLabels.map((day, weekday) => {
                 const rotationFocus = getFocusOption(weeklyRotation[weekday]);
@@ -846,7 +857,7 @@ export default function Home() {
                 <label><span>{tr('Meals', '饮食')}</span><select value={account.todayLog.meals} onChange={(event) => updateLog({ meals: event.target.value })}><option value="Needs attention">{tr('Needs attention', '需要注意')}</option><option value="Balanced">{tr('Balanced', '均衡')}</option><option value="On track">{tr('On track', '状态良好')}</option></select></label>
                 <label><span>{tr('Energy', '精力')}</span><select value={account.todayLog.energy} onChange={(event) => updateLog({ energy: Number(event.target.value) })}><option value="1">1 · {tr('Very low', '很低')}</option><option value="2">2 · {tr('Low', '较低')}</option><option value="3">3 · {tr('Steady', '稳定')}</option><option value="4">4 · {tr('Good', '良好')}</option><option value="5">5 · {tr('Excellent', '极佳')}</option></select></label>
                 <label className="checkin-notes"><span>{tr('Anything your coach should know?', '有什么需要教练了解的吗？')}</span><input type="text" maxLength={500} placeholder={tr('Soreness, stress, appetite, recovery…', '酸痛、压力、食欲、恢复情况…')} value={account.todayLog.notes} onChange={(event) => updateLog({ notes: event.target.value })} /></label>
-                <label className="health-consent"><input type="checkbox" checked={account.profile.consentHealthData} onChange={(event) => updateProfile({ consentHealthData: event.target.checked })} /><span>{tr('I consent to securely storing this wellness information so Relay can personalize my training. I can export or delete it at any time.', '我同意安全存储这些健康信息，以便 Relay 个性化训练。我可以随时导出或删除。')}</span></label>
+                <label className="health-consent"><input type="checkbox" checked={account.profile.consentHealthData} onChange={(event) => updateProfile({ consentHealthData: event.target.checked })} /><span>{tr('I consent to securely storing this wellness information so TrainWell can personalize my training. I can export or delete it at any time.', '我同意安全存储这些健康信息，以便 TrainWell 个性化训练。我可以随时导出或删除。')}</span></label>
                 <button type="submit">{tr('Save check-in', '保存健康记录')} <span>→</span></button>
               </form>
             ) : (
@@ -856,7 +867,7 @@ export default function Home() {
 
           <section className="camera-promise">
             <div className="camera-icon"><i /><span /></div>
-            <div><p className="kicker">{tr('LIVE FORM COACH', '实时动作教练')}</p><h2>{tr('Your phone can watch the rep—not record your room.', '手机只看动作，不记录你的房间。')}</h2><p>{tr('Set it 2–3 metres away. Relay maps visible joint positions, counts completed reps, and gives one useful correction at a time.', '将手机放在 2–3 米外。Relay 会识别可见关节、计算次数，并一次给出一个实用纠正建议。')}</p></div>
+            <div><p className="kicker">{tr('LIVE FORM COACH', '实时动作教练')}</p><h2>{tr('Your phone can watch the rep—not record your room.', '手机只看动作，不记录你的房间。')}</h2><p>{tr('Set it 2–3 metres away. TrainWell maps visible joint positions, counts completed reps, and gives one useful correction at a time.', '将手机放在 2–3 米外。TrainWell 会识别可见关节、计算次数，并一次给出一个实用纠正建议。')}</p></div>
             <button type="button" onClick={() => { setSessionOpen(true); setStage('camera'); }}>{tr('Try camera coach', '体验摄像指导')} <span>→</span></button>
           </section>
         </>
@@ -883,7 +894,7 @@ export default function Home() {
           <h1>Simple choices.<br />Clear training.</h1>
           {accountStatus === 'signed-in' && account ? <>
             <article className="profile-card"><span className="large-avatar">{account.user.displayName.charAt(0).toUpperCase()}</span><div><strong>{account.user.displayName}</strong><small>{account.user.email} · {account.profile.level}</small></div><button type="button" onClick={signOut}>{tr('Sign out', '退出登录')}</button></article>
-            <article className="membership-card"><div><small>{tr('MEMBERSHIP', '会员状态')}</small><h2>{member.membership.plan === 'trial' ? tr('7-day free trial', '7 天免费试用') : member.membership.plan === 'monthly' ? tr('Monthly membership', '月付会员') : tr('Annual membership', '年付会员')}</h2><p>{trialRemaining !== null ? tr(`${trialRemaining} days remaining. No card is required during the trial.`, `剩余 ${trialRemaining} 天。试用期间无需绑卡。`) : member.membership.cancelAtPeriodEnd ? tr('Active until the current paid period ends.', '当前付费周期结束前仍可使用。') : tr('Secure subscription access is active.', '安全订阅权限已开启。')}</p></div><span>{member.membership.plan === 'trial' ? `${trialRemaining}/7` : '✓'}</span></article>
+            <article className="membership-card"><div><small>{tr('MEMBERSHIP', '会员状态')}</small><h2>{member.membership.plan === 'trial' ? tr('7-day free trial', '7 天免费试用') : member.membership.plan === 'monthly' ? tr('Monthly membership', '月付会员') : tr('Annual membership', '年付会员')}</h2><p>{trialRemaining !== null ? tr(`${trialRemaining} days remaining. No card is required during the trial.`, `剩余 ${trialRemaining} 天。试用期间无需绑卡。`) : member.membership.cancelAtPeriodEnd ? tr('Active until the current paid period ends.', '当前付费周期结束前仍可使用。') : tr('Secure subscription access is active.', '安全订阅权限已开启。')}</p>{member.market === 'global' && <p>{member.membership.plan === 'trial' ? tr(`After your trial: ${globalPriceLabel('monthly', language)} or ${globalPriceLabel('annual', language)}. ${annualSavingLabel(language)}.`, `试用后：${globalPriceLabel('monthly', language)} 或 ${globalPriceLabel('annual', language)}。${annualSavingLabel(language)}。`) : globalPriceLabel(member.membership.plan, language)}</p>}</div><span>{member.membership.plan === 'trial' ? `${trialRemaining}/7` : '✓'}</span></article>
 
             {legacySnapshot && <article className="legacy-import-card"><div><small>{tr('DEVICE HISTORY FOUND', '发现设备历史记录')}</small><h2>{tr('Bring your previous Relay activity with you.', '导入之前的 Relay 训练记录。')}</h2><p>{tr('Only workouts, wellness, and schedule data will be imported. Demo passwords and billing status are never copied.', '仅导入训练、健康记录与日程。演示密码和账单状态绝不会被复制。')}</p></div><button type="button" onClick={importDeviceData}>{tr('Import securely', '安全导入')} <span>→</span></button></article>}
 
@@ -918,10 +929,10 @@ export default function Home() {
             </article>
 
             <article className="setting-card">
-              <div><span>VOICE COACH</span><h2>Hear reps and form cues</h2><p>Relay speaks only during a camera-coached set.</p></div>
+              <div><span>VOICE COACH</span><h2>Hear reps and form cues</h2><p>TrainWell speaks only during a camera-coached set.</p></div>
               <button className={audioEnabled ? 'switch on' : 'switch'} type="button" onClick={() => setAudioEnabled((value) => !value)} aria-pressed={audioEnabled}><i /></button>
             </article>
-            <article className="privacy-card"><span className="shield">✓</span><div><small>CAMERA PRIVACY</small><h2>Your video stays yours.</h2><p>Pose tracking runs in your browser. Relay never saves or uploads camera frames; only your completed workout totals are stored.</p></div></article>
+            <article className="privacy-card"><span className="shield">✓</span><div><small>CAMERA PRIVACY</small><h2>Your video stays yours.</h2><p>Pose tracking runs in your browser. TrainWell never saves or uploads camera frames; only your completed workout totals are stored.</p></div></article>
             <AccountPrivacyActions language={language} member={member} onExport={exportAccountData} onDelete={removeAccount} onManageBilling={manageBilling} busy={accountActionBusy} />
             {saveStatus && <p className="account-save-status" role="status">{saveStatus}</p>}
           </> : <AccountGate title="One account. Your complete routine." copy="Sign in to securely save workouts, daily wellness, goals, and your weekly schedule." />}
@@ -933,7 +944,7 @@ export default function Home() {
         <button className={view === 'history' ? 'active' : ''} type="button" onClick={() => navigate('history')}><span>◫</span>{tr('History', '记录')}</button>
         <button className={view === 'you' ? 'active' : ''} type="button" onClick={() => navigate('you')}><span>◌</span>{tr('You', '我的')}</button>
       </nav>
-      <footer><span>RELAY / {tr('TRAIN WITH CLARITY', '清晰训练')}</span><span>{tr('PRIVATE BY DESIGN', '隐私优先设计')}</span></footer>
+      <footer><span>TrainWell / {tr('TRAIN WITH CLARITY', '清晰训练')}</span><span>{tr('PRIVATE BY DESIGN', '隐私优先设计')}</span></footer>
 
       {previewIndex !== null && activeWorkout[previewIndex] && (
         <ExercisePreview exercise={activeWorkout[previewIndex]} index={previewIndex} total={activeWorkout.length} language={language} onClose={() => setPreviewIndex(null)} onStartCamera={() => startSession(previewIndex)} />
@@ -1029,7 +1040,7 @@ function PhaseGuide({ exercise, compact = false, language = 'en' }: { exercise: 
 function AccountGate({ title, copy }: { title: string; copy: string }) {
   return (
     <article className="account-gate-card">
-      <span className="gate-mark">R</span>
+      <span className="gate-mark">T</span>
       <small>YOUR PRIVATE TRAINING ACCOUNT</small>
       <h2>{title}</h2>
       <p>{copy}</p>
@@ -1079,14 +1090,14 @@ function TrialPaywall({ language, member, onLanguageChange, onSubscribe, onSignO
   const tr = (english: string, chinese: string) => language === 'zh' ? chinese : english;
   return (
     <main className="paywall-shell">
-      <header><button className="wordmark" type="button"><span>R</span>RELAY</button><LanguageSwitch language={language} onChange={onLanguageChange} /></header>
+      <header><button className="wordmark" type="button"><span>T</span>TrainWell</button><LanguageSwitch language={language} onChange={onLanguageChange} /></header>
       <section>
         <p className="kicker">{tr('YOUR ACCESS HAS ENDED', '使用权限已到期')}</p>
         <h1>{tr('Keep your momentum.', '继续保持训练节奏。')}</h1>
-        <p>{tr(`Thanks for training with Relay, ${member.displayName}. Your history remains safe. Choose secure access to continue personalized workouts.`, `感谢你使用 Relay 训练，${member.displayName}。你的记录仍被安全保存。选择安全方案即可继续个性化训练。`)}</p>
+        <p>{tr(`Thanks for training with TrainWell, ${member.displayName}. Your history remains safe. Choose secure access to continue personalized workouts.`, `感谢你使用 TrainWell 训练，${member.displayName}。你的记录仍被安全保存。选择安全方案即可继续个性化训练。`)}</p>
         <div className="paywall-options">
-          {member.market === 'global' && <article><span>{tr('MONTHLY', '月付')}</span><h2>{tr('Monthly access', '月付会员')}</h2><p>{tr('Flexible recurring access. Cancel from the secure billing portal.', '灵活按月续费，可在安全账单页面取消。')}</p><button type="button" onClick={() => onSubscribe('monthly')}>{tr('Choose monthly', '选择月付')}<b>→</b></button></article>}
-          <article className="featured"><small>{tr('BEST VALUE', '超值方案')}</small><span>{tr('ANNUAL', '年付')}</span><h2>{member.market === 'cn' ? tr('One secure annual payment', '一次安全年付') : tr('Annual membership', '年付会员')}</h2><p>{member.market === 'cn' ? tr('365 days of access with Alipay or an eligible card. It does not auto-renew.', '可使用支付宝或支持的银行卡购买 365 天权限，不会自动续费。') : tr('One year of consistent coaching at the best value.', '以更优惠的方式获得一整年的持续指导。')}</p><button type="button" onClick={() => onSubscribe('annual')}>{tr('Choose annual', '选择年付')}<b>→</b></button></article>
+          {member.market === 'global' && <article><span>{tr('MONTHLY', '月付')}</span><h2>{globalPriceLabel('monthly', language)}</h2><p>{tr('Billed monthly in USD. Cancel renewal from the secure billing portal.', '以美元按月续费，可在安全账单页面取消续订。')}</p><button type="button" onClick={() => onSubscribe('monthly')}>{tr('Choose monthly', '选择月付')}<b>→</b></button></article>}
+          <article className="featured"><small>{member.market === 'global' ? annualSavingLabel(language) : tr('BEST VALUE', '超值方案')}</small><span>{tr('ANNUAL', '年付')}</span><h2>{member.market === 'cn' ? tr('One secure annual payment', '一次安全年付') : globalPriceLabel('annual', language)}</h2><p>{member.market === 'cn' ? tr('365 days of access with Alipay or an eligible card. It does not auto-renew.', '可使用支付宝或支持的银行卡购买 365 天权限，不会自动续费。') : tr('Billed yearly in USD. Cancel renewal from the secure billing portal.', '以美元按年续费，可在安全账单页面取消续订。')}</p><button type="button" onClick={() => onSubscribe('annual')}>{tr('Choose annual', '选择年付')}<b>→</b></button></article>
         </div>
         <AccountPrivacyActions language={language} member={member} onExport={onExport} onDelete={onDelete} onManageBilling={onManageBilling} busy={accountActionBusy} />
         {status && <p role="status">{status}</p>}

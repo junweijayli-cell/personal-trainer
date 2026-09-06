@@ -15,7 +15,7 @@ export const backendConfigured = Boolean(supabaseUrl && publishableKey);
 
 export function getSupabase(): SupabaseClient {
   if (!backendConfigured) {
-    throw new Error('Relay secure account services are not configured for this deployment.');
+    throw new Error('TrainWell secure account services are not configured for this deployment.');
   }
   browserClient ??= createClient(supabaseUrl, publishableKey, {
     auth: {

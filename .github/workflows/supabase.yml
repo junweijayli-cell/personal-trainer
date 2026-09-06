@@ -1,4 +1,4 @@
-name: Deploy Relay Supabase backend
+name: Deploy TrainWell Supabase backend
 
 on:
   workflow_dispatch:

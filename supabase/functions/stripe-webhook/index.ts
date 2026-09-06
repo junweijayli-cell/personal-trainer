@@ -82,7 +82,7 @@ async function handleCheckout(admin: SupabaseClient, event: Stripe.Event, sessio
   const customerId = id(session.customer);
   const subscriptionId = id(session.subscription);
   const membership = await findMembership(admin, { userId, customerId, subscriptionId });
-  if (!membership) throw new Error('No Relay membership matches this Checkout Session.');
+  if (!membership) throw new Error('No TrainWell membership matches this Checkout Session.');
 
   if (session.mode === 'payment') {
     if (session.payment_status !== 'paid' && event.type !== 'checkout.session.async_payment_succeeded') return;
@@ -112,7 +112,7 @@ async function handleSubscription(admin: SupabaseClient, event: Stripe.Event, su
   const customerId = id(subscription.customer);
   const userId = subscription.metadata?.supabase_user_id ?? null;
   const membership = await findMembership(admin, { userId, customerId, subscriptionId: subscription.id });
-  if (!membership) throw new Error('No Relay membership matches this subscription.');
+  if (!membership) throw new Error('No TrainWell membership matches this subscription.');
   if (membership.stripe_subscription_id && membership.stripe_subscription_id !== subscription.id && subscription.status !== 'active' && subscription.status !== 'trialing') return;
   const firstItem = subscription.items.data[0];
   const price = firstItem?.price?.id ?? null;

@@ -1,6 +1,6 @@
-# Relay Coach
+# TrainWell
 
-Relay is a phone-first virtual personal trainer. The application recommends a complete workout, adapts it to available equipment and chosen body areas, shows each movement in full-body stages, records training and wellness progress, and can provide on-device camera guidance.
+TrainWell is a phone-first virtual personal trainer. The application recommends a complete workout, adapts it to available equipment and chosen body areas, shows each movement in full-body stages, records training and wellness progress, and can provide on-device camera guidance.
 
 This repository now contains the production authentication, database, trial, billing, regional deployment, and test foundation. The former browser-only demo account system has been removed.
 
@@ -72,4 +72,4 @@ Until those external services and secrets are supplied, the repository is produc
 
 ## Privacy and safety
 
-Relay provides fitness guidance, not medical diagnosis. Sensitive health logging requires separate consent. Users can export or delete their account data. Raw camera video is not uploaded by default, and movement feedback is an estimate rather than a substitute for a qualified coach or clinician.
+TrainWell provides fitness guidance, not medical diagnosis. Sensitive health logging requires separate consent. Users can export or delete their account data. Raw camera video is not uploaded by default, and movement feedback is an estimate rather than a substitute for a qualified coach or clinician.

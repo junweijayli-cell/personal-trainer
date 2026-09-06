@@ -8,7 +8,7 @@ Deno.serve(async (request) => {
   if (options) return options;
   if (request.method !== 'POST') return json(request, { error: 'Method not allowed.' }, 405);
   try {
-    if (appMarket() === 'cn') throw new Error('Mainland annual access is prepaid and does not auto-renew. Renew from Relay before expiry.');
+    if (appMarket() === 'cn') throw new Error('Mainland annual access is prepaid and does not auto-renew. Renew from TrainWell before expiry.');
     const { user, admin } = await authenticatedUser(request);
     const { data: membership, error } = await admin.from('memberships').select('stripe_customer_id').eq('user_id', user.id).single();
     if (error) throw new Error(error.message);

@@ -1,4 +1,4 @@
-# Relay production operations
+# TrainWell production operations
 
 This runbook separates code that is already implemented from external service configuration that must be completed by an authorized operator. Use different Supabase, Stripe, SMTP, monitoring, and storage credentials for development, staging, and production.
 
@@ -30,7 +30,7 @@ The explicitly opted-in diagnostic `node scripts/smtp-email-smoke.mjs --project-
 
 ## 2. Database and server functions
 
-The `Deploy Relay Supabase backend` workflow applies reviewed migrations and deploys these functions:
+The `Deploy TrainWell Supabase backend` workflow applies reviewed migrations and deploys these functions:
 
 - `create-checkout-session` — authenticated
 - `create-customer-portal-session` — authenticated
@@ -62,7 +62,9 @@ Supabase automatically provides its URL and service-role credentials to hosted E
 
 ## 3. Stripe test-mode configuration
 
-Create one Relay product and two recurring Prices: monthly and annual. Put the Price IDs only in server secrets. Configure Customer Portal cancellation, payment-method updates, and invoice history.
+Create one TrainWell product and two fixed, licensed recurring Prices: **US$5 every month** (`unit_amount=500`, `currency=usd`, `interval=month`, `interval_count=1`) and **US$30 every year** (`unit_amount=3000`, `currency=usd`, `interval=year`, `interval_count=1`). Annual access saves 50% versus twelve monthly payments. Put their actual Price IDs only in the `STRIPE_PRICE_MONTHLY` and `STRIPE_PRICE_ANNUAL` server secrets. Configure Customer Portal cancellation, payment-method updates, and invoice history. See [PRICING.md](./PRICING.md) for the approved offer and remaining activation gates.
+
+The catalog and Checkout validate the Stripe Price against the shared USD policy before use. Inactive, metered, tiered, customer-adjustable, quantity-transformed, wrong-currency, wrong-amount, or wrong-interval prices are rejected; validation occurs before creating a Stripe customer or Checkout session. Changing a frontend value cannot change the charged amount. Do not create alternate currency options or automatic currency conversion until the offer and display are reviewed. The existing seven-day server-calculated trial is unchanged, and no card is required for it.
 
 Register the webhook endpoint at:
 

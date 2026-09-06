@@ -1,6 +1,6 @@
 {
-  "name": "Relay Coach",
-  "short_name": "Relay",
+  "name": "TrainWell",
+  "short_name": "TrainWell",
   "description": "Guided workouts with private on-device camera coaching.",
   "start_url": "./",
   "display": "standalone",

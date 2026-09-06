@@ -1,6 +1,6 @@
 import { handleOptions } from '../_shared/cors.ts';
 import { errorResponse, json } from '../_shared/response.ts';
-import { appMarket, priceId, stripeClient } from '../_shared/stripe.ts';
+import { appMarket, approvedStripePrice, stripeClient } from '../_shared/stripe.ts';
 
 Deno.serve(async (request) => {
   const options = handleOptions(request);
@@ -11,7 +11,7 @@ Deno.serve(async (request) => {
     const stripe = stripeClient();
     const plans = market === 'cn' ? ['annual'] as const : ['monthly', 'annual'] as const;
     const catalog = await Promise.all(plans.map(async (plan) => {
-      const price = await stripe.prices.retrieve(priceId(plan));
+      const price = await approvedStripePrice(stripe, plan);
       return { plan, currency: price.currency, unitAmount: price.unit_amount, recurring: price.recurring?.interval ?? null };
     }));
     return json(request, { market, plans: catalog }, 200);

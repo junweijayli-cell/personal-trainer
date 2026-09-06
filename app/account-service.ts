@@ -59,7 +59,7 @@ function defaultLog(): DailyLog {
 }
 
 function metadataName(user: User) {
-  return String(user.user_metadata?.display_name || user.email?.split('@')[0] || 'Relay member');
+  return String(user.user_metadata?.display_name || user.email?.split('@')[0] || 'TrainWell member');
 }
 
 export function isSecureBackendConfigured() {
@@ -89,7 +89,7 @@ export async function signUpAccount(input: {
     },
   });
   if (error) throw new Error(error.message);
-  if (!data.user) throw new Error('Relay could not create the account.');
+  if (!data.user) throw new Error('TrainWell could not create the account.');
   return data.user;
 }
 
@@ -123,7 +123,7 @@ export async function signInAccount(email: string, password: string, captchaToke
     options: { captchaToken },
   });
   if (error) throw new Error(error.message);
-  if (!data.session) throw new Error('Relay could not start your session.');
+  if (!data.session) throw new Error('TrainWell could not start your session.');
   return loadMember(data.session);
 }
 
@@ -431,7 +431,7 @@ export async function downloadAccountExport(member: MemberAccount, snapshot?: Ac
   const url = URL.createObjectURL(new Blob([payload], { type: 'application/json' }));
   const anchor = document.createElement('a');
   anchor.href = url;
-  anchor.download = `relay-account-${dateKey()}.json`;
+  anchor.download = `trainwell-account-${dateKey()}.json`;
   anchor.click();
   URL.revokeObjectURL(url);
 }
