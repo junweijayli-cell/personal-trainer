@@ -4,7 +4,7 @@ This runbook separates code that is already implemented from external service co
 
 ## 1. Global account region
 
-Create a managed Supabase project in Singapore. Do not reuse the mainland database. Record its project reference, database password, project URL, and publishable key in the password manager.
+The original regional plan calls for Singapore. The user-supplied project `yvcdlrnjhhafywawuknj`, deployed on 2026-09-06, is in Mumbai (`ap-south-1`). Do not represent it as Singapore or mainland hosting. Changing database region requires a separately reviewed project migration. Do not reuse this database for mainland data residency. Keep deployment credentials in a password manager or the native CLI credential store.
 
 Configure Auth as follows:
 
@@ -21,6 +21,8 @@ Configure Auth as follows:
 Copy the bilingual HTML in `supabase/templates/confirmation.html` and `supabase/templates/recovery.html` into the corresponding Auth email templates. The confirmation template uses `{{ .Token }}` rather than a magic-link-only flow.
 
 Configure verified Resend SMTP. Complete SPF and DKIM validation before sending production email. Supabase's default mail sender is not a production dependency.
+
+Supabase currently rejects custom email template changes on free projects using its default sender. Until custom SMTP is configured, keep `NEXT_PUBLIC_SIGNUP_ENABLED=false` in GitHub; the app explains that email signup is being configured, while existing accounts can sign in. Once SMTP is verified, apply `supabase config push` to install the bilingual code/recovery templates, test real email delivery in staging, then set this flag to `true` and rebuild Pages. Do not disable email confirmation to bypass this gate.
 
 ## 2. Database and server functions
 
@@ -85,10 +87,13 @@ Add these repository secrets:
 
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+- `NEXT_PUBLIC_SIGNUP_ENABLED` — `false` until customer email delivery and templates pass acceptance
 - `NEXT_PUBLIC_TURNSTILE_SITE_KEY`
 - `NEXT_PUBLIC_SENTRY_DSN`
 
 Only the Supabase URL, publishable key, CAPTCHA site key, and public Sentry DSN are embedded in the static application. The Pages workflow runs lint, unit tests, and a production build before deployment.
+
+The signup-readiness flag is a UI release gate, not a replacement for backend rate limiting, email confirmation, or CAPTCHA. Configure the latter before enabling public registration.
 
 When a custom domain is available, point `app.<domain>` to GitHub Pages, update Supabase redirect URLs, `APP_URL`, `ALLOWED_ORIGINS`, Turnstile allowed hosts, and Stripe return URLs in one reviewed change.
 

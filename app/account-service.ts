@@ -382,8 +382,52 @@ export async function importLegacySnapshot(member: MemberAccount, snapshot: Acco
   window.localStorage.removeItem(`relay-demo-snapshot:${member.email.trim().toLowerCase()}`);
 }
 
-export function downloadAccountExport(member: MemberAccount, snapshot: AccountSnapshot) {
-  const payload = JSON.stringify({ exportedAt: new Date().toISOString(), member, snapshot }, null, 2);
+const exportTables = [
+  ['profiles', 'user_id'],
+  ['training_preferences', 'user_id'],
+  ['memberships', 'user_id'],
+  ['training_plans', 'id'],
+  ['scheduled_workouts', 'id'],
+  ['workout_sessions', 'id'],
+  ['exercise_logs', 'id'],
+  ['wellness_logs', 'id'],
+  ['reminders', 'id'],
+] as const;
+
+export async function loadAccountExport(member: MemberAccount) {
+  const session = await getActiveSession();
+  if (!session || session.user.id !== member.userId) {
+    throw new Error('Your session has expired. Please sign in again.');
+  }
+  const supabase = getSupabase();
+  const entries = await Promise.all(exportTables.map(async ([table, key]) => {
+    const rows: Record<string, unknown>[] = [];
+    let cursor: string | undefined;
+    while (true) {
+      let query = supabase.from(table).select('*').eq('user_id', session.user.id).order(key).limit(500);
+      if (cursor) query = query.gt(key, cursor);
+      const { data, error } = await query;
+      if (error) throw new Error(error.message);
+      if (!data?.length) break;
+      rows.push(...data);
+      const nextCursor = String(data[data.length - 1][key]);
+      if (!nextCursor || nextCursor === cursor) throw new Error('Your account export could not be completed. Please try again.');
+      cursor = nextCursor;
+    }
+    return [table, rows] as const;
+  }));
+  return {
+    formatVersion: 2,
+    exportedAt: new Date().toISOString(),
+    account: { userId: session.user.id, email: session.user.email ?? member.email },
+    data: Object.fromEntries(entries),
+  };
+}
+
+export async function downloadAccountExport(member: MemberAccount, snapshot?: AccountSnapshot) {
+  // Older callers can still pass the screen snapshot; the database is the export source.
+  void snapshot;
+  const payload = JSON.stringify(await loadAccountExport(member), null, 2);
   const url = URL.createObjectURL(new Blob([payload], { type: 'application/json' }));
   const anchor = document.createElement('a');
   anchor.href = url;

@@ -133,6 +133,8 @@ export default function Home() {
   const [account, setAccount] = useState<AccountSnapshot | null>(null);
   const [accountStatus, setAccountStatus] = useState<'loading' | 'signed-out' | 'signed-in' | 'error'>('loading');
   const [saveStatus, setSaveStatus] = useState('');
+  const [accountActionBusy, setAccountActionBusy] = useState(false);
+  const [startingSession, setStartingSession] = useState(false);
   const [pendingExerciseIndex, setPendingExerciseIndex] = useState(0);
   const [todayWeekday, setTodayWeekday] = useState(-1);
   const [passwordRecovery, setPasswordRecovery] = useState(false);
@@ -276,17 +278,38 @@ export default function Home() {
     window.scrollTo({ top: 0, behavior: 'auto' });
   }, [sessionOpen, setupStep, stage, exerciseIndex]);
 
-  function startSession(startAt = 0) {
-    setSessionOpen(true);
-    setStage('setup');
-    setSetupStep(1);
-    setCoachingMode('photos');
-    setExerciseIndex(startAt);
-    setSetsDone(activeWorkout.map(() => 0));
-    setElapsed(0);
-    setCameraSets(0);
-    setPreviewIndex(null);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+  async function startSession(startAt = 0) {
+    if (!member || startingSession) return;
+    setStartingSession(true);
+    setSaveStatus(tr('Checking your workout access…', '正在确认训练权限…'));
+    try {
+      const currentMember = await loadMember();
+      if (currentMember.userId !== member.userId) {
+        signOut();
+        return;
+      }
+      setMember(currentMember);
+      if (!membershipHasAccess(currentMember.membership)) {
+        setPreviewIndex(null);
+        setSaveStatus('');
+        return;
+      }
+      setSessionOpen(true);
+      setStage('setup');
+      setSetupStep(1);
+      setCoachingMode('photos');
+      setExerciseIndex(startAt);
+      setSetsDone(activeWorkout.map(() => 0));
+      setElapsed(0);
+      setCameraSets(0);
+      setPreviewIndex(null);
+      setSaveStatus('');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (error) {
+      setSaveStatus(error instanceof Error ? error.message : tr('Unable to check workout access. Please try again.', '暂时无法确认训练权限，请重试。'));
+    } finally {
+      setStartingSession(false);
+    }
   }
 
   function completeSet() {
@@ -389,12 +412,28 @@ export default function Home() {
   }
 
   async function removeAccount() {
-    if (!member) return;
+    if (!member || accountActionBusy) return;
     const confirmed = window.confirm(tr('Delete your Relay account and all saved data? Active billing will be canceled. This cannot be undone.', '删除 Relay 账户及全部数据？当前订阅也会取消，此操作无法撤销。'));
     if (!confirmed) return;
+    setAccountActionBusy(true);
     setSaveStatus(tr('Deleting your account…', '正在删除账户…'));
     try { await deleteAccount(); signOut(); }
     catch (error) { setSaveStatus(error instanceof Error ? error.message : tr('Account deletion failed.', '账户删除失败。')); }
+    finally { setAccountActionBusy(false); }
+  }
+
+  async function exportAccountData() {
+    if (!member || accountActionBusy) return;
+    setAccountActionBusy(true);
+    setSaveStatus(tr('Preparing your complete account export…', '正在准备完整账户数据…'));
+    try {
+      await downloadAccountExport(member);
+      setSaveStatus(tr('Your complete account export is ready to download.', '完整账户数据已准备下载。'));
+    } catch (error) {
+      setSaveStatus(error instanceof Error ? error.message : tr('Account export failed. Please try again.', '数据导出失败，请重试。'));
+    } finally {
+      setAccountActionBusy(false);
+    }
   }
 
   async function saveWorkout() {
@@ -508,7 +547,7 @@ export default function Home() {
   }
 
   if (!membershipHasAccess(member.membership)) {
-    return <TrialPaywall language={language} member={member} onLanguageChange={setLanguage} onSubscribe={selectSubscription} onSignOut={signOut} />;
+    return <TrialPaywall language={language} member={member} onLanguageChange={setLanguage} onSubscribe={selectSubscription} onSignOut={signOut} onExport={exportAccountData} onDelete={removeAccount} onManageBilling={manageBilling} accountActionBusy={accountActionBusy} status={saveStatus} />;
   }
 
   if (sessionOpen) {
@@ -751,7 +790,7 @@ export default function Home() {
             <div className="session-image">
               <PhaseGuide key={activeWorkout[0].id} exercise={activeWorkout[0]} compact language={language} />
               <span className="guide-chip">{completedToday ? tr('COMPLETED', '已完成') : tr(`${activeWorkout.filter((item) => item.video).length} VIDEOS · ${workoutStats.moves} GUIDES`, `${activeWorkout.filter((item) => item.video).length} 个视频 · ${workoutStats.moves} 个指导`)}</span>
-              <button type="button" className="preview-button" onClick={() => startSession()} aria-label="Start coached workout"><span>START</span>→</button>
+              <button type="button" className="preview-button" onClick={() => startSession()} disabled={startingSession} aria-label="Start coached workout"><span>START</span>→</button>
             </div>
             <div className="session-info">
               <div>
@@ -760,7 +799,7 @@ export default function Home() {
                 <small className="plan-equipment">{language === 'zh' ? equipmentSummaryChinese(selectedEquipment) : equipmentSummary}</small>
               </div>
               <div className="session-facts"><span><strong>{workoutStats.minutes}</strong> {tr('MIN', '分钟')}</span><span><strong>{workoutStats.moves}</strong> {tr('MOVES', '动作')}</span><span><strong>{workoutStats.sets}</strong> {tr('SETS', '组')}</span></div>
-              <button className="start-session" type="button" onClick={() => startSession()}>{completedToday ? tr('Do it again', '再练一次') : tr('Start today’s workout', '开始今天的训练')} <span>→</span></button>
+              <button className="start-session" type="button" onClick={() => startSession()} disabled={startingSession}>{startingSession ? tr('Checking access…', '正在确认权限…') : completedToday ? tr('Do it again', '再练一次') : tr('Start today’s workout', '开始今天的训练')} <span>→</span></button>
               <p className="privacy-copy"><b>●</b> {tr('Camera coach is optional and runs on this device.', '摄像指导可选，并且只在本设备运行。')}</p>
             </div>
           </section>
@@ -883,7 +922,7 @@ export default function Home() {
               <button className={audioEnabled ? 'switch on' : 'switch'} type="button" onClick={() => setAudioEnabled((value) => !value)} aria-pressed={audioEnabled}><i /></button>
             </article>
             <article className="privacy-card"><span className="shield">✓</span><div><small>CAMERA PRIVACY</small><h2>Your video stays yours.</h2><p>Pose tracking runs in your browser. Relay never saves or uploads camera frames; only your completed workout totals are stored.</p></div></article>
-            <article className="account-actions-card"><div><small>{tr('ACCOUNT & PRIVACY', '账户与隐私')}</small><h2>{tr('You control your data.', '你的数据由你掌控。')}</h2><p>{tr('Download a copy, manage billing, or permanently delete your account.', '下载数据副本、管理账单，或永久删除账户。')}</p></div><div><button type="button" onClick={() => downloadAccountExport(member, account)}>{tr('Export my data', '导出我的数据')}</button>{member.membership.plan !== 'trial' && <button type="button" onClick={manageBilling}>{tr('Manage billing', '管理账单')}</button>}<button className="danger" type="button" onClick={removeAccount}>{tr('Delete account', '删除账户')}</button></div></article>
+            <AccountPrivacyActions language={language} member={member} onExport={exportAccountData} onDelete={removeAccount} onManageBilling={manageBilling} busy={accountActionBusy} />
             {saveStatus && <p className="account-save-status" role="status">{saveStatus}</p>}
           </> : <AccountGate title="One account. Your complete routine." copy="Sign in to securely save workouts, daily wellness, goals, and your weekly schedule." />}
         </section>
@@ -1000,15 +1039,61 @@ function AccountGate({ title, copy }: { title: string; copy: string }) {
   );
 }
 
-function TrialPaywall({ language, member, onLanguageChange, onSubscribe, onSignOut }: {
+function AccountPrivacyActions({ language, member, onExport, onDelete, onManageBilling, busy }: {
+  language: Language;
+  member: MemberAccount;
+  onExport: () => void;
+  onDelete: () => void;
+  onManageBilling: () => void;
+  busy: boolean;
+}) {
+  const tr = (english: string, chinese: string) => language === 'zh' ? chinese : english;
+  return (
+    <article className="account-actions-card">
+      <div>
+        <small>{tr('ACCOUNT & PRIVACY', '账户与隐私')}</small>
+        <h2>{tr('You control your data.', '你的数据由你掌控。')}</h2>
+        <p>{tr('Export your full history or delete your account at any time, including after your access expires.', '你可以随时导出全部历史记录或删除账户，使用权限到期后也可以。')}</p>
+      </div>
+      <div>
+        <button type="button" onClick={onExport} disabled={busy}>{tr('Export my data', '导出我的数据')}</button>
+        {member.membership.plan !== 'trial' && <button type="button" onClick={onManageBilling} disabled={busy}>{tr('Manage billing', '管理账单')}</button>}
+        <button className="danger" type="button" onClick={onDelete} disabled={busy}>{tr('Delete account', '删除账户')}</button>
+      </div>
+    </article>
+  );
+}
+
+function TrialPaywall({ language, member, onLanguageChange, onSubscribe, onSignOut, onExport, onDelete, onManageBilling, accountActionBusy, status }: {
   language: Language;
   member: MemberAccount;
   onLanguageChange: (language: Language) => void;
   onSubscribe: (plan: 'monthly' | 'annual') => void;
   onSignOut: () => void;
+  onExport: () => void;
+  onDelete: () => void;
+  onManageBilling: () => void;
+  accountActionBusy: boolean;
+  status: string;
 }) {
   const tr = (english: string, chinese: string) => language === 'zh' ? chinese : english;
-  return <main className="paywall-shell"><header><button className="wordmark" type="button"><span>R</span>RELAY</button><LanguageSwitch language={language} onChange={onLanguageChange} /></header><section><p className="kicker">{tr('YOUR TRIAL IS COMPLETE', '免费试用已结束')}</p><h1>{tr('Keep your momentum.', '继续保持训练节奏。')}</h1><p>{tr(`Thanks for training with Relay, ${member.displayName}. Your history remains safe. Choose secure access to continue personalized workouts.`, `感谢你使用 Relay 训练，${member.displayName}。你的记录仍被安全保存。选择安全方案即可继续个性化训练。`)}</p><div className="paywall-options">{member.market === 'global' && <article><span>{tr('MONTHLY', '月付')}</span><h2>{tr('Monthly access', '月付会员')}</h2><p>{tr('Flexible recurring access. Cancel from the secure billing portal.', '灵活按月续费，可在安全账单页面取消。')}</p><button type="button" onClick={() => onSubscribe('monthly')}>{tr('Choose monthly', '选择月付')}<b>→</b></button></article>}<article className="featured"><small>BEST VALUE</small><span>{tr('ANNUAL', '年付')}</span><h2>{member.market === 'cn' ? tr('One secure annual payment', '一次安全年付') : tr('Annual membership', '年付会员')}</h2><p>{member.market === 'cn' ? tr('365 days of access with Alipay or an eligible card. It does not auto-renew.', '可使用支付宝或支持的银行卡购买 365 天权限，不会自动续费。') : tr('One year of consistent coaching at the best value.', '以更优惠的方式获得一整年的持续指导。')}</p><button type="button" onClick={() => onSubscribe('annual')}>{tr('Choose annual', '选择年付')}<b>→</b></button></article></div><button className="paywall-signout" type="button" onClick={onSignOut}>{tr('Sign out and use another account', '退出并使用其他账户')}</button></section></main>;
+  return (
+    <main className="paywall-shell">
+      <header><button className="wordmark" type="button"><span>R</span>RELAY</button><LanguageSwitch language={language} onChange={onLanguageChange} /></header>
+      <section>
+        <p className="kicker">{tr('YOUR ACCESS HAS ENDED', '使用权限已到期')}</p>
+        <h1>{tr('Keep your momentum.', '继续保持训练节奏。')}</h1>
+        <p>{tr(`Thanks for training with Relay, ${member.displayName}. Your history remains safe. Choose secure access to continue personalized workouts.`, `感谢你使用 Relay 训练，${member.displayName}。你的记录仍被安全保存。选择安全方案即可继续个性化训练。`)}</p>
+        <div className="paywall-options">
+          {member.market === 'global' && <article><span>{tr('MONTHLY', '月付')}</span><h2>{tr('Monthly access', '月付会员')}</h2><p>{tr('Flexible recurring access. Cancel from the secure billing portal.', '灵活按月续费，可在安全账单页面取消。')}</p><button type="button" onClick={() => onSubscribe('monthly')}>{tr('Choose monthly', '选择月付')}<b>→</b></button></article>}
+          <article className="featured"><small>{tr('BEST VALUE', '超值方案')}</small><span>{tr('ANNUAL', '年付')}</span><h2>{member.market === 'cn' ? tr('One secure annual payment', '一次安全年付') : tr('Annual membership', '年付会员')}</h2><p>{member.market === 'cn' ? tr('365 days of access with Alipay or an eligible card. It does not auto-renew.', '可使用支付宝或支持的银行卡购买 365 天权限，不会自动续费。') : tr('One year of consistent coaching at the best value.', '以更优惠的方式获得一整年的持续指导。')}</p><button type="button" onClick={() => onSubscribe('annual')}>{tr('Choose annual', '选择年付')}<b>→</b></button></article>
+        </div>
+        <AccountPrivacyActions language={language} member={member} onExport={onExport} onDelete={onDelete} onManageBilling={onManageBilling} busy={accountActionBusy} />
+        {status && <p role="status">{status}</p>}
+        <button className="paywall-signout" type="button" onClick={onSignOut} disabled={accountActionBusy}>{tr('Sign out and use another account', '退出并使用其他账户')}</button>
+      </section>
+    </main>
+  );
 }
 
 function ExercisePreview({ exercise: item, index, total, language, onClose, onStartCamera }: { exercise: Exercise; index: number; total: number; language: Language; onClose: () => void; onStartCamera: () => void }) {
