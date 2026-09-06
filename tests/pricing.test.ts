@@ -4,23 +4,23 @@ import { annualSavingLabel, globalPriceLabel } from '../app/pricing';
 import { ANNUAL_SAVING_PERCENT, GLOBAL_PLANS, assertApprovedPrice } from '../supabase/functions/_shared/billing-policy';
 
 const monthlyPrice = {
-  active: true, currency: 'usd', unit_amount: 500, type: 'recurring', billing_scheme: 'per_unit',
+  active: true, currency: 'usd', unit_amount: 1000, type: 'recurring', billing_scheme: 'per_unit',
   custom_unit_amount: null, transform_quantity: null,
   recurring: { interval: 'month', interval_count: 1, usage_type: 'licensed' },
 };
-const annualPrice = { ...monthlyPrice, unit_amount: 3000, recurring: { ...monthlyPrice.recurring, interval: 'year' } };
+const annualPrice = { ...monthlyPrice, unit_amount: 6000, recurring: { ...monthlyPrice.recurring, interval: 'year' } };
 
 describe('approved TrainWell prices', () => {
-  it('quotes five US dollars monthly and thirty US dollars annually, saving exactly half', () => {
-    expect(GLOBAL_PLANS.monthly.unitAmount).toBe(500);
-    expect(GLOBAL_PLANS.annual.unitAmount).toBe(3000);
+  it('quotes ten US dollars monthly and sixty US dollars annually, saving exactly half', () => {
+    expect(GLOBAL_PLANS.monthly.unitAmount).toBe(1000);
+    expect(GLOBAL_PLANS.annual.unitAmount).toBe(6000);
     expect(GLOBAL_PLANS.monthly.currency).toBe('usd');
     expect(GLOBAL_PLANS.annual.currency).toBe('usd');
     expect(ANNUAL_SAVING_PERCENT).toBe(50);
-    expect(globalPriceLabel('monthly', 'en')).toBe('US$5 / month');
-    expect(globalPriceLabel('annual', 'en')).toBe('US$30 / year');
-    expect(globalPriceLabel('monthly', 'zh')).toBe('US$5 / 月');
-    expect(globalPriceLabel('annual', 'zh')).toBe('US$30 / 年');
+    expect(globalPriceLabel('monthly', 'en')).toBe('US$10 / month');
+    expect(globalPriceLabel('annual', 'en')).toBe('US$60 / year');
+    expect(globalPriceLabel('monthly', 'zh')).toBe('US$10 / 月');
+    expect(globalPriceLabel('annual', 'zh')).toBe('US$60 / 年');
     expect(annualSavingLabel('en')).toBe('Save 50% vs monthly');
     expect(annualSavingLabel('zh')).toBe('比按月付费省 50%');
   });
@@ -30,6 +30,19 @@ describe('approved TrainWell prices', () => {
     expect(() => assertApprovedPrice(annualPrice, 'annual', 'global')).not.toThrow();
     expect(() => assertApprovedPrice(monthlyPrice, 'annual', 'global')).toThrow();
     expect(() => assertApprovedPrice(annualPrice, 'monthly', 'global')).toThrow();
+  });
+
+  it('rejects the superseded five-dollar and thirty-dollar prices', () => {
+    expect(() => assertApprovedPrice({ ...monthlyPrice, unit_amount: 500 }, 'monthly', 'global')).toThrow();
+    expect(() => assertApprovedPrice({ ...annualPrice, unit_amount: 3000 }, 'annual', 'global')).toThrow();
+  });
+
+  it('keeps legal notices on the shared price labels', () => {
+    const legal = readFileSync(new URL('../app/legal-notices.tsx', import.meta.url), 'utf8');
+    for (const language of ['en', 'zh']) {
+      for (const plan of ['monthly', 'annual']) expect(legal).toContain(`globalPriceLabel('${plan}', '${language}')`);
+    }
+    expect(legal).not.toMatch(/US\$(5|30)\b|每月 5 美元|每年 30 美元/);
   });
 
   it.each([

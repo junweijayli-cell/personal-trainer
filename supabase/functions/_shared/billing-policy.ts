@@ -1,7 +1,7 @@
 // Public product prices only. Stripe credentials and approved Price IDs stay in server secrets.
 export const GLOBAL_PLANS = {
-  monthly: { currency: 'usd', unitAmount: 500, interval: 'month' },
-  annual: { currency: 'usd', unitAmount: 3000, interval: 'year' },
+  monthly: { currency: 'usd', unitAmount: 1000, interval: 'month' },
+  annual: { currency: 'usd', unitAmount: 6000, interval: 'year' },
 } as const;
 
 export type BillingPlan = keyof typeof GLOBAL_PLANS;

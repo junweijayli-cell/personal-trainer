@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import { globalPriceLabel } from './pricing';
 
 export type LegalDocument = 'terms' | 'privacy';
 type Locale = 'en' | 'zh';
@@ -14,7 +15,7 @@ const notices = {
         ['About this release', 'TrainWell is a fitness-guidance application. These notices describe the current preview release. The legal operator, final commercial terms, and applicable refund and consumer-rights information require operator review before a paid launch. We do not claim that this preview is ready for commercial use in every country.'],
         ['Train safely', 'TrainWell provides general exercise guidance, not medical diagnosis, treatment, or emergency care. Choose movements and equipment appropriate for your ability. Automated camera feedback may be inaccurate and cannot replace professional supervision. Stop if an exercise causes pain, dizziness, or unusual discomfort; seek qualified help when needed.'],
         ['Your account', 'Provide an email address you control, verify it, and keep your password private. You are responsible for the information you enter and for using the service lawfully. Do not use the service to access other people’s accounts or interfere with the system.'],
-        ['Trial and proposed subscriptions', 'The free trial lasts seven days and begins after successful email verification, using server time. No payment card is required for the trial. The proposed global subscriptions are US$5 per month or US$30 per year. Online payment is not active in this preview; you are not charged by creating an account or accepting these terms. Before paid subscriptions launch, the checkout must clearly show the amount, any applicable tax, renewal conditions, and cancellation terms.'],
+        ['Trial and proposed subscriptions', `The free trial lasts seven days and begins after successful email verification, using server time. No payment card is required for the trial. The proposed global subscriptions are ${globalPriceLabel('monthly', 'en')} or ${globalPriceLabel('annual', 'en')}. Online payment is not active in this preview; you are not charged by creating an account or accepting these terms. Before paid subscriptions launch, the checkout must clearly show the amount, any applicable tax, renewal conditions, and cancellation terms.`],
         ['After the trial', 'When access expires, new workouts may be locked, but your stored history is retained. Account export and deletion remain available. No subscription or payment is created automatically at the end of the free trial.'],
         ['Availability and regions', 'Internet access is required for account services and synchronization. Availability can vary by network or region. This global preview does not promise dependable mainland-China access, a mainland-hosted service, or automatic cross-border account migration.'],
         ['Questions and updates', 'Contact victoryglobalmaterials@gmail.com about your account or these notices. Material changes to service or payment terms should be presented before they apply. These notices do not remove rights that applicable law gives you.'],
@@ -43,7 +44,7 @@ const notices = {
         ['关于当前版本', 'TrainWell 是一款健身指导应用。本说明适用于当前预览版本。正式运营主体、商业条款以及适用的退款与消费者权利说明，仍需运营方在收费上线前审核。我们不声称此预览版本已满足所有国家的商业运营要求。'],
         ['安全训练', 'TrainWell 提供一般健身指导，不提供医疗诊断、治疗或急救服务。请选择符合自身能力的动作和器械。自动摄像指导可能不准确，不能代替专业人员监督。若出现疼痛、头晕或异常不适，请停止训练，并在需要时寻求合格专业人员帮助。'],
         ['你的账户', '请使用你本人能够控制的邮箱，完成验证并妥善保管密码。你需要对自己填写的信息及合法使用服务负责。请勿访问他人账户或干扰系统运行。'],
-        ['试用与拟定订阅', '免费试用为七天，在邮箱验证成功后开始，并以服务器时间计算。试用无需绑定银行卡。全球版拟定价格为每月 5 美元或每年 30 美元。此预览版本尚未开启在线支付；创建账户或同意本条款不会扣款。正式收费前，支付页面必须清楚展示金额、适用税费、续订条件与取消方式。'],
+        ['试用与拟定订阅', `免费试用为七天，在邮箱验证成功后开始，并以服务器时间计算。试用无需绑定银行卡。全球版拟定价格为 ${globalPriceLabel('monthly', 'zh')} 或 ${globalPriceLabel('annual', 'zh')}。此预览版本尚未开启在线支付；创建账户或同意本条款不会扣款。正式收费前，支付页面必须清楚展示金额、适用税费、续订条件与取消方式。`],
         ['试用结束后', '使用权限到期后，新的训练可能会被锁定，但已保存的历史记录会保留。你仍可导出数据或删除账户。免费试用结束时不会自动创建订阅或扣款。'],
         ['可用性与地区', '账户服务与数据同步需要联网。不同网络或地区的可用性可能不同。当前全球预览版不承诺中国大陆网络的稳定访问、本地托管服务或自动跨境账户迁移。'],
         ['咨询与更新', '如有账户或条款问题，请联系 victoryglobalmaterials@gmail.com。服务或付款条款的重要变更应在生效前向你说明。本说明不排除适用法律赋予你的权利。'],

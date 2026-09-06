@@ -67,8 +67,8 @@ for (const locale of ['en', 'zh'] as const) {
     await expect(page.locator('.landing-hero h1')).toBeVisible();
     if (locale === 'zh') await page.locator('.landing-nav').getByRole('button', { name: '中文', exact: true }).click();
     await expect(page.locator('html')).toHaveAttribute('lang', locale === 'zh' ? 'zh-CN' : 'en');
-    await expect(page.locator('.price-options')).toContainText(locale === 'zh' ? 'US$5 / 月' : 'US$5 / month');
-    await expect(page.locator('.price-options')).toContainText(locale === 'zh' ? 'US$30 / 年' : 'US$30 / year');
+    await expect(page.locator('.price-options')).toContainText(locale === 'zh' ? 'US$10 / 月' : 'US$10 / month');
+    await expect(page.locator('.price-options')).toContainText(locale === 'zh' ? 'US$60 / 年' : 'US$60 / year');
     await auditAndCapture(page, testInfo, `${locale}-landing-pricing`);
     await page.locator('.landing-hero .hero-copy > button').click();
     await expect(page.getByRole('dialog')).toBeVisible();
