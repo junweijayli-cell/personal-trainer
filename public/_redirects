@@ -1,0 +1,3 @@
+https://www.trainwell.win/* https://trainwell.win/:splat 301
+/personal-trainer/ / 301
+/personal-trainer/* /:splat 301

@@ -13,10 +13,11 @@ const geistMono = Geist_Mono({
 });
 
 const publicBasePath = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
-const githubSite = 'https://junweijayli-cell.github.io/personal-trainer';
+const publicSite = (process.env.NEXT_PUBLIC_SITE_URL ?? 'https://trainwell.win').replace(/\/$/, '');
 
 export const metadata: Metadata = {
-  metadataBase: new URL(`${githubSite}/`),
+  metadataBase: new URL(`${publicSite}/`),
+  alternates: { canonical: `${publicSite}/` },
   title: 'TrainWell — See it. Do it. Move better.',
   description: 'A phone-first virtual trainer with guided workouts, private on-device pose tracking, rep counting, and live form cues.',
   applicationName: 'TrainWell',
@@ -37,13 +38,14 @@ export const metadata: Metadata = {
     title: 'TrainWell — Your next right move',
     description: 'Follow today’s workout, learn every movement, and get live camera form cues.',
     type: 'website',
-    images: [{ url: `${githubSite}/og-trainwell.png`, width: 1730, height: 909, alt: 'TrainWell — Your next right move' }],
+    url: `${publicSite}/`,
+    images: [{ url: `${publicSite}/og-trainwell.png`, width: 1730, height: 909, alt: 'TrainWell — Your next right move' }],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'TrainWell — Your next right move',
     description: 'Guided workouts and private, on-device camera coaching.',
-    images: [`${githubSite}/og-trainwell.png`],
+    images: [`${publicSite}/og-trainwell.png`],
   },
 };
 
