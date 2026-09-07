@@ -38,11 +38,11 @@ otp_length = 6
 otp_expiry = 900
 
 [auth.email.template.confirmation]
-subject = "TrainWell verification code / TrainWell 验证码"
+subject = "TrainWell verification code / 悦练验证码"
 content_path = "./supabase/templates/confirmation.html"
 
 [auth.email.template.recovery]
-subject = "Reset your TrainWell password / 重置 TrainWell 密码"
+subject = "Reset your TrainWell password / 重置悦练密码"
 content_path = "./supabase/templates/recovery.html"
 
 [functions.stripe-webhook]

@@ -18,9 +18,9 @@ const publicSite = (process.env.NEXT_PUBLIC_SITE_URL ?? 'https://trainwell.win')
 export const metadata: Metadata = {
   metadataBase: new URL(`${publicSite}/`),
   alternates: { canonical: `${publicSite}/` },
-  title: 'TrainWell — See it. Do it. Move better.',
+  title: 'TrainWell — See it · Do it · Move better',
   description: 'A phone-first virtual trainer with guided workouts, private on-device pose tracking, rep counting, and live form cues.',
-  applicationName: 'TrainWell',
+  applicationName: 'TrainWell / 悦练',
   manifest: `${publicBasePath}/manifest.webmanifest`,
   icons: {
     icon: `${publicBasePath}/icon.png`,
@@ -29,21 +29,21 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'TrainWell',
+    title: 'TrainWell / 悦练',
   },
   formatDetection: {
     telephone: false,
   },
   openGraph: {
-    title: 'TrainWell — Your next right move',
+    title: 'TrainWell / 悦练 — Your next right move',
     description: 'Follow today’s workout, learn every movement, and get live camera form cues.',
     type: 'website',
     url: `${publicSite}/`,
-    images: [{ url: `${publicSite}/og-trainwell.png`, width: 1730, height: 909, alt: 'TrainWell — Your next right move' }],
+    images: [{ url: `${publicSite}/og-trainwell.png`, width: 1730, height: 909, alt: 'TrainWell / 悦练 — Your next right move' }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'TrainWell — Your next right move',
+    title: 'TrainWell / 悦练 — Your next right move',
     description: 'Guided workouts and private, on-device camera coaching.',
     images: [`${publicSite}/og-trainwell.png`],
   },

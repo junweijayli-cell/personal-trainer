@@ -9,7 +9,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 async function expectReadableTrainWellSurface(page: Page) {
-  await expect(page).toHaveTitle(/\bTrainWell\b/);
+  await expect(page).toHaveTitle(/TrainWell|悦练/);
   expect(await page.locator('body').innerText()).not.toMatch(/\bRelay\b/i);
   const dimensions = await page.evaluate(() => ({
     content: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth),
@@ -46,11 +46,11 @@ test('Chinese language covers the landing and account entry flow', async ({ page
   await page.reload();
   await expect(page.getByRole('heading', { name: /清晰训练/ })).toBeVisible();
   await expect(page.locator('html')).toHaveAttribute('lang', 'zh-CN');
-  await expect(page.locator('.landing-nav .wordmark')).toContainText('TrainWell');
+  await expect(page.locator('.landing-nav .wordmark')).toContainText('悦练');
   await expectReadableTrainWellSurface(page);
   await page.getByRole('button', { name: /开始 7 天免费试用/ }).first().click();
-  await expect(page.getByRole('heading', { name: '创建 TrainWell 账户' })).toBeVisible();
-  await expect(page.getByRole('dialog').locator('.auth-brand b')).toHaveText('TrainWell');
+  await expect(page.getByRole('heading', { name: '创建悦练账户' })).toBeVisible();
+  await expect(page.getByRole('dialog').locator('.auth-brand b')).toHaveText('悦练');
   await expect(page.getByText(/邮箱验证后即开始七天免费试用/)).toBeVisible();
   await expectReadableTrainWellSurface(page);
 });

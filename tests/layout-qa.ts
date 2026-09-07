@@ -85,6 +85,7 @@ export async function inspectTextLayout(page: Page) {
 }
 
 export async function auditAndCapture(page: Page, testInfo: TestInfo, label: string) {
+  await expect(page.getByRole('heading').filter({ hasText: /[.。]/ })).toHaveCount(0);
   await page.evaluate(async () => {
     window.scrollTo({ top: 0, behavior: 'instant' });
     await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));

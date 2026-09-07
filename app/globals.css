@@ -1198,3 +1198,4 @@ html:lang(zh) :is(h1, h2, h3, h4, h5, h6) { letter-spacing: 0; }
   .price-options strong { font-size: 29px; }
   .landing-footer { gap: 14px; }
 }
+.landing-section-title h2 { word-break: keep-all; }

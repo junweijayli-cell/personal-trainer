@@ -6,10 +6,10 @@ const source = (path: string) => readFileSync(new URL(`../${path}`, import.meta.
 describe('TrainWell branding', () => {
   it('uses TrainWell in the installable app and browser metadata', () => {
     const manifest = JSON.parse(source('public/manifest.webmanifest'));
-    expect(manifest.name).toBe('TrainWell');
-    expect(manifest.short_name).toBe('TrainWell');
+    expect(manifest.name).toBe('TrainWell / 悦练');
+    expect(manifest.short_name).toBe('TrainWell / 悦练');
     const layout = source('app/layout.tsx');
-    expect(layout).toMatch(/applicationName:\s*['"]TrainWell['"]/);
+    expect(layout).toMatch(/applicationName:\s*['"]TrainWell \/ 悦练['"]/ );
     expect(layout).toMatch(/title:\s*['"]TrainWell/);
     expect(layout).not.toMatch(/\bRelay\b/i);
   });
@@ -24,8 +24,8 @@ describe('TrainWell branding', () => {
     }
     expect(confirmation.match(/\{\{\s*\.Token\s*\}\}/g)).toHaveLength(1);
     expect(recovery.match(/\{\{\s*\.ConfirmationURL\s*\}\}/g)).toHaveLength(1);
-    expect(source('supabase/config.toml')).toContain('subject = "TrainWell verification code / TrainWell 验证码"');
-    expect(source('supabase/config.toml')).toContain('subject = "Reset your TrainWell password / 重置 TrainWell 密码"');
+    expect(source('supabase/config.toml')).toContain('subject = "TrainWell verification code / 悦练验证码"');
+    expect(source('supabase/config.toml')).toContain('subject = "Reset your TrainWell password / 重置悦练密码"');
   });
 
   it('keeps existing on-device preferences and authenticated sessions available after renaming', () => {

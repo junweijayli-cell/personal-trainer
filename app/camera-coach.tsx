@@ -16,6 +16,7 @@ type PoseLandmarkerLike = {
 };
 
 type CameraCoachProps = {
+  language: 'en' | 'zh';
   exercise: Exercise;
   audioEnabled: boolean;
   onClose: () => void;
@@ -44,7 +45,7 @@ function visible(point?: Landmark) {
   return Boolean(point && (point.visibility ?? 1) > 0.42);
 }
 
-export default function CameraCoach({ exercise, audioEnabled, onClose, onSetComplete }: CameraCoachProps) {
+export default function CameraCoach({ exercise, audioEnabled, onClose, onSetComplete, language }: CameraCoachProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -358,13 +359,13 @@ export default function CameraCoach({ exercise, audioEnabled, onClose, onSetComp
           <div className="camera-setup">
             <div className="phone-placement"><span /><i /><b>2–3 m</b></div>
             <p>PHONE PLACEMENT</p>
-            <h2>Let TrainWell see your whole movement.</h2>
+            <h2>{language === 'zh' ? '让悦练看清你的完整动作' : 'Let TrainWell see your whole movement'}</h2>
             <ol>
               <li><span>1</span>Prop your phone securely in landscape.</li>
               <li><span>2</span>Stand 2–3 metres away in good light.</li>
               <li><span>3</span>{exercise.view}.</li>
             </ol>
-            <div className="camera-privacy"><b>Processed on this device</b><span>No video is saved or uploaded by TrainWell.</span></div>
+            <div className="camera-privacy"><b>{language === 'zh' ? '在本机处理' : 'Processed on this device'}</b><span>{language === 'zh' ? '悦练不会保存或上传视频。' : 'No video is saved or uploaded by TrainWell.'}</span></div>
             <button className="camera-start" type="button" onClick={startCamera}>Enable camera <span>→</span></button>
           </div>
         )}

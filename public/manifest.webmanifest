@@ -1,6 +1,6 @@
 {
-  "name": "TrainWell",
-  "short_name": "TrainWell",
+  "name": "TrainWell / 悦练",
+  "short_name": "TrainWell / 悦练",
   "description": "Guided workouts with private on-device camera coaching.",
   "start_url": "./",
   "display": "standalone",
