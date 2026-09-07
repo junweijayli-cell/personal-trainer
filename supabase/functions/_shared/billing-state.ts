@@ -17,7 +17,7 @@ export function recognizedPlan(price: string, monthly: string[], annual: string[
   throw new Error('Unrecognized subscription price.');
 }
 export function subscriptionPatch(subscription: {
-  id: string; livemode: boolean; status: string; customer: unknown; cancel_at_period_end?: boolean;
+  id: string; livemode: boolean; status: string; customer: unknown; cancel_at_period_end?: boolean; cancel_at?: number | null;
   items: { data: Array<{ quantity?: number; price: { id: string }; current_period_start?: number; current_period_end?: number }> };
   current_period_start?: number; current_period_end?: number;
 }, monthly: string[], annual: string[]) {
@@ -27,13 +27,17 @@ export function subscriptionPatch(subscription: {
   const plan = recognizedPlan(item.price.id, monthly, annual);
   const start = item.current_period_start ?? subscription.current_period_start;
   const end = item.current_period_end ?? subscription.current_period_end;
-  const validPeriod = Number.isFinite(start) && Number.isFinite(end) && Number(end) > Number(start);
+  // Current Portal cancellation can set cancel_at instead of the legacy flag.
+  const scheduledEnd = Number.isFinite(subscription.cancel_at) && Number(subscription.cancel_at) > 0
+    && Number(subscription.cancel_at) <= Number(end) ? Number(subscription.cancel_at) : null;
+  const accessEnd = scheduledEnd ?? end;
+  const validPeriod = Number.isFinite(start) && Number.isFinite(accessEnd) && Number(accessEnd) > Number(start);
   const status = subscription.status === 'active' && validPeriod ? 'active'
     : isTerminalSubscription(subscription.status) ? 'canceled'
     : ['past_due','unpaid','incomplete'].includes(subscription.status) ? 'past_due' : 'expired';
   return { status, plan, current_period_start: validPeriod ? new Date(Number(start)*1000).toISOString() : null,
-    current_period_end: validPeriod ? new Date(Number(end)*1000).toISOString() : null,
-    cancel_at_period_end: Boolean(subscription.cancel_at_period_end), stripe_customer_id: objectId(subscription.customer),
+    current_period_end: validPeriod ? new Date(Number(accessEnd)*1000).toISOString() : null,
+    cancel_at_period_end: Boolean(subscription.cancel_at_period_end || scheduledEnd), stripe_customer_id: objectId(subscription.customer),
     stripe_subscription_id: subscription.id, stripe_price_id: item.price.id, billing_mode: 'test' };
 }
 export type CheckoutOperation = {

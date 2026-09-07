@@ -24,7 +24,9 @@ export async function reconcileBilling(admin: SupabaseClient, stripe: Stripe, ev
   // Locate by a trusted existing customer link, then validate all other identities.
   const {data:match,error}=await admin.from('memberships').select('user_id').eq('stripe_customer_id',expectedCustomer).maybeSingle();
   if(error) throw new Error('Membership lookup failed.');
-  if(!match) throw new Error('No matching billing account.');
+  // Checkout commits its customer link before any subscription can be created.
+  // Events for deleted or unrelated accounts therefore have nothing to reconcile.
+  if(!match) return;
   await withBillingLock(admin,match.user_id,async token=>{
     const {data:receipt,error:receiptError}=await admin.from('billing_events').select('status').eq('stripe_event_id',event.id).maybeSingle();
     if(receiptError) throw new Error('Event lookup failed.');

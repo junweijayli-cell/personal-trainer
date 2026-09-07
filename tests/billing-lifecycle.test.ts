@@ -134,6 +134,16 @@ describe('serialized Checkout with real PostgreSQL leases',()=>{
 });
 
 describe('authoritative event reconciliation',()=>{
+  it('recognizes Portal cancel_at and caps access at an earlier scheduled cancellation',()=>{
+    const sub=subscription();
+    const end=sub.items.data[0].current_period_end;
+    const scheduled=subscriptionPatch({...sub,cancel_at:end},['price_month'],['price_year']);
+    expect(scheduled.cancel_at_period_end).toBe(true);
+    expect(scheduled.status).toBe('active');
+    const earlier=subscriptionPatch({...sub,cancel_at:end-86400},['price_month'],['price_year']);
+    expect(earlier.current_period_end).toBe(new Date((end-86400)*1000).toISOString());
+    expect(subscriptionPatch({...sub,cancel_at:end+86400},['price_month'],['price_year']).cancel_at_period_end).toBe(false);
+  });
   beforeEach(async()=>{await db.exec(`update public.memberships set stripe_customer_id='cus_1',stripe_subscription_id='sub_1',billing_mode='test';`);});
   it('an invoice arriving first populates the complete subscription period',async()=>{
     const s=fakeStripe();s.subscriptions.set('sub_1',subscription());
@@ -155,6 +165,13 @@ describe('authoritative event reconciliation',()=>{
     await expect(reconcile(s.api,event('evt_2','invoice.paid',{customer:'cus_1',subscription:'sub_other'}))).rejects.toThrow('Unexpected');
     s.subscriptions.set('sub_1',{...subscription(),customer:'cus_other'});
     await expect(reconcile(s.api,event('evt_3','customer.subscription.updated',subscription()))).rejects.toThrow('ownership');
+  });
+  it('acknowledges events for deleted or unrelated customers without changing membership',async()=>{
+    const s=fakeStripe();
+    const before=await member();
+    await reconcile(s.api,event('evt_unrelated','invoice.paid',{customer:'cus_unrelated',subscription:'sub_unrelated'}));
+    expect(await member()).toEqual(before);
+    expect((await db.query('select * from billing_events')).rows).toHaveLength(0);
   });
   it('unknown prices and missing periods cannot leave active access',async()=>{
     const s=fakeStripe();s.subscriptions.set('sub_1',subscription('active','price_unknown'));

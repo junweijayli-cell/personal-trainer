@@ -54,9 +54,10 @@ export async function openCheckout(admin: SupabaseClient, stripe: Stripe,
       }
       const metadata={supabase_user_id:user.id,market:'global',plan:operation.plan,billing_operation:operation.id};
       const session=await stripe.checkout.sessions.create({mode:'subscription',customer:customerId,
+        adaptive_pricing:{enabled:false},
         line_items:[{price:operation.price,quantity:1}],client_reference_id:user.id,metadata,subscription_data:{metadata},
         success_url:`${base}/?view=you&billing=success`,cancel_url:`${base}/?view=membership&billing=canceled`,
-        custom_text:{submit:{message:'TrainWell demo: test payment only. No real money is charged.'}},
+        custom_text:{submit:{message:'TrainWell / 悦练 demo · 演示付款：Test membership only. No real money is charged. 仅用于测试会员，不收取真实款项。'}},
       },{idempotencyKey:`trainwell:test:checkout:${operation.id}`});
       if(session.livemode) throw new Error('Live session rejected.');
       await applyState(admin,user.id,token,{}, {...operation,sessionId:session.id,state:session.status === 'complete' ? 'complete' : session.status === 'expired' ? 'expired' : 'open'});

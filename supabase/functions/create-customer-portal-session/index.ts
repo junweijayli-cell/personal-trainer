@@ -18,7 +18,7 @@ Deno.serve(async (request) => {
     if (membership.billing_mode !== 'test') throw new Error('This account is not a test billing account.');
     const portal = await stripeClient().billingPortal.sessions.create({
       customer: membership.stripe_customer_id,
-      return_url: `${appUrl()}/?billing=return`,
+      return_url: `${appUrl()}/?view=you&billing=return`,
     });
     return json(request, { url: portal.url });
   } catch (error) { return errorResponse(request, error, 400); }

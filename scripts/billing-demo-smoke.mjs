@@ -36,6 +36,12 @@ async function invoke(client, name, options) {
   }
   return response.data;
 }
+async function privateTestSession(user) {
+  const link = checked(await admin.auth.admin.generateLink({ type: 'magiclink', email: user.email }), 'Generate private test session');
+  const client = createClient(url, keys.anon, options);
+  checked(await client.auth.verifyOtp({ email: user.email, token: link.properties.email_otp, type: 'magiclink' }), 'Verify private test session');
+  return client;
+}
 try {
   if (action === 'create') {
     const marker = randomUUID();
@@ -51,11 +57,11 @@ try {
     if (action === 'status') {
       const member = checked(await admin.from('memberships').select('status,plan,billing_mode,current_period_end,stripe_customer_id,stripe_subscription_id').eq('user_id', id).single(), 'Read membership');
       const runtime = checked(await admin.from('billing_runtime').select('mode,checkout_enabled').single(), 'Read billing switch');
-      console.log(JSON.stringify({ userId: id, membership: member, runtime }));
+      const client = await privateTestSession(user);
+      const entitlement = checked(await client.rpc('get_my_entitlement'), 'Read authenticated entitlement');
+      console.log(JSON.stringify({ userId: id, membership: member, runtime, entitlement }));
     } else {
-      const link = checked(await admin.auth.admin.generateLink({ type: 'magiclink', email: user.email }), 'Generate private test session');
-      const client = createClient(url, keys.anon, options);
-      checked(await client.auth.verifyOtp({ email: user.email, token: link.properties.email_otp, type: 'magiclink' }), 'Verify private test session');
+      const client = await privateTestSession(user);
       if (action === 'checkout') {
         const catalog = await invoke(client, 'get-billing-catalog', { method: 'GET' });
         if (catalog.mode !== 'test' || !catalog.enabled || !catalog.plans.some(p => p.plan === plan && p.currency === 'usd' && p.unitAmount === (plan === 'monthly' ? 1000 : 6000))) throw Error('Approved test price is unavailable.');
