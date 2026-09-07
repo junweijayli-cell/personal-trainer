@@ -2,7 +2,7 @@ import Stripe from 'npm:stripe@19.0.0';
 import { assertApprovedPrice, type BillingPlan } from './billing-policy.ts';
 
 export function stripeClient() {
-  const secret = Deno.env.get('STRIPE_SECRET_KEY');
+  const secret = Deno.env.get('STRIPE_SECRET_KEY')?.trim();
   if (!secret || !/^(sk|rk)_test_/.test(secret)) throw new Error('A Stripe test key is required. Live payments are disabled.');
   return new Stripe(secret, { apiVersion: '2025-09-30.clover', httpClient: Stripe.createFetchHttpClient(), maxNetworkRetries: 0, timeout: 10000 });
 }

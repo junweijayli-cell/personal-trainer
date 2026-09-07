@@ -65,6 +65,40 @@ async function isolateBrowser(page: Page, locale: Locale, membership?: 'trial' |
 }
 
 for (const locale of ['en', 'zh'] as const) {
+  test(`signing out invalidates pending Checkout redirects (${locale})`, async ({ page }) => {
+    await isolateBrowser(page, locale, 'trial', true);
+    let releaseCheckout!: () => void;
+    const hold = new Promise<void>((resolve) => { releaseCheckout = resolve; });
+    await page.route('**/functions/v1/create-checkout-session', async (route) => {
+      await hold;
+      await route.fulfill({ json: { url: 'https://checkout.stripe.com/c/pay/cs_test_stale', mode: 'test' } });
+    });
+    await page.route('**/auth/v1/logout**', (route) => route.fulfill({ status: 204 }));
+    await page.goto('/?view=membership');
+    const request = page.waitForRequest('**/functions/v1/create-checkout-session');
+    await page.getByRole('button', { name: locale === 'zh' ? /选择月付/ : /Choose monthly/ }).click();
+    await request;
+    await page.getByRole('button', { name: locale === 'zh' ? '← 返回账户' : '← Back to account' }).click();
+    await page.locator('.profile-card').getByRole('button', { name: locale === 'zh' ? '退出登录' : 'Sign out', exact: true }).click();
+    const response = page.waitForResponse('**/functions/v1/create-checkout-session');
+    releaseCheckout();
+    await response;
+    await expect(page.locator('.landing-hero h1')).toBeVisible();
+    await expect(page).toHaveURL(/127\.0\.0\.1:3012/);
+    await expect(page.locator('.account-save-status')).toHaveCount(0);
+  });
+
+  test(`Checkout return URLs preserve trial and cannot grant expired access (${locale})`, async ({ page }) => {
+    await isolateBrowser(page, locale, 'expired', true);
+    await page.goto('/?view=membership&billing=success');
+    await expect(page.locator('.paywall-shell h1')).toBeVisible();
+    await expect(page.locator('.today-head')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: locale === 'zh' ? /选择月付/ : /Choose monthly/ })).toBeDisabled();
+    await page.goto('/?view=membership&billing=canceled');
+    await expect(page.locator('.paywall-shell')).toContainText(locale === 'zh' ? '支付页面已关闭' : 'Checkout was closed');
+    await expect(page.locator('.paywall-shell h1')).toBeVisible();
+  });
+
   test(`account membership link, plans and Stripe redirect (${locale})`, async ({ page }, testInfo) => {
     await isolateBrowser(page, locale, 'trial', true);
     const selections: string[] = [];
