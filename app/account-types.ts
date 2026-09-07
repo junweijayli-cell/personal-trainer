@@ -54,6 +54,7 @@ export type BillingPlan = 'trial' | 'monthly' | 'annual';
 export type MembershipStatus = 'pending_verification' | 'trial' | 'active' | 'past_due' | 'expired' | 'canceled';
 
 export type Membership = {
+  billingMode: 'test' | 'live' | null;
   status: MembershipStatus;
   plan: BillingPlan;
   trialStartedAt: string | null;

@@ -12,8 +12,10 @@ import type {
 } from './account-types';
 import { appUrl, backendConfigured, getSupabase, market } from './supabase-client';
 import { getFocusOption, weeklyRotation } from './workout-data';
+import { approvedCatalogPlans, secureStripeUrl } from './billing-client';
 
 type EntitlementRow = {
+  billing_mode?: 'test' | 'live' | null;
   status: Membership['status'];
   plan: Membership['plan'];
   trial_started_at: string | null;
@@ -181,6 +183,7 @@ export async function loadMember(session?: Session): Promise<MemberAccount> {
     locale: profile.locale === 'zh' ? 'zh' : 'en',
     market: profile.market === 'cn' ? 'cn' : 'global',
     membership: {
+      billingMode: row.billing_mode ?? null,
       status: row.status,
       plan: row.plan,
       trialStartedAt: row.trial_started_at,
@@ -324,11 +327,15 @@ export async function saveTrainingSchedule(member: MemberAccount, items: Schedul
 }
 
 async function invokeBillingFunction(name: string, body?: Record<string, unknown>) {
-  const { data, error } = await getSupabase().functions.invoke(name, { body });
+  const { data, error } = await getSupabase().functions.invoke(name, { body, timeout: 15000 });
   if (error) throw new Error(error.message);
-  const url = String((data as { url?: string } | null)?.url ?? '');
-  if (!url) throw new Error('The billing service did not return a secure checkout link.');
-  return url;
+  return secureStripeUrl((data as { url?: unknown } | null)?.url, name === 'create-checkout-session' ? 'checkout' : 'portal');
+}
+
+export async function loadBillingCatalog() {
+  const { data, error } = await getSupabase().functions.invoke('get-billing-catalog', { method: 'GET', timeout: 10000 });
+  if (error) throw new Error('Billing is unavailable.');
+  return approvedCatalogPlans(data, market);
 }
 
 export async function createCheckout(plan: 'monthly' | 'annual') {

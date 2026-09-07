@@ -1,70 +1,18 @@
 import { handleOptions } from '../_shared/cors.ts';
 import { authenticatedUser } from '../_shared/auth.ts';
 import { errorResponse, json } from '../_shared/response.ts';
-import { appMarket, appUrl, approvedStripePrice, stripeClient } from '../_shared/stripe.ts';
-
+import { appUrl, approvedStripePrice, stripeClient } from '../_shared/stripe.ts';
+import { openCheckout } from '../_shared/checkout.ts';
 Deno.serve(async (request) => {
-  const options = handleOptions(request);
-  if (options) return options;
-  if (request.method !== 'POST') return json(request, { error: 'Method not allowed.' }, 405);
+  const options=handleOptions(request); if(options) return options;
+  if(request.method!=='POST') return json(request,{error:'Method not allowed.'},405);
   try {
-    const { user, admin } = await authenticatedUser(request);
-    const body = await request.json().catch(() => ({})) as { plan?: string };
-    if (body.plan !== 'monthly' && body.plan !== 'annual') throw new Error('Choose monthly or annual access.');
-    const plan = body.plan;
-    const market = appMarket();
-    const { data: membership, error: membershipError } = await admin
-      .from('memberships')
-      .select('*')
-      .eq('user_id', user.id)
-      .single();
-    if (membershipError) throw new Error(membershipError.message);
-    if (market === 'global' && membership.stripe_subscription_id && membership.status === 'active') {
-      throw new Error('You already have an active subscription. Use Manage billing instead.');
-    }
-
-    const stripe = stripeClient();
-    // Fail closed before creating any Stripe customer or Checkout if server pricing differs from the public offer.
-    const price = await approvedStripePrice(stripe, plan);
-    let customerId = membership.stripe_customer_id as string | null;
-    if (!customerId) {
-      const customer = await stripe.customers.create({
-        email: user.email,
-        name: String(user.user_metadata?.display_name ?? ''),
-        metadata: { supabase_user_id: user.id, market },
-      });
-      customerId = customer.id;
-      const { error } = await admin.from('memberships').update({ stripe_customer_id: customerId }).eq('user_id', user.id);
-      if (error) throw new Error(error.message);
-    }
-
-    const base = appUrl();
-    const metadata = { supabase_user_id: user.id, market, plan };
-    const session = market === 'cn'
-      ? await stripe.checkout.sessions.create({
-          mode: 'payment',
-          customer: customerId,
-          line_items: [{ price: price.id, quantity: 1 }],
-          payment_method_types: ['card', 'alipay'],
-          client_reference_id: user.id,
-          metadata: { ...metadata, access_days: '365' },
-          success_url: `${base}/?billing=success`,
-          cancel_url: `${base}/?billing=canceled`,
-        })
-      : await stripe.checkout.sessions.create({
-          mode: 'subscription',
-          customer: customerId,
-          line_items: [{ price: price.id, quantity: 1 }],
-          client_reference_id: user.id,
-          metadata,
-          subscription_data: { metadata },
-          allow_promotion_codes: true,
-          success_url: `${base}/?billing=success`,
-          cancel_url: `${base}/?billing=canceled`,
-        });
-    if (!session.url) throw new Error('Stripe did not create a checkout URL.');
-    return json(request, { url: session.url });
-  } catch (error) {
-    return errorResponse(request, error, error instanceof Error && error.message.includes('Authentication') ? 401 : 400);
-  }
+    const {user,admin}=await authenticatedUser(request);
+    const {plan}=await request.json();
+    if(plan!=='monthly' && plan!=='annual') throw new Error('Choose monthly or annual access.');
+    const stripe=stripeClient();
+    const price=await approvedStripePrice(stripe,plan);
+    const url=await openCheckout(admin,stripe,user,plan,price.id,appUrl());
+    return json(request,{url,mode:'test'});
+  } catch(error) { return errorResponse(request,error,409); }
 });

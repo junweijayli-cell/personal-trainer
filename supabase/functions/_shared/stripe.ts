@@ -3,8 +3,8 @@ import { assertApprovedPrice, type BillingPlan } from './billing-policy.ts';
 
 export function stripeClient() {
   const secret = Deno.env.get('STRIPE_SECRET_KEY');
-  if (!secret) throw new Error('Stripe is not configured.');
-  return new Stripe(secret, { httpClient: Stripe.createFetchHttpClient() });
+  if (!secret || !/^(sk|rk)_test_/.test(secret)) throw new Error('A Stripe test key is required. Live payments are disabled.');
+  return new Stripe(secret, { apiVersion: '2025-09-30.clover', httpClient: Stripe.createFetchHttpClient(), maxNetworkRetries: 0, timeout: 10000 });
 }
 
 export function appMarket() {
@@ -30,6 +30,12 @@ export function priceId(plan: 'monthly' | 'annual') {
 
 export async function approvedStripePrice(stripe: Stripe, plan: BillingPlan) {
   const price = await stripe.prices.retrieve(priceId(plan));
+  if (price.livemode || appMarket() !== 'global') throw new Error('Only global test subscriptions are enabled.');
   assertApprovedPrice(price, plan, appMarket());
   return price;
+}
+
+export function recognizedPrices(plan: 'monthly' | 'annual') {
+  const history = Deno.env.get(plan === 'monthly' ? 'STRIPE_HISTORICAL_MONTHLY' : 'STRIPE_HISTORICAL_ANNUAL') ?? '';
+  return [priceId(plan), ...history.split(',').map((value) => value.trim()).filter(Boolean)];
 }

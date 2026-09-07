@@ -46,7 +46,7 @@ vi.mock('../app/supabase-client', () => ({
 
 const member: MemberAccount = {
   userId: 'member-a', email: 'member@example.com', displayName: 'Member', locale: 'en', market: 'global',
-  membership: { status: 'expired', plan: 'trial', trialStartedAt: null, trialEndsAt: null, currentPeriodEnd: null, cancelAtPeriodEnd: false, hasAccess: false, serverNow: '2026-09-06T00:00:00Z' },
+  membership: { billingMode: null, status: 'expired', plan: 'trial', trialStartedAt: null, trialEndsAt: null, currentPeriodEnd: null, cancelAtPeriodEnd: false, hasAccess: false, serverNow: '2026-09-06T00:00:00Z' },
 };
 
 beforeEach(() => {

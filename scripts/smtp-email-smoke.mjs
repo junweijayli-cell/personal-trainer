@@ -14,7 +14,7 @@ import { createClient } from '@supabase/supabase-js';
 
 const PROJECT_REF = 'yvcdlrnjhhafywawuknj';
 const PROJECT_URL = `https://${PROJECT_REF}.supabase.co`;
-const APP_URL = 'https://junweijayli-cell.github.io/personal-trainer/';
+const APP_URL = 'https://trainwell.win/';
 const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
 class SafeCheckError extends Error {}
 
@@ -61,7 +61,8 @@ export function differentWrongCode(correctCode) {
 
 export function isAllowedLoopbackRequest({ method, path, host, origin, fetchSite, contentType }, expected) {
   return method === 'POST' && path === expected.path && host === expected.host
-    && origin === undefined && fetchSite === undefined
+    && ((origin === undefined && fetchSite === undefined)
+      || (origin === `http://${expected.host}` && fetchSite === 'same-origin'))
     && contentType === 'text/plain';
 }
 
@@ -156,6 +157,14 @@ async function readLoopbackCode(signal) {
       response.setHeader('Content-Type', 'text/plain');
       response.setHeader('Connection', 'close');
       response.setHeader('X-Content-Type-Options', 'nosniff');
+      response.setHeader('Referrer-Policy', 'no-referrer');
+      if (request.method === 'GET' && request.url === noncePath && request.headers.host === expectedHost) {
+        response.setHeader('Content-Type', 'text/html; charset=utf-8');
+        const scriptNonce = randomBytes(16).toString('base64');
+        response.setHeader('Content-Security-Policy', `default-src 'none'; script-src 'nonce-${scriptNonce}'; connect-src 'self'; form-action 'self'; frame-ancestors 'none'`);
+        response.end(`<!doctype html><html lang="en"><meta charset="utf-8"><title>TrainWell email verification</title><h1>Verify the TrainWell test email</h1><p>Check trainwell.win@gmail.com and enter the six-digit code below. It stays in this local test process.</p><form><label>Verification code <input required inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code"></label><button>Verify</button></form><p id="status"></p><script nonce="${scriptNonce}">document.querySelector('form').onsubmit=async e=>{e.preventDefault();const input=document.querySelector('input');const code=input.value;input.value='';const r=await fetch(location.pathname,{method:'POST',headers:{'Content-Type':'text/plain'},body:code});document.getElementById('status').textContent=await r.text();};</script></html>`);
+        return;
+      }
       localRequests += 1;
       if (settled || localRequests > 12) {
         response.writeHead(429).end('Local input limit reached.');
@@ -167,7 +176,7 @@ async function readLoopbackCode(signal) {
         origin: request.headers.origin, fetchSite: request.headers['sec-fetch-site'],
         contentType: request.headers['content-type'],
       }, { path: noncePath, host: expectedHost });
-      if (!allowed) { response.writeHead(403).end('Local non-browser code input only.'); return; }
+      if (!allowed) { response.writeHead(403).end('Private local code input only.'); return; }
       const declaredLength = request.headers['content-length'];
       if (declaredLength !== undefined && (!/^\d+$/.test(declaredLength) || Number(declaredLength) > 64)) {
         response.writeHead(413).end('Payload rejected.'); return;
@@ -247,7 +256,10 @@ async function main() {
   const ownsUser = (user) => user?.email === email && user.user_metadata?.relay_smtp_run === runTag;
   try {
     signupAttempted = true;
-    const signup = await client.auth.signUp({
+    // Operator-only SMTP probe. GoTrue explicitly exempts service-role requests
+    // from CAPTCHA; the public signup/CAPTCHA configuration is never changed.
+    // The verification below still uses the anonymous client and delivered OTP.
+    const signup = await makeClient(service).auth.signUp({
       email, password,
       options: {
         emailRedirectTo: APP_URL,

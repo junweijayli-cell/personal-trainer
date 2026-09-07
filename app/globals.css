@@ -1199,3 +1199,11 @@ html:lang(zh) :is(h1, h2, h3, h4, h5, h6) { letter-spacing: 0; }
   .landing-footer { gap: 14px; }
 }
 .landing-section-title h2 { word-break: keep-all; }
+
+.membership-plans-link { display:flex; align-items:center; justify-content:space-between; gap:16px; margin:-8px 0 24px; padding:20px 24px; border-radius:16px; background:var(--ink, #183c32); color:#fff; text-decoration:none; }
+.membership-plans-link span { display:grid; gap:6px; }
+.membership-plans-link strong { font-size:18px; }
+.membership-plans-link small { color:#dfebe5; line-height:1.5; }
+.membership-plans-link b { font-size:26px; }
+.membership-plans-link:focus-visible, .paywall-back:focus-visible { outline:3px solid #92ba47; outline-offset:4px; }
+.paywall-back { display:block; margin-bottom:24px; padding:10px 0; border:0; background:transparent; color:inherit; cursor:pointer; }

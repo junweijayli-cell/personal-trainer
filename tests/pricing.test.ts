@@ -78,9 +78,10 @@ describe('approved TrainWell prices', () => {
     const catalog = readFileSync(new URL('../supabase/functions/get-billing-catalog/index.ts', import.meta.url), 'utf8');
     expect(stripe).toContain('stripe.prices.retrieve(priceId(plan))');
     expect(stripe).toContain('assertApprovedPrice(price, plan, appMarket())');
-    expect(checkout.indexOf('await approvedStripePrice(stripe, plan)')).toBeLessThan(checkout.indexOf('stripe.customers.create'));
+    expect(checkout).toMatch(/await approvedStripePrice\(stripe,\s*plan\)/);
+    expect(checkout.indexOf('await approvedStripePrice')).toBeLessThan(checkout.indexOf('await openCheckout'));
     expect(checkout).not.toMatch(/body\.(price|amount|currency|access_days)/);
-    expect(checkout).toContain('line_items: [{ price: price.id, quantity: 1 }]');
+    expect(checkout).toContain('plan,price.id,appUrl()');
     expect(catalog).toContain('await approvedStripePrice(stripe, plan)');
   });
 });

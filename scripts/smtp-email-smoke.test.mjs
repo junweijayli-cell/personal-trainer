@@ -28,6 +28,7 @@ test('loopback endpoint rejects browser origins, wrong paths/hosts/methods/types
   const expected = { path: '/otp/test-nonce', host: '127.0.0.1:45678' };
   const valid = { method: 'POST', ...expected, contentType: 'text/plain' };
   assert.equal(isAllowedLoopbackRequest(valid, expected), true);
+  assert.equal(isAllowedLoopbackRequest({ ...valid, origin: 'http://127.0.0.1:45678', fetchSite: 'same-origin' }, expected), true);
   for (const changed of [
     { method: 'GET' }, { method: 'OPTIONS' }, { path: '/otp/wrong' },
     { host: 'attacker.example:45678' }, { host: 'localhost:45678' },

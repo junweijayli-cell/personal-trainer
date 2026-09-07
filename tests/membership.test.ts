@@ -4,6 +4,7 @@ import { membershipDaysRemaining, membershipHasAccess } from '../app/membership'
 
 function membership(patch: Partial<Membership> = {}): Membership {
   return {
+    billingMode: null,
     status: 'trial',
     plan: 'trial',
     trialStartedAt: '2026-09-01T00:00:00.000Z',
@@ -33,7 +34,14 @@ describe('server-backed membership access', () => {
   });
 
   it('allows active paid access and denies past-due access', () => {
-    expect(membershipHasAccess(membership({ status: 'active', plan: 'monthly', trialEndsAt: null }))).toBe(true);
+    expect(membershipHasAccess(membership({ status: 'active', plan: 'monthly', trialEndsAt: null, billingMode: 'test', currentPeriodEnd: '2026-10-01T00:00:00Z' }))).toBe(true);
     expect(membershipHasAccess(membership({ status: 'past_due', plan: 'monthly', trialEndsAt: null }))).toBe(false);
+  });
+
+  it('denies paid access with missing, invalid or expired periods or an unknown mode', () => {
+    for (const end of [null, 'invalid', '2026-01-01T00:00:00Z']) {
+      expect(membershipHasAccess(membership({ status: 'active', plan: 'monthly', billingMode: 'test', currentPeriodEnd: end }))).toBe(false);
+    }
+    expect(membershipHasAccess(membership({status:'active', plan:'monthly', currentPeriodEnd:'2026-10-01T00:00:00Z'}))).toBe(false);
   });
 });

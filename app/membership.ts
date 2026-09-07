@@ -13,5 +13,7 @@ export function membershipHasAccess(membership: Membership) {
   if (membership.status === 'trial') {
     return Boolean(membership.trialEndsAt && new Date(membership.trialEndsAt) > new Date(membership.serverNow));
   }
-  return membership.status === 'active';
+  return membership.status === 'active' && membership.plan !== 'trial'
+    && Boolean(membership.billingMode && membership.currentPeriodEnd
+      && new Date(membership.currentPeriodEnd) > new Date(membership.serverNow));
 }

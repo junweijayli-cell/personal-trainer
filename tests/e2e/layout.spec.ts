@@ -14,7 +14,7 @@ test('text audit detects overlapping ink but accepts inline emphasis on the same
   expect((await inspectTextLayout(page)).collisions).toEqual([]);
 });
 
-async function isolateBrowser(page: Page, locale: Locale, membership?: 'trial' | 'expired') {
+async function isolateBrowser(page: Page, locale: Locale, membership?: 'trial' | 'expired', billingEnabled = false) {
   const user = {
     id: userId, aud: 'authenticated', role: 'authenticated',
     email: 'avery.long.training.member@example.invalid',
@@ -30,6 +30,10 @@ async function isolateBrowser(page: Page, locale: Locale, membership?: 'trial' |
     if (url.origin !== fixtureOrigin) return route.abort();
     const endpoint = url.pathname.replace('/rest/v1/', '');
     if (url.pathname === '/auth/v1/user') return route.fulfill({ json: user });
+    if (url.pathname === '/functions/v1/get-billing-catalog') return route.fulfill({ json: { mode: 'test', enabled: billingEnabled, market: 'global', plans: [
+      { plan: 'monthly', currency: 'usd', unitAmount: 1000, recurring: 'month' },
+      { plan: 'annual', currency: 'usd', unitAmount: 6000, recurring: 'year' },
+    ] } });
     if (endpoint === 'profiles') return route.fulfill({ json: { user_id: userId, display_name: user.user_metadata.display_name, locale, market: 'global' } });
     if (endpoint === 'rpc/get_my_entitlement') return route.fulfill({ json: [{
       status: membership, plan: 'trial', trial_started_at: trialStart.toISOString(), trial_ends_at: trialEnd.toISOString(),
@@ -61,6 +65,45 @@ async function isolateBrowser(page: Page, locale: Locale, membership?: 'trial' |
 }
 
 for (const locale of ['en', 'zh'] as const) {
+  test(`account membership link, plans and Stripe redirect (${locale})`, async ({ page }, testInfo) => {
+    await isolateBrowser(page, locale, 'trial', true);
+    const selections: string[] = [];
+    await page.route('**/functions/v1/create-checkout-session', async (route) => {
+      selections.push(route.request().postDataJSON().plan);
+      await route.fulfill({ json: { mode: 'test', url: `https://checkout.stripe.com/c/pay/cs_test_${selections.at(-1)}` } });
+    });
+    await page.route('https://checkout.stripe.com/**', (route) => route.fulfill({ contentType: 'text/html', body: '<h1>Isolated Stripe test checkout</h1>' }));
+    await page.goto('/?view=you');
+    const link = page.getByRole('link', { name: locale === 'zh' ? /会员订阅/ : /Membership plans/ });
+    await expect(link).toHaveAttribute('href', '?view=membership');
+    await link.click();
+    await expect(page).toHaveURL(/view=membership/);
+    await expect(page.locator('.paywall-shell h1')).toHaveText(locale === 'zh' ? '选择会员方案' : 'Choose your membership');
+    await expect(page.locator('.paywall-shell')).toContainText(locale === 'zh' ? '不会收取真实款项' : 'No real money is charged');
+    await auditAndCapture(page, testInfo, `${locale}-membership-plans`);
+    await page.reload();
+    await expect(page.locator('.paywall-shell h1')).toBeVisible();
+    await page.getByRole('button', { name: locale === 'zh' ? '← 返回账户' : '← Back to account' }).click();
+    await expect(page.locator('.you-page h1')).toBeVisible();
+    await page.goBack();
+    await expect(page.locator('.paywall-shell h1')).toBeVisible();
+    await page.getByRole('button', { name: locale === 'zh' ? /选择月付/ : /Choose monthly/ }).click();
+    await expect(page).toHaveURL('https://checkout.stripe.com/c/pay/cs_test_monthly');
+    await page.goto('http://127.0.0.1:3012/?view=membership');
+    await page.getByRole('button', { name: locale === 'zh' ? /选择年付/ : /Choose annual/ }).click();
+    await expect(page).toHaveURL('https://checkout.stripe.com/c/pay/cs_test_annual');
+    expect(selections).toEqual(['monthly', 'annual']);
+  });
+
+  test(`membership remains reachable while checkout is disabled (${locale})`, async ({ page }) => {
+    await isolateBrowser(page, locale, 'trial');
+    await page.goto('/?view=membership');
+    await expect(page.getByRole('button', { name: locale === 'zh' ? /选择月付/ : /Choose monthly/ })).toBeDisabled();
+    await expect(page.locator('.paywall-shell')).toContainText(locale === 'zh' ? '在线支付暂未开放' : 'Online payment is not available yet');
+    await page.getByRole('button', { name: locale === 'zh' ? '← 返回账户' : '← Back to account' }).click();
+    await expect(page.locator('.you-page h1')).toBeVisible();
+  });
+
   test(`public and account-entry typography (${locale})`, async ({ page }, testInfo) => {
     await isolateBrowser(page, locale);
     await page.goto('/');
