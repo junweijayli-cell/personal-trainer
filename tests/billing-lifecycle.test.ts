@@ -21,6 +21,7 @@ beforeAll(async()=>{
     grant usage on schema auth to authenticated,service_role;`);
   await db.exec(read('supabase/migrations/202609020001_production_foundation.sql').replace('create extension if not exists pgcrypto with schema extensions;',''));
   await db.exec(read('supabase/migrations/202609070001_safe_test_billing.sql'));
+  await db.exec(read('supabase/migrations/202609090001_live_daily_billing.sql'));
 },30000);
 beforeEach(async()=>{
   await db.exec(`reset role; truncate auth.users cascade; truncate public.billing_events,public.billing_audit_log;
@@ -59,18 +60,18 @@ function subscription(status='active',price='price_month',sid='sub_1') {
   return {id:sid,livemode:false,status,customer:'cus_1',metadata:{supabase_user_id:userId},cancel_at_period_end:false,
     items:{data:[{quantity:1,price:{id:price},current_period_start:1788220800,current_period_end:1893456000}]}};
 }
-function fakeStripe(){
+function fakeStripe(live = false){
   const sessions=new Map<string,Record<string,unknown>>();
   const subscriptions=new Map<string,ReturnType<typeof subscription>>();
   let creates=0,customers=0,loseResponse=false;
   const api={
-    customers:{async create(){customers++;return {id:'cus_1',livemode:false};}},
+    customers:{async create(){customers++;return {id:'cus_1',livemode:live};}},
     subscriptions:{async retrieve(id:string){const s=subscriptions.get(id);if(!s)throw Error('Missing subscription');return s;},
       async list(){return {data:[...subscriptions.values()],has_more:false};}},
     checkout:{sessions:{
       async create(params:Record<string,unknown>,options:{idempotencyKey:string}){
         let session=sessions.get(options.idempotencyKey);
-        if(!session){creates++;session={id:`cs_${creates}`,livemode:false,status:'open',url:`https://checkout.stripe.com/c/pay/cs_${creates}`, ...params};sessions.set(options.idempotencyKey,session);}
+        if(!session){creates++;session={id:`cs_${creates}`,livemode:live,status:'open',url:`https://checkout.stripe.com/c/pay/cs_${creates}`, ...params};sessions.set(options.idempotencyKey,session);}
         if(loseResponse){loseResponse=false;throw Error('Network response lost');}return session;
       },
       async retrieve(id:string){const s=[...sessions.values()].find(s=>s.id===id);if(!s)throw Error('Missing session');return s;},
@@ -80,9 +81,9 @@ function fakeStripe(){
   return {api:api as unknown as Stripe,sessions,subscriptions,created:()=>creates,customers:()=>customers,loseNextResponse:()=>{loseResponse=true;}};
 }
 async function member(){return (await db.query<Record<string,unknown>>('select * from public.memberships where user_id=$1',[userId])).rows[0];}
-const checkout=(s:Stripe,p:'monthly'|'annual'='monthly')=>openCheckout(adapter,s,user,p,p==='monthly'?'price_month':'price_year','https://trainwell.win');
+const checkout=(s:Stripe,p:'daily'|'monthly'|'annual'='monthly')=>openCheckout(adapter,s,user,p,p==='daily'?'price_day':p==='monthly'?'price_month':'price_year','https://trainwell.win');
 const event=(id:string,type:string,object:unknown)=>({id,type,livemode:false,data:{object}} as Stripe.Event);
-const reconcile=(s:Stripe,e:Stripe.Event)=>reconcileBilling(adapter,s,e,['price_month','price_old_month'],['price_year','price_old_year']);
+const reconcile=(s:Stripe,e:Stripe.Event)=>reconcileBilling(adapter,s,e,['price_month','price_old_month'],['price_year','price_old_year'],['price_day']);
 
 describe('serialized Checkout with real PostgreSQL leases',()=>{
   it('allows only selected test accounts to validate before public rollout', async()=>{
@@ -227,4 +228,60 @@ it('supports legacy invoice IDs, rejects an unrelated modern parent, and maps hi
   expect(invoiceSubscription({parent:{type:'quote_details'},subscription:'sub_legacy'})).toBeNull();
   expect(subscriptionPatch(subscription('active','old_month'),['old_month'],['old_year']).plan).toBe('monthly');
   expect(()=>subscriptionPatch({...subscription(),livemode:true},['price_month'],['price_year'])).toThrow('Live');
+});
+
+
+describe('live daily billing', () => {
+  it('uses live idempotency keys and charges the daily plan only once across retries', async () => {
+    await db.exec("update billing_runtime set mode='live'");
+    const s = fakeStripe(true);
+    s.loseNextResponse();
+    await expect(checkout(s.api, 'daily')).rejects.toThrow('lost');
+    await checkout(s.api, 'daily');
+    expect(s.created()).toBe(1);
+    expect([...s.sessions.keys()][0]).toContain('trainwell:live:checkout:');
+    expect((await member()).billing_mode).toBe('live');
+    const session = [...s.sessions.values()][0];
+    expect(JSON.stringify(session)).toContain('renews automatically');
+    expect(JSON.stringify(session)).not.toContain('No real money');
+    expect(session.line_items).toEqual([{price:'price_day',quantity:1}]);
+    await checkout(s.api, 'monthly');
+    expect(session.status).toBe('expired');
+  });
+  it('refuses test objects in live checkout', async () => {
+    await db.exec("update billing_runtime set mode='live'");
+    await expect(checkout(fakeStripe().api, 'daily')).rejects.toThrow('mismatch');
+    expect((await member()).stripe_customer_id).toBeNull();
+  });
+  it('keeps daily live entitlement through its paid boundary and records a live audit', async () => {
+    await db.exec("update billing_runtime set mode='live'");
+    const s=fakeStripe(true);
+    await checkout(s.api,'daily');
+    const operation=(await db.query<{operation:{id:string}}>('select operation from billing_checkout_operations')).rows[0].operation;
+    const sub={...subscription('active','price_day'),livemode:true,
+      metadata:{supabase_user_id:userId,billing_operation:operation.id},
+      items:{data:[{quantity:1,price:{id:'price_day'},current_period_start:Math.floor(Date.now()/1000),current_period_end:Math.floor(Date.now()/1000)+86400}]}};
+    s.subscriptions.set('sub_1',sub);
+    await reconcile(s.api,{...event('evt_live','customer.subscription.created',sub),livemode:true});
+    expect((await member()).plan).toBe('daily');
+    expect((await member()).billing_mode).toBe('live');
+    expect((await db.query<{has_access:boolean}>('select * from get_my_entitlement()')).rows[0].has_access).toBe(true);
+    expect((await db.query<{livemode:boolean}>('select livemode from billing_events')).rows[0].livemode).toBe(true);
+    await expect(reconcile(s.api,event('evt_test','customer.subscription.updated',sub))).rejects.toThrow('mismatch');
+    await db.exec("update memberships set current_period_end=now()-interval '1 second'");
+    expect((await db.query<{has_access:boolean}>('select * from get_my_entitlement()')).rows[0].has_access).toBe(false);
+  });
+  it('archives demo identities and operations without extending the original trial', async () => {
+    const s=fakeStripe(); await checkout(s.api);
+    const before=await member();
+    await db.exec("update memberships set plan='monthly',status='active',current_period_end=now()+interval '1 year'; update billing_runtime set checkout_enabled=false;");
+    await db.exec('select activate_live_billing()');
+    const after=await member();
+    expect(after.trial_ends_at).toEqual(before.trial_ends_at);
+    expect(after.plan).toBe('trial');expect(after.stripe_customer_id).toBeNull();
+    expect((await db.query('select * from billing_mode_archive')).rows).toHaveLength(1);
+    expect((await db.query('select * from billing_checkout_operations')).rows).toHaveLength(0);
+    expect((await db.query<{checkout_enabled:boolean}>('select * from billing_runtime')).rows[0].checkout_enabled).toBe(false);
+    await db.exec('select activate_live_billing()');
+  });
 });

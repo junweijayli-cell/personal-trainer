@@ -3,9 +3,11 @@ import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import { invoiceSubscription, isTerminalSubscription, objectId, subscriptionPatch } from './billing-state.ts';
 import { applyState, billingRow, checkoutOperation, runtime, withBillingLock } from './billing-store.ts';
 
-export async function reconcileBilling(admin: SupabaseClient, stripe: Stripe, event: Stripe.Event, monthly: string[], annual: string[]) {
-  if(event.livemode) throw new Error('Live events disabled.');
-  await runtime(admin);
+import { assertBillingMode } from './billing-mode.ts';
+
+export async function reconcileBilling(admin: SupabaseClient, stripe: Stripe, event: Stripe.Event, monthly: string[], annual: string[], daily: string[] = []) {
+  const { mode } = await runtime(admin);
+  assertBillingMode(event.livemode, mode);
   let subscriptionId: string | null=null;
   let expectedCustomer: string | null=null;
   if(event.type.startsWith('customer.subscription.')) {
@@ -35,8 +37,9 @@ export async function reconcileBilling(admin: SupabaseClient, stripe: Stripe, ev
     // Fetch AFTER acquiring the lock. Old event payloads never overwrite newer
     // subscription state, including invoices that arrive before period updates.
     const sub=await stripe.subscriptions.retrieve(subscriptionId!);
-    if(sub.livemode || objectId(sub.customer)!==member.stripe_customer_id ||
-      sub.metadata.supabase_user_id!==member.user_id || (member.billing_mode && member.billing_mode!=='test')) {
+    assertBillingMode(sub.livemode, mode);
+    if( objectId(sub.customer)!==member.stripe_customer_id ||
+      sub.metadata.supabase_user_id!==member.user_id || (member.billing_mode && member.billing_mode!==mode)) {
       throw new Error('Subscription ownership or mode mismatch.');
     }
     const operation=await checkoutOperation(admin,member.user_id);
@@ -56,7 +59,7 @@ export async function reconcileBilling(admin: SupabaseClient, stripe: Stripe, ev
       }
     }
     let patch: Record<string,unknown>;
-    try { patch=subscriptionPatch(sub,monthly,annual); }
+    try { patch=subscriptionPatch(sub,monthly,annual,daily,mode); }
     catch(error) {
       // Unknown prices/items must revoke stale access before surfacing for review.
       await applyState(admin,member.user_id,token,{status:'expired',current_period_start:null,current_period_end:null},null,event);

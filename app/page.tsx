@@ -149,7 +149,8 @@ export default function Home() {
   const [billingBusy, setBillingBusy] = useState(false);
   const [billingReturn, setBillingReturn] = useState<BillingReturn | null>(null);
   const [billingNotice, setBillingNotice] = useState<BillingNotice>('none');
-  const [billingPlans, setBillingPlans] = useState<('monthly' | 'annual')[]>([]);
+  const [billingMode, setBillingMode] = useState<'test' | 'live' | null>(null);
+  const [billingPlans, setBillingPlans] = useState<('daily' | 'monthly' | 'annual')[]>([]);
   const [catalogStatus, setCatalogStatus] = useState<'loading' | 'ready' | 'unavailable'>('loading');
   const resetBilling = useCallback(() => {
     billingAbort.current?.abort();
@@ -159,7 +160,7 @@ export default function Home() {
     setBillingBusy(false);
     setBillingReturn(null);
     setBillingNotice('none');
-    setBillingPlans([]);
+    setBillingPlans([]); setBillingMode(null);
     setCatalogStatus('loading');
     setSaveStatus('');
     const url = new URL(window.location.href);
@@ -266,9 +267,9 @@ export default function Home() {
     if (!memberId || (!needsSubscription && view !== 'membership')) return;
     let cancelled = false;
     void loadBillingCatalog().then((plans) => {
-      if (!cancelled) { setBillingPlans(plans); setCatalogStatus('ready'); }
+      if (!cancelled) { setBillingPlans(plans.plans); setBillingMode(plans.mode); setCatalogStatus('ready'); }
     }).catch(() => {
-      if (!cancelled) { setBillingPlans([]); setCatalogStatus('unavailable'); }
+      if (!cancelled) { setBillingPlans([]); setBillingMode(null); setCatalogStatus('unavailable'); }
     });
     return () => { cancelled = true; };
   }, [memberId, needsSubscription, view]);
@@ -508,7 +509,7 @@ export default function Home() {
     void signOutAccount();
   }
 
-  async function selectSubscription(plan: 'monthly' | 'annual') {
+  async function selectSubscription(plan: 'daily' | 'monthly' | 'annual') {
     if (!member || accountActionBusy || billingAwaitingConfirmation || !billingPlans.includes(plan)) return;
     await runBillingAction(billingActionLock, async () => {
       const generation = billingActionLock.generation;
@@ -699,7 +700,7 @@ export default function Home() {
   }
 
   if (needsSubscription || view === 'membership') {
-    return <TrialPaywall language={language} member={member} onBack={() => navigate('you')} onLanguageChange={setLanguage} onSubscribe={selectSubscription} onSignOut={signOut} onExport={exportAccountData} onDelete={removeAccount} onManageBilling={manageBilling} accountActionBusy={accountActionBusy || billingBusy} billingBusy={billingBusy || billingAwaitingConfirmation} billingPlans={billingPlans} catalogStatus={catalogStatus} billingNotice={billingNotice} status={saveStatus} />;
+    return <TrialPaywall language={language} member={member} onBack={() => navigate('you')} onLanguageChange={setLanguage} onSubscribe={selectSubscription} onSignOut={signOut} onExport={exportAccountData} onDelete={removeAccount} onManageBilling={manageBilling} accountActionBusy={accountActionBusy || billingBusy} billingBusy={billingBusy || billingAwaitingConfirmation} billingPlans={billingPlans} billingMode={billingMode} catalogStatus={catalogStatus} billingNotice={billingNotice} status={saveStatus} />;
   }
 
   if (sessionOpen) {
@@ -902,12 +903,12 @@ export default function Home() {
     <main className="coach-app">
       <header className="coach-header">
         <button className="wordmark" type="button" onClick={() => navigate('today')} aria-label={tr('TrainWell home', '悦练首页')}><span>T</span>{tr('TrainWell', '悦练')}</button>
-        <p>{trialRemaining !== null ? tr(`${trialRemaining} trial days left`, `试用剩余 ${trialRemaining} 天`) : tr(`${member.membership.plan} member`, `${member.membership.plan === 'monthly' ? '月付' : '年付'}会员`)}</p>
+        <p>{trialRemaining !== null ? tr(`${trialRemaining} trial days left`, `试用剩余 ${trialRemaining} 天`) : tr(`${member.membership.plan} member`, `${member.membership.plan === 'daily' ? '日付' : member.membership.plan === 'monthly' ? '月付' : '年付'}会员`)}</p>
         <div className="coach-header-actions"><LanguageSwitch language={language} onChange={setLanguage} /><button className="avatar" type="button" aria-label="Open profile" onClick={() => navigate('you')}>{account.user.displayName?.charAt(0).toUpperCase() ?? 'T'}</button></div>
       </header>
 
       {member.membership.billingMode === 'test' && member.membership.plan !== 'trial' && <p className="account-save-status" role="status">{tr('Demo membership · Stripe test mode · No real money charged', '演示会员 · Stripe 测试模式 · 未收取真实款项')}</p>}
-      {billingNotice !== 'none' && <p className="account-save-status" role="status">{billingNoticeText(billingNotice, language)}</p>}
+      {billingNotice !== 'none' && <p className="account-save-status" role="status">{billingNoticeText(billingNotice, language, member.membership.billingMode)}</p>}
       {view === 'today' && (
         <>
           <section className="today-head">
@@ -1038,12 +1039,12 @@ export default function Home() {
           <h1>Simple choices<br />Clear training</h1>
           {accountStatus === 'signed-in' && account ? <>
             <article className="profile-card"><span className="large-avatar">{account.user.displayName.charAt(0).toUpperCase()}</span><div><strong>{account.user.displayName}</strong><small>{account.user.email} · {account.profile.level}</small></div><button type="button" onClick={signOut}>{tr('Sign out', '退出登录')}</button></article>
-            <article className="membership-card"><div><small>{tr('MEMBERSHIP', '会员状态')}</small><h2>{member.membership.plan === 'trial' ? tr('7-day free trial', '7 天免费试用') : member.membership.plan === 'monthly' ? tr('Monthly membership', '月付会员') : tr('Annual membership', '年付会员')}</h2><p>{trialRemaining !== null ? tr(`${trialRemaining} days remaining. No card is required during the trial.`, `剩余 ${trialRemaining} 天。试用期间无需绑卡。`) : member.membership.cancelAtPeriodEnd ? tr('Active until the current paid period ends.', '当前付费周期结束前仍可使用。') : tr('Secure subscription access is active.', '安全订阅权限已开启。')}</p>{member.market === 'global' && <p>{member.membership.plan === 'trial' ? tr(`After your trial: ${globalPriceLabel('monthly', language)} or ${globalPriceLabel('annual', language)}. ${annualSavingLabel(language)}.`, `试用后：${globalPriceLabel('monthly', language)} 或 ${globalPriceLabel('annual', language)}。${annualSavingLabel(language)}。`) : globalPriceLabel(member.membership.plan, language)}</p>}</div><span>{member.membership.plan === 'trial' ? `${trialRemaining}/7` : '✓'}</span></article>
+            <article className="membership-card"><div><small>{tr('MEMBERSHIP', '会员状态')}</small><h2>{member.membership.plan === 'trial' ? tr('7-day free trial', '7 天免费试用') : member.membership.plan === 'daily' ? tr('Daily membership', '日付会员') : member.membership.plan === 'monthly' ? tr('Monthly membership', '月付会员') : tr('Annual membership', '年付会员')}</h2><p>{trialRemaining !== null ? tr(`${trialRemaining} days remaining. No card is required during the trial.`, `剩余 ${trialRemaining} 天。试用期间无需绑卡。`) : member.membership.cancelAtPeriodEnd ? tr('Active until the current paid period ends.', '当前付费周期结束前仍可使用。') : tr('Secure subscription access is active.', '安全订阅权限已开启。')}</p>{member.market === 'global' && <p>{member.membership.plan === 'trial' ? tr(`After your trial: ${globalPriceLabel('daily', language)}, ${globalPriceLabel('monthly', language)} or ${globalPriceLabel('annual', language)}. ${annualSavingLabel(language)}.`, `试用后：${globalPriceLabel('daily', language)}、${globalPriceLabel('monthly', language)} 或 ${globalPriceLabel('annual', language)}。${annualSavingLabel(language)}。`) : globalPriceLabel(member.membership.plan, language)}</p>}</div><span>{member.membership.plan === 'trial' ? `${trialRemaining}/7` : '✓'}</span></article>
 
             <a className="membership-plans-link" href="?view=membership" onClick={(event) => {
               if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
               event.preventDefault(); navigate('membership');
-            }}><span><strong>{tr('Membership plans', '会员订阅')}</strong><small>{tr('Choose monthly or annual access', '选择月付或年付方案')}</small></span><b aria-hidden="true">→</b></a>
+            }}><span><strong>{tr('Membership plans', '会员订阅')}</strong><small>{tr('Choose daily, monthly or annual access', '选择日付、月付或年付方案')}</small></span><b aria-hidden="true">→</b></a>
 
             {legacySnapshot && <article className="legacy-import-card"><div><small>{tr('DEVICE HISTORY FOUND', '发现设备历史记录')}</small><h2>{tr('Bring your previous Relay activity with you', '导入之前的 Relay 训练记录')}</h2><p>{tr('Only workouts, wellness, and schedule data will be imported. Demo passwords and billing status are never copied.', '仅导入训练、健康记录与日程。演示密码和账单状态绝不会被复制。')}</p></div><button type="button" onClick={importDeviceData}>{tr('Import securely', '安全导入')} <span>→</span></button></article>}
 
@@ -1224,19 +1225,20 @@ function AccountPrivacyActions({ language, member, onExport, onDelete, onManageB
   );
 }
 
-function TrialPaywall({ language, member, onBack, onLanguageChange, onSubscribe, onSignOut, onExport, onDelete, onManageBilling, accountActionBusy, billingBusy, billingPlans, catalogStatus, billingNotice, status }: {
+function TrialPaywall({ language, member, onBack, onLanguageChange, onSubscribe, onSignOut, onExport, onDelete, onManageBilling, accountActionBusy, billingBusy, billingPlans, billingMode, catalogStatus, billingNotice, status }: {
   language: Language;
   member: MemberAccount;
   onBack: () => void;
   onLanguageChange: (language: Language) => void;
-  onSubscribe: (plan: 'monthly' | 'annual') => void;
+  onSubscribe: (plan: 'daily' | 'monthly' | 'annual') => void;
   onSignOut: () => void;
   onExport: () => void;
   onDelete: () => void;
   onManageBilling: () => void;
   accountActionBusy: boolean;
   billingBusy: boolean;
-  billingPlans: ('monthly' | 'annual')[];
+  billingPlans: ('daily' | 'monthly' | 'annual')[];
+  billingMode: 'test' | 'live' | null;
   catalogStatus: 'loading' | 'ready' | 'unavailable';
   billingNotice: BillingNotice;
   status: string;
@@ -1251,12 +1253,13 @@ function TrialPaywall({ language, member, onBack, onLanguageChange, onSubscribe,
         {hasAccess && <button className="paywall-back" type="button" onClick={onBack}>{tr('← Back to account', '← 返回账户')}</button>}
         <p className="kicker">{hasAccess ? tr('MEMBERSHIP PLANS', '会员订阅') : tr('YOUR ACCESS HAS ENDED', '使用权限已到期')}</p>
         <h1>{hasAccess ? tr('Choose your membership', '选择会员方案') : tr('Keep your momentum', '继续保持训练节奏')}</h1>
-        <p className="account-save-status">{tr('Demo checkout · Use Stripe test cards only · No real money is charged', '演示支付 · 仅使用 Stripe 测试卡 · 不会收取真实款项')}</p>
+        <p className="account-save-status">{billingMode === 'test' ? tr('Demo checkout · Use Stripe test cards only · No real money is charged', '演示支付 · 仅使用 Stripe 测试卡 · 不会收取真实款项') : tr('Paid membership starts immediately. Renews automatically until canceled in Account → Manage billing.', '付费会员立即开始，自动续费，可在账户的管理账单中取消。')}</p>
         <p>{hasAccess && member.membership.plan === 'trial' ? tr(`Your free trial has ${membershipDaysRemaining(member.membership)} days remaining. Subscribe now or return to your account to continue your trial.`, `免费试用还剩 ${membershipDaysRemaining(member.membership)} 天。你可以现在订阅，或返回账户继续试用。`) : tr(`Thanks for training with TrainWell, ${member.displayName}. Your history remains safe. Choose secure access to continue personalized workouts.`, `感谢你使用悦练训练，${member.displayName}。你的记录仍被安全保存。选择安全方案即可继续个性化训练。`)}</p>
         {managesSubscription && <p>{tr('You already have a subscription. Use Manage billing below to update it or cancel renewal.', '你已有订阅，请使用下方“管理账单”更新订阅或取消续订。')}</p>}
-        {billingNotice !== 'none' && <p className="account-save-status" role="status">{billingNoticeText(billingNotice, language)}</p>}
+        {billingNotice !== 'none' && <p className="account-save-status" role="status">{billingNoticeText(billingNotice, language, member.membership.billingMode)}</p>}
         {catalogStatus !== 'ready' && <p role="status">{catalogStatus === 'loading' ? tr('Checking available payment plans…', '正在确认可用付款方案…') : tr('Online payment is not available yet. Your saved data remains safe; please check back later.', '在线支付暂未开放，你的数据仍被安全保存，请稍后再来查看。')}</p>}
         <div className="paywall-options">
+          {member.market === 'global' && <article><span>{tr('DAILY', '日付')}</span><h2>{globalPriceLabel('daily', language)}</h2><p>{tr('US$1 charged every day until canceled. Cancel renewal from Account → Manage billing; access lasts through the paid day.', '每天扣款 US$1，直至取消。可在账户的管理账单中取消续订，权限保留至已付费当天的周期结束。')}</p><button type="button" onClick={() => onSubscribe('daily')} disabled={managesSubscription || accountActionBusy || billingBusy || !billingPlans.includes('daily')} aria-busy={billingBusy}>{tr('Choose daily', '选择日付')}<b>→</b></button></article>}
           {member.market === 'global' && <article><span>{tr('MONTHLY', '月付')}</span><h2>{globalPriceLabel('monthly', language)}</h2><p>{tr('Billed monthly in USD. Cancel renewal from the secure billing portal.', '以美元按月续费，可在安全账单页面取消续订。')}</p><button type="button" onClick={() => onSubscribe('monthly')} disabled={managesSubscription || accountActionBusy || billingBusy || !billingPlans.includes('monthly')} aria-busy={billingBusy}>{tr('Choose monthly', '选择月付')}<b>→</b></button></article>}
           <article className="featured"><small>{member.market === 'global' ? annualSavingLabel(language) : tr('BEST VALUE', '超值方案')}</small><span>{tr('ANNUAL', '年付')}</span><h2>{member.market === 'cn' ? tr('One secure annual payment', '一次安全年付') : globalPriceLabel('annual', language)}</h2><p>{member.market === 'cn' ? tr('365 days of access with Alipay or an eligible card. It does not auto-renew.', '可使用支付宝或支持的银行卡购买 365 天权限，不会自动续费。') : tr('Billed yearly in USD. Cancel renewal from the secure billing portal.', '以美元按年续费，可在安全账单页面取消续订。')}</p><button type="button" onClick={() => onSubscribe('annual')} disabled={managesSubscription || accountActionBusy || billingBusy || !billingPlans.includes('annual')} aria-busy={billingBusy}>{tr('Choose annual', '选择年付')}<b>→</b></button></article>
         </div>

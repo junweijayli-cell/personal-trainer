@@ -23,12 +23,12 @@ export function secureStripeUrl(value: unknown, kind: 'checkout' | 'portal') {
 
 export function approvedCatalogPlans(value: unknown, expectedMarket: Market): BillingPlan[] {
   const catalog = value as { market?: unknown; plans?: unknown; mode?: unknown; enabled?: unknown } | null;
-  if (!catalog || catalog.mode !== 'test' || catalog.enabled !== true || catalog.market !== expectedMarket || !Array.isArray(catalog.plans)) throw new Error('Billing is unavailable.');
+  if (!catalog || !['test', 'live'].includes(String(catalog.mode)) || catalog.enabled !== true || catalog.market !== expectedMarket || !Array.isArray(catalog.plans)) throw new Error('Billing is unavailable.');
   const plans: BillingPlan[] = [];
   for (const item of catalog.plans) {
     if (!item || typeof item !== 'object' || !('plan' in item)) continue;
     const row = item as { plan: unknown; currency: unknown; unitAmount: unknown; recurring: unknown };
-    if (row.plan !== 'monthly' && row.plan !== 'annual') continue;
+    if (row.plan !== 'daily' && row.plan !== 'monthly' && row.plan !== 'annual') continue;
     if (expectedMarket === 'global') {
       const approved = GLOBAL_PLANS[row.plan];
       if (row.currency !== approved.currency || row.unitAmount !== approved.unitAmount || row.recurring !== approved.interval) continue;
@@ -49,7 +49,8 @@ export async function runBillingAction(lock: { current: boolean; generation?: nu
   try { redirecting = await action() === 'redirecting'; return true; } finally { if (!redirecting && generation === lock.generation) lock.current = false; }
 }
 
-export function billingNoticeText(notice: BillingNotice, language: 'en' | 'zh') {
+export function billingNoticeText(notice: BillingNotice, language: 'en' | 'zh', mode: 'test' | 'live' | null = null) {
+  if (notice === 'confirmed' && mode !== 'test') return language === 'zh' ? '已确认你的付费会员，可以继续训练。' : 'Your paid membership is confirmed. You can continue training.';
   const messages: Record<BillingNotice, [string, string]> = {
     none: ['', ''],
     pending: ['Checking your membership with our payment server. Please do not pay again.', '正在向支付服务器确认会员状态，请勿重复付款。'],

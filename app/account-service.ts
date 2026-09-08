@@ -335,10 +335,10 @@ async function invokeBillingFunction(name: string, body?: Record<string, unknown
 export async function loadBillingCatalog() {
   const { data, error } = await getSupabase().functions.invoke('get-billing-catalog', { method: 'GET', timeout: 10000 });
   if (error) throw new Error('Billing is unavailable.');
-  return approvedCatalogPlans(data, market);
+  return { plans: approvedCatalogPlans(data, market), mode: data.mode as 'test' | 'live' };
 }
 
-export async function createCheckout(plan: 'monthly' | 'annual') {
+export async function createCheckout(plan: 'daily' | 'monthly' | 'annual') {
   return invokeBillingFunction('create-checkout-session', { plan });
 }
 

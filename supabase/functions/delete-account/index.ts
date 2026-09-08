@@ -14,8 +14,8 @@ Deno.serve(async (request) => {
     await withBillingLock(admin, user.id, async (token) => {
       const membership = await billingRow(admin, user.id);
       if (membership.stripe_customer_id || membership.stripe_subscription_id) {
-        if (membership.billing_mode !== 'test') throw new Error('Billing must be reconciled before deleting this account.');
-        const stripe = stripeClient();
+        if (!['test','live'].includes(membership.billing_mode ?? '')) throw new Error('Billing must be reconciled before deleting this account.');
+        const stripe = stripeClient(membership.billing_mode as 'test' | 'live');
         if (!membership.stripe_customer_id) throw new Error('Billing customer must be reconciled.');
         const sessions = await stripe.checkout.sessions.list({ customer: membership.stripe_customer_id, status: 'open', limit: 100 });
         const subscriptions = await stripe.subscriptions.list({ customer: membership.stripe_customer_id, status: 'all', limit: 100 });

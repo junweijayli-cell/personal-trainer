@@ -1,9 +1,9 @@
 import Stripe from 'npm:stripe@19.0.0';
+import { assertBillingMode, assertStripeKey, type BillingMode } from './billing-mode.ts';
 import { assertApprovedPrice, type BillingPlan } from './billing-policy.ts';
 
-export function stripeClient() {
-  const secret = Deno.env.get('STRIPE_SECRET_KEY')?.trim();
-  if (!secret || !/^(sk|rk)_test_/.test(secret)) throw new Error('A Stripe test key is required. Live payments are disabled.');
+export function stripeClient(mode: BillingMode = 'test') {
+  const secret = assertStripeKey(Deno.env.get(mode === 'live' ? 'STRIPE_LIVE_SECRET_KEY' : 'STRIPE_SECRET_KEY')?.trim(), mode);
   return new Stripe(secret, { apiVersion: '2025-09-30.clover', httpClient: Stripe.createFetchHttpClient(), maxNetworkRetries: 0, timeout: 10000 });
 }
 
@@ -17,25 +17,25 @@ export function appUrl() {
   return value.replace(/\/$/, '');
 }
 
-export function priceId(plan: 'monthly' | 'annual') {
+export function priceId(plan: BillingPlan, mode: BillingMode = 'test') {
   const market = appMarket();
-  const name = market === 'cn'
-    ? 'STRIPE_PRICE_CN_ANNUAL'
-    : plan === 'monthly' ? 'STRIPE_PRICE_MONTHLY' : 'STRIPE_PRICE_ANNUAL';
+  const name = market === 'cn' ? 'STRIPE_PRICE_CN_ANNUAL'
+    : `STRIPE_${mode === 'live' ? 'LIVE_' : ''}PRICE_${plan.toUpperCase()}`;
   const value = Deno.env.get(name);
   if (!value) throw new Error(`${name} is not configured.`);
   if (market === 'cn' && plan !== 'annual') throw new Error('Mainland TrainWell currently offers annual prepaid access only.');
   return value;
 }
 
-export async function approvedStripePrice(stripe: Stripe, plan: BillingPlan) {
-  const price = await stripe.prices.retrieve(priceId(plan));
-  if (price.livemode || appMarket() !== 'global') throw new Error('Only global test subscriptions are enabled.');
+export async function approvedStripePrice(stripe: Stripe, plan: BillingPlan, mode: BillingMode = 'test') {
+  const price = await stripe.prices.retrieve(priceId(plan, mode));
+  assertBillingMode(price.livemode, mode);
+  if (appMarket() !== 'global') throw new Error('Only global subscriptions are enabled.');
   assertApprovedPrice(price, plan, appMarket());
   return price;
 }
 
-export function recognizedPrices(plan: 'monthly' | 'annual') {
-  const history = Deno.env.get(plan === 'monthly' ? 'STRIPE_HISTORICAL_MONTHLY' : 'STRIPE_HISTORICAL_ANNUAL') ?? '';
-  return [priceId(plan), ...history.split(',').map((value) => value.trim()).filter(Boolean)];
+export function recognizedPrices(plan: BillingPlan, mode: BillingMode = 'test') {
+  const history = Deno.env.get(`STRIPE_${mode === 'live' ? 'LIVE_' : ''}HISTORICAL_${plan.toUpperCase()}`) ?? '';
+  return [priceId(plan, mode), ...history.split(',').map(value => value.trim()).filter(Boolean)];
 }
