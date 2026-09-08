@@ -103,3 +103,57 @@ test('switching previews selects the new video and clears the previous playback 
   await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime)).toBeGreaterThan(0.3);
   expect(await video.evaluate((v: HTMLVideoElement) => v.currentSrc)).toContain('/forearm-plank.mp4?v=20260907-approved-motion');
 });
+
+test('workout previews pause the demonstration behind the dialog', async ({ page, baseURL }) => {
+  await openGluteGuide(page, baseURL!);
+  const video = page.getByRole('dialog').locator('video');
+  await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime)).toBeGreaterThan(0.3);
+  await expect.poll(() => page.locator('video').evaluateAll((elements: HTMLVideoElement[]) =>
+    elements.filter((v) => !v.paused).length)).toBe(1);
+  const background = page.locator('.session-image video');
+  await expect(background).toHaveCount(1);
+  expect(await background.evaluate((v: HTMLVideoElement) => v.paused)).toBe(true);
+});
+
+test('reduced motion keeps videos paused and photo positions manually selectable', async ({ page, baseURL }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await openGluteGuide(page, baseURL!);
+  const dialog = page.getByRole('dialog');
+  const video = dialog.locator('video');
+  await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.readyState)).toBeGreaterThan(0);
+  expect(await video.evaluate((v: HTMLVideoElement) => v.paused && v.controls && !v.loop)).toBe(true);
+  await video.evaluate((v: HTMLVideoElement) => v.play());
+  await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime)).toBeGreaterThan(0.3);
+  await dialog.getByRole('tab', { name: 'Auto photo demo' }).click();
+  await expect(dialog.getByRole('button', { name: 'Resume automatic movement demo' })).toBeVisible();
+  await dialog.getByRole('button', { name: 'Finish', exact: true }).click();
+  await expect(dialog.locator('.phase-subject.active')).toHaveAttribute('alt', /finish position/);
+  await page.waitForTimeout(1700);
+  await expect(dialog.locator('.phase-subject.active')).toHaveAttribute('alt', /finish position/);
+});
+
+test('landing video pauses behind account dialogs and outside the viewport', async ({ page, baseURL }) => {
+  await page.addInitScript(() => localStorage.setItem('relay-language', 'en'));
+  await page.goto(`${baseURL}/`);
+  const video = page.locator('.device-image video');
+  await video.scrollIntoViewIfNeeded();
+  await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime)).toBeGreaterThan(0.3);
+  await page.getByRole('button', { name: /Start 7-day free trial/i }).first().click();
+  await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.paused)).toBe(true);
+  await page.getByRole('button', { name: 'Close', exact: true }).click();
+  await page.locator('footer').scrollIntoViewIfNeeded();
+  await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.paused)).toBe(true);
+  await video.scrollIntoViewIfNeeded();
+  await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.paused)).toBe(false);
+});
+
+test('landing reduced motion retains manual video playback controls', async ({ page, baseURL }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto(`${baseURL}/`);
+  const video = page.locator('.device-image video');
+  await video.scrollIntoViewIfNeeded();
+  await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.readyState)).toBeGreaterThan(0);
+  expect(await video.evaluate((v: HTMLVideoElement) => v.paused && v.controls && !v.loop)).toBe(true);
+  await video.evaluate((v: HTMLVideoElement) => v.play());
+  await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime)).toBeGreaterThan(0.3);
+});

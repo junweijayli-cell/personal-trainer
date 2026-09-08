@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
+import MotionVideo, { useMotionActivity } from './motion-video';
 import CameraCoach from './camera-coach';
 import LandingAuth, { LanguageSwitch, type Language } from './landing-auth';
 import {
@@ -755,7 +756,7 @@ export default function Home() {
           </section>}
 
           {setupStep === 3 && <section className="setup-panel setup-review-panel">
-            <div className="setup-video"><PhaseGuide key={activeWorkout[0].id} exercise={activeWorkout[0]} compact language={language} /></div>
+            <div className="setup-video"><PhaseGuide key={activeWorkout[0].id} exercise={activeWorkout[0]} compact language={language} active={previewIndex === null} /></div>
             <div className="setup-copy">
               <p className="kicker">{tr('STEP 3 · YOUR PLAN IS READY', '第 3 步 · 计划已准备好')}</p>
               <h1>{language === 'zh' ? focusChinese[selectedFocus] : focusInfo.label}<br />{tr('Zero guesswork', '无需猜测')}</h1>
@@ -859,7 +860,7 @@ export default function Home() {
         <div className="session-progress"><i style={{ width: `${Math.max(3, sessionPercent)}%` }} /></div>
         <section className="guide-layout">
           <div className="guide-visual">
-            <PhaseGuide key={exercise.id} exercise={exercise} language={language} />
+            <PhaseGuide key={exercise.id} exercise={exercise} language={language} active={previewIndex === null} />
             <span className="start-label">{exercise.video ? tr('VIDEO + AUTO DEMO', '视频 + 自动示范') : tr('AUTO MOVEMENT DEMO', '自动动作示范')}</span>
             <span className="move-label">{tr('LOOK, THEN MOVE', '先看，再练')}</span>
             <button type="button" onClick={() => setPreviewIndex(exerciseIndex)}>↗ <span>Full guide</span></button>
@@ -943,7 +944,7 @@ export default function Home() {
 
           <section className={`session-card ${completedToday ? 'completed-card' : ''}`}>
             <div className="session-image">
-              <PhaseGuide key={activeWorkout[0].id} exercise={activeWorkout[0]} compact language={language} />
+              <PhaseGuide key={activeWorkout[0].id} exercise={activeWorkout[0]} compact language={language} active={previewIndex === null} />
               <span className="guide-chip">{completedToday ? tr('COMPLETED', '已完成') : tr(`${activeWorkout.filter((item) => item.video).length} VIDEOS · ${workoutStats.moves} GUIDES`, `${activeWorkout.filter((item) => item.video).length} 个视频 · ${workoutStats.moves} 个指导`)}</span>
               <button type="button" className="preview-button" onClick={() => startSession()} disabled={startingSession} aria-label="Start coached workout"><span>START</span>→</button>
             </div>
@@ -1102,22 +1103,25 @@ export default function Home() {
   );
 }
 
-function PhaseGuide({ exercise, compact = false, language = 'en' }: { exercise: Exercise; compact?: boolean; language?: Language }) {
+function PhaseGuide({ exercise, compact = false, language = 'en', active = true }: { exercise: Exercise; compact?: boolean; language?: Language; active?: boolean }) {
   const [phaseIndex, setPhaseIndex] = useState(0);
   const [videoFailed, setVideoFailed] = useState(false);
   const [guideMode, setGuideMode] = useState<'video' | 'photos'>(exercise.video ? 'video' : 'photos');
   const [autoPlaying, setAutoPlaying] = useState(true);
+  const [manualPhotoPlay, setManualPhotoPlay] = useState(false);
+  const { ref: guideRef, reducedMotion, active: isActive } = useMotionActivity<HTMLDivElement>(active);
+  const cyclePhotos = autoPlaying && (!reducedMotion || manualPhotoPlay);
   const phase = exercise.phases[phaseIndex] ?? exercise.phases[0];
   const showVideo = guideMode === 'video' && Boolean(exercise.video) && !videoFailed;
   const exerciseName = language === 'zh' ? exerciseChinese[exercise.id] ?? exercise.name : exercise.name;
 
   useEffect(() => {
-    if (showVideo || !autoPlaying || exercise.phases.length < 2) return;
+    if (showVideo || !cyclePhotos || !isActive || exercise.phases.length < 2) return;
     const phaseTimer = window.setInterval(() => {
       setPhaseIndex((current) => (current + 1) % exercise.phases.length);
     }, 1400);
     return () => window.clearInterval(phaseTimer);
-  }, [autoPlaying, exercise.phases.length, showVideo]);
+  }, [cyclePhotos, exercise.phases.length, showVideo, isActive]);
 
   function handleVideoError() {
     setVideoFailed(true);
@@ -1126,7 +1130,7 @@ function PhaseGuide({ exercise, compact = false, language = 'en' }: { exercise: 
   }
 
   return (
-    <div className={`phase-guide ${compact ? 'phase-guide-compact' : ''}`} data-guide-mode={showVideo ? 'video' : 'photos'}>
+    <div ref={guideRef} className={`phase-guide ${compact ? 'phase-guide-compact' : ''}`} data-guide-mode={showVideo ? 'video' : 'photos'}>
       {!compact && exercise.video && !videoFailed && (
         <div className="guide-mode-switch" role="tablist" aria-label={language === 'zh' ? `${exerciseName} 指导方式` : `${exerciseName} guide format`}>
           <button className={showVideo ? 'active' : ''} type="button" role="tab" aria-selected={showVideo} onClick={() => setGuideMode('video')}>
@@ -1140,38 +1144,33 @@ function PhaseGuide({ exercise, compact = false, language = 'en' }: { exercise: 
 
       {showVideo ? (
         <div className="phase-frame movement-video-frame">
-          <video
+          <MotionVideo
             key={exercise.video}
             className="movement-video"
-            autoPlay
-            muted
-            loop
-            playsInline
+            src={exercise.video!}
+            active={active}
             controls={!compact}
-            preload={compact ? 'none' : 'metadata'}
             poster={exercise.image}
-            aria-label={language === 'zh' ? `${exerciseName} 完整动作视频` : `${exerciseName} complete movement video`}
+            label={language === 'zh' ? `${exerciseName} 完整动作视频` : `${exerciseName} complete movement video`}
             onError={handleVideoError}
-          >
-            <source src={exercise.video} type="video/mp4" />
-            {language === 'zh' ? '你的浏览器无法播放此视频。' : 'Your browser cannot play this video.'}
-          </video>
-          <span className="phase-step-badge video-badge">{language === 'zh' ? '真人动作视频' : 'VIDEO GUIDE'}</span>
+          />
+          <span className="phase-step-badge video-badge">{language === 'zh' ? '视频示范' : 'VIDEO GUIDE'}</span>
         </div>
       ) : (
         <div className="phase-frame">
           {exercise.phases.map((item, index) => <Image className={`phase-backdrop ${index === phaseIndex ? 'active' : ''}`} key={`${item.image}-backdrop`} src={item.image} alt="" aria-hidden="true" fill sizes={compact ? '(max-width: 760px) 100vw, 65vw' : '(max-width: 760px) 100vw, 55vw'} />)}
           {exercise.phases.map((item, index) => <Image className={`phase-subject ${index === phaseIndex ? 'active' : ''}`} key={item.image} src={item.image} alt={index === phaseIndex ? `${exerciseName}: ${item.label.toLowerCase()} position` : ''} aria-hidden={index !== phaseIndex} fill sizes={compact ? '(max-width: 760px) 100vw, 65vw' : '(max-width: 760px) 100vw, 55vw'} />)}
-          <span className="phase-step-badge auto-demo-badge">{language === 'zh' ? `自动示范 · ${phaseIndex + 1}/3` : `AUTO DEMO · ${phaseIndex + 1}/3`}</span>
-          <button className="auto-cycle-toggle" type="button" aria-pressed={!autoPlaying} aria-label={autoPlaying ? (language === 'zh' ? '暂停自动动作示范' : 'Pause automatic movement demo') : (language === 'zh' ? '继续自动动作示范' : 'Resume automatic movement demo')} onClick={() => setAutoPlaying((playing) => !playing)}>
-            <span aria-hidden="true">{autoPlaying ? 'Ⅱ' : '▶'}</span>{!compact && <b>{autoPlaying ? (language === 'zh' ? '自动播放' : 'AUTO') : (language === 'zh' ? '已暂停' : 'PAUSED')}</b>}
+          <span className="phase-step-badge auto-demo-badge">{language === 'zh' ? `${cyclePhotos ? '自动示范' : '图片指导'} · ${phaseIndex + 1}/3` : `${cyclePhotos ? 'AUTO DEMO' : 'PHOTO GUIDE'} · ${phaseIndex + 1}/3`}</span>
+          <button className="auto-cycle-toggle" type="button" aria-pressed={!cyclePhotos} aria-label={cyclePhotos ? (language === 'zh' ? '暂停自动动作示范' : 'Pause automatic movement demo') : (language === 'zh' ? '继续自动动作示范' : 'Resume automatic movement demo')} onClick={() => { setManualPhotoPlay(true); setAutoPlaying(!cyclePhotos); }}>
+            <span aria-hidden="true">{cyclePhotos ? 'Ⅱ' : '▶'}</span>{!compact && <b>{cyclePhotos ? (language === 'zh' ? '自动播放' : 'AUTO') : (language === 'zh' ? '已暂停' : 'PAUSED')}</b>}
           </button>
+          {!cyclePhotos && <div className="manual-phase-controls" aria-label={language === 'zh' ? '动作位置' : 'Movement positions'}>{exercise.phases.map((item, index) => <button type="button" key={item.id} aria-pressed={phaseIndex === index} onClick={() => setPhaseIndex(index)}>{language === 'zh' ? phaseChinese[item.id] : item.label}</button>)}</div>}
         </div>
       )}
 
       {!compact && showVideo && (
         <div className="video-coach-note">
-          <p><span>{language === 'zh' ? '先观察一整次动作' : 'WATCH ONE COMPLETE REP'}</span>{language === 'zh' ? '留意全身路线和稳定节奏，再开始练习。' : 'Notice the full-body path and steady tempo before you begin.'}</p>
+          <p><span>{language === 'zh' ? '先观看完整示范' : 'WATCH THE COMPLETE DEMONSTRATION'}</span>{language === 'zh' ? '留意全身姿势和稳定节奏，再开始练习。' : 'Notice the full-body position and steady tempo before you begin.'}</p>
           <button type="button" onClick={() => { setGuideMode('photos'); setAutoPlaying(true); }}>{language === 'zh' ? '观看自动图片示范' : 'Watch auto photo demo'}<b>→</b></button>
         </div>
       )}
