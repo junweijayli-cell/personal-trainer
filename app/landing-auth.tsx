@@ -50,7 +50,7 @@ const copy = {
     step1: '告诉悦练你有什么', step1c: '选择训练部位、可用器械与时间。',
     step2: '看清每一个动作', step2c: '先看完整全身动作视频，再查看准备、动作与完成三个关键姿势。',
     step3: '持续积累进步', step3c: '用一个安全账户记录训练、健康状态与每周安排。',
-    trialKicker: '会员方案', trialTitle: '七天，感受真正的改变', trialCopy: '免费体验完整产品。试用结束后可选择月付或年付，开始试用无需绑卡。',
+    trialKicker: '会员方案', trialTitle: '七天，感受真正的改变', trialCopy: '免费体验完整产品。试用结束后可选择日付、月付或年付，开始试用无需绑卡。',
     daily: '日付', planDaily: '每天扣款 US$1，直至取消。可在账户中管理续订。', monthly: '月付', annual: '年付', bestValue: '最超值', priceTbd: '价格即将公布', planMonthly: '每月扣款 US$10，自动续订，可随时取消。', planAnnual: '每年扣款 US$60，自动续订，可随时取消。', startTrial: '开始免费试用',
     footer: '清晰训练', private: '隐私优先设计',
     createTitle: '创建悦练账户', createCopy: '邮箱验证后即开始七天免费试用。', name: '姓名', email: '邮箱地址', password: '创建密码', confirm: '确认密码',

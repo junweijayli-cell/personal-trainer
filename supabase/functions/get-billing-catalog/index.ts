@@ -1,6 +1,6 @@
 import { handleOptions } from '../_shared/cors.ts';
 import { errorResponse, json } from '../_shared/response.ts';
-import { appMarket, approvedStripePrice, stripeClient } from '../_shared/stripe.ts';
+import { appMarket, approvedStripePrice, configuredPlans, stripeClient } from '../_shared/stripe.ts';
 import { adminClient, authenticatedUser } from '../_shared/auth.ts';
 import { checkoutAvailable, runtime } from '../_shared/billing-store.ts';
 
@@ -17,7 +17,7 @@ Deno.serve(async (request) => {
     }
     if (!(await checkoutAvailable(adminClient(), userId))) return json(request, { market, mode, enabled: false, plans: [] });
     const stripe = stripeClient(mode);
-    const plans = market === 'cn' ? ['annual'] as const : ['daily', 'monthly', 'annual'] as const;
+    const plans = configuredPlans(mode);
     const catalog = await Promise.all(plans.map(async (plan) => {
       const price = await approvedStripePrice(stripe, plan, mode);
       return { plan, currency: price.currency, unitAmount: price.unit_amount, recurring: price.recurring?.interval ?? null };

@@ -37,5 +37,13 @@ export async function approvedStripePrice(stripe: Stripe, plan: BillingPlan, mod
 
 export function recognizedPrices(plan: BillingPlan, mode: BillingMode = 'test') {
   const history = Deno.env.get(`STRIPE_${mode === 'live' ? 'LIVE_' : ''}HISTORICAL_${plan.toUpperCase()}`) ?? '';
+  // The original demo environment has only monthly and annual Prices.
+  if (mode === 'test' && plan === 'daily' && !Deno.env.get('STRIPE_PRICE_DAILY')) return [];
   return [priceId(plan, mode), ...history.split(',').map(value => value.trim()).filter(Boolean)];
+}
+
+export function configuredPlans(mode: BillingMode): BillingPlan[] {
+  if (appMarket() === 'cn') return ['annual'];
+  return mode === 'live' || Deno.env.get('STRIPE_PRICE_DAILY')
+    ? ['daily', 'monthly', 'annual'] : ['monthly', 'annual'];
 }
