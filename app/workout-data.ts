@@ -2,7 +2,7 @@ import videoRegistry from './exercise-videos.json';
 
 export type CameraMode = 'knee' | 'elbow' | 'hip' | 'extension' | 'hold';
 export type FocusId = 'legs' | 'chest' | 'back' | 'neck' | 'core' | 'mobility' | 'cardio' | 'full-body';
-export type EquipmentId = 'dumbbells' | 'resistance-band' | 'bench' | 'kettlebell' | 'barbell' | 'cable-machine' | 'leg-press' | 'suspension-trainer' | 'stability-ball' | 'medicine-ball' | 'stationary-bike';
+export type EquipmentId = 'dumbbells' | 'resistance-band' | 'bench' | 'kettlebell' | 'barbell' | 'smith-machine' | 'cable-machine' | 'leg-press' | 'suspension-trainer' | 'stability-ball' | 'medicine-ball' | 'stationary-bike';
 
 export type ExercisePhase = {
   id: 'start' | 'middle' | 'finish';
@@ -55,6 +55,7 @@ export const equipmentOptions: EquipmentOption[] = [
   { id: 'bench', label: 'Bench or step', shortLabel: 'Bench', icon: 'BN' },
   { id: 'kettlebell', label: 'Kettlebell', shortLabel: 'Kettlebell', icon: 'KB' },
   { id: 'barbell', label: 'Barbell & rack', shortLabel: 'Barbell', icon: 'BB' },
+  { id: 'smith-machine', label: 'Smith machine', shortLabel: 'Smith machine', icon: 'SM' },
   { id: 'cable-machine', label: 'Cable machine', shortLabel: 'Cable', icon: 'CB' },
   { id: 'leg-press', label: 'Leg press', shortLabel: 'Leg press', icon: 'LP' },
   { id: 'suspension-trainer', label: 'Suspension trainer', shortLabel: 'Straps', icon: 'TR' },
@@ -182,10 +183,10 @@ const exerciseList: Exercise[] = [
     phaseCues: ['Set the bell between your feet and hinge to the handle.', 'Brace and push the floor away with a long back.', 'Stand tall with the bell close; do not lean back.'],
   }),
   makeExercise({
-    id: 'barbell-squat', name: 'Barbell back squat', sets: 3, target: 8, targetLabel: '8 reps', rest: 75, cameraMode: 'knee', equipment: 'barbell',
-    view: 'Place the phone at a rear three-quarter angle', intro: 'Brace, sit between your hips, and drive the bar straight up.', muscles: 'Quads · glutes · core',
-    tips: ['Use rack safeties.', 'Keep the bar over mid-foot.', 'Stop if position changes or a rep grinds.'],
-    phaseCues: ['Set the bar securely across your upper back and brace.', 'Descend with knees tracking over toes and chest steady.', 'Drive through mid-foot until hips and knees are tall.'],
+    id: 'barbell-squat', name: 'Smith machine squat', sets: 3, target: 8, targetLabel: '8 reps', rest: 75, cameraMode: 'knee', equipment: 'smith-machine',
+    view: 'Place the phone at a rear three-quarter angle', intro: 'Follow the machine’s fixed guide rails through a controlled squat.', muscles: 'Quads · glutes · core',
+    tips: ['Set the machine safety stops before starting.', 'Keep both feet planted as the bar slides on its rails.', 'Use a comfortable depth and stop if your position changes.'],
+    phaseCues: ['Set the safety stops, position the bar across your upper back, and brace.', 'Bend hips and knees while the connected bar carriages slide down the fixed rails.', 'Stand smoothly as the carriages return to their starting height.'],
   }),
   makeExercise({
     id: 'lat-pulldown', name: 'Lat pulldown', sets: 3, target: 10, targetLabel: '10 reps', rest: 55, cameraMode: 'elbow', equipment: 'cable-machine',
@@ -262,7 +263,7 @@ function uniqueExercises(ids: string[]) {
 
 export function buildWorkout(focus: FocusId, equipment: EquipmentId[]): Exercise[] {
   const has = (item: EquipmentId) => equipment.includes(item);
-  const squat = has('barbell') ? 'barbell-squat' : has('leg-press') ? 'leg-press' : has('dumbbells') ? 'goblet-squat' : 'squat';
+  const squat = has('smith-machine') ? 'barbell-squat' : has('leg-press') ? 'leg-press' : has('dumbbells') ? 'goblet-squat' : 'squat';
   const hinge = has('stability-ball') ? 'stability-ball-curl' : has('dumbbells') ? 'dumbbell-rdl' : has('kettlebell') ? 'kettlebell-deadlift' : 'glute-bridge';
   const press = has('cable-machine') ? 'cable-chest-press' : has('dumbbells') ? 'dumbbell-floor-press' : 'incline-pushup';
   const overhead = has('medicine-ball') ? 'medicine-ball-press' : press;

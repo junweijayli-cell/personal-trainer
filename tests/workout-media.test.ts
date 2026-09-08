@@ -9,14 +9,21 @@ import approved from '../docs/approved-exercise-videos.json';
 const renderedVideos = Object.values(videos).map((path) => path.split('/').at(-1)!);
 
 describe('movement guide videos', () => {
-  it('connects rendered videos to bodyweight and barbell workouts', () => {
+  it('connects rendered videos to bodyweight and Smith machine workouts', () => {
     const bodyweight = buildWorkout('full-body', []);
-    const barbell = buildWorkout('legs', ['barbell']);
+    const smithMachine = buildWorkout('legs', ['smith-machine']);
 
     expect(bodyweight.find((exercise) => exercise.id === 'squat')?.video).toContain('/exercises/videos/squat.mp4');
     expect(bodyweight.find((exercise) => exercise.id === 'incline-pushup')?.video).toContain('/exercises/videos/incline-pushup.mp4');
     expect(bodyweight.find((exercise) => exercise.id === 'reverse-lunge')?.video).toContain('/exercises/videos/reverse-lunge.mp4');
-    expect(barbell.find((exercise) => exercise.id === 'barbell-squat')?.video).toContain('/exercises/videos/barbell-squat.mp4');
+    expect(smithMachine.find((exercise) => exercise.id === 'barbell-squat')?.video).toContain('/exercises/videos/barbell-squat.mp4');
+  });
+
+  it('requires a Smith machine instead of treating a saved free-barbell preference as guide rails', () => {
+    expect(exerciseCatalog['barbell-squat'].equipment).toBe('smith-machine');
+    expect(exerciseCatalog['barbell-squat'].name).toBe('Smith machine squat');
+    expect(buildWorkout('legs', ['barbell']).some((exercise) => exercise.id === 'barbell-squat')).toBe(false);
+    expect(buildWorkout('legs', ['smith-machine']).some((exercise) => exercise.id === 'barbell-squat')).toBe(true);
   });
 
   it.each(renderedVideos)('ships a non-empty %s file', (fileName) => {
