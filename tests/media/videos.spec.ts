@@ -137,6 +137,8 @@ test('landing video pauses behind account dialogs and outside the viewport', asy
   await page.goto(`${baseURL}/`);
   const video = page.locator('.device-image video');
   await video.scrollIntoViewIfNeeded();
+  await expect(video).toHaveAttribute('src', /\/barbell-squat\.mp4\?v=/);
+  await expect(video).toHaveAttribute('poster', /\/barbell-squat-middle\.webp\?v=/);
   await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime)).toBeGreaterThan(0.3);
   await page.getByRole('button', { name: /Start 7-day free trial/i }).first().click();
   await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.paused)).toBe(true);

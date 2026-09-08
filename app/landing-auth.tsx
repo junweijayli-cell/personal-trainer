@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import MotionVideo from './motion-video';
+import { exerciseCatalog } from './workout-data';
 import type { MemberAccount } from './account-types';
 import {
   isSecureBackendConfigured,
@@ -63,7 +64,6 @@ const copy = {
   },
 };
 
-const asset = (path: string) => `${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}${path}`;
 const captchaRequired = Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim());
 const signupEnabled = process.env.NEXT_PUBLIC_SIGNUP_ENABLED !== 'false';
 
@@ -219,7 +219,7 @@ export default function LandingAuth({ language, onLanguageChange, onAuthenticate
 
       <section className="landing-hero">
         <div className="hero-copy"><p className="kicker"><i /> {text.eyebrow}</p><h1>{text.heroA}<br /><em>{text.heroB}</em></h1><p>{text.heroCopy}</p><button type="button" onClick={() => openAuth('signup')}>{text.cta}<span>→</span></button><small>✓ {text.noCharge}</small><div className="hero-stats"><span><b>01</b>{text.stat1}</span><span><b>02</b>{text.stat2}</span><span><b>03</b>{text.stat3}</span></div></div>
-        <div className="hero-device" aria-label={language === 'zh' ? '悦练训练预览' : 'TrainWell workout preview'}><div className="device-top"><span>9:41</span><b>{brand}</b><i>●</i></div><div className="device-copy"><small>{text.phoneKicker}</small><h2>{text.phoneTitle}<br />{text.phoneSubtitle}</h2><p>{text.phoneMeta}</p></div><div className="device-image"><MotionVideo src={asset('/exercises/videos/barbell-squat.mp4')} active={mode === 'closed'} poster={asset('/exercises/phase-guides/barbell-squat-middle.webp')} label={language === 'zh' ? '史密斯机深蹲完整动作视频' : 'Full-body Smith machine squat movement video'} /></div><button type="button" onClick={() => openAuth('signup')}>{text.phoneButton}<span>→</span></button></div>
+        <div className="hero-device" aria-label={language === 'zh' ? '悦练训练预览' : 'TrainWell workout preview'}><div className="device-top"><span>9:41</span><b>{brand}</b><i>●</i></div><div className="device-copy"><small>{text.phoneKicker}</small><h2>{text.phoneTitle}<br />{text.phoneSubtitle}</h2><p>{text.phoneMeta}</p></div><div className="device-image"><MotionVideo src={exerciseCatalog['barbell-squat'].video!} active={mode === 'closed'} poster={exerciseCatalog['barbell-squat'].phases[1].image} label={language === 'zh' ? '史密斯机深蹲完整动作视频' : 'Full-body Smith machine squat movement video'} /></div><button type="button" onClick={() => openAuth('signup')}>{text.phoneButton}<span>→</span></button></div>
       </section>
 
       <section className="landing-steps" id="how"><div className="landing-section-title"><p className="kicker">{text.howKicker}</p><h2>{text.howTitle}</h2></div><div className="step-cards" id="benefits"><article><b>01</b><h3>{text.step1}</h3><p>{text.step1c}</p></article><article><b>02</b><h3>{text.step2}</h3><p>{text.step2c}</p></article><article><b>03</b><h3>{text.step3}</h3><p>{text.step3c}</p></article></div></section>
