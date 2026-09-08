@@ -1,3 +1,5 @@
+import videoRegistry from './exercise-videos.json';
+
 export type CameraMode = 'knee' | 'elbow' | 'hip' | 'extension' | 'hold';
 export type FocusId = 'legs' | 'chest' | 'back' | 'neck' | 'core' | 'mobility' | 'cardio' | 'full-body';
 export type EquipmentId = 'dumbbells' | 'resistance-band' | 'bench' | 'kettlebell' | 'barbell' | 'cable-machine' | 'leg-press' | 'suspension-trainer' | 'stability-ball' | 'medicine-ball' | 'stationary-bike';
@@ -30,16 +32,11 @@ export type Exercise = {
 export type FocusOption = { id: FocusId; label: string; shortLabel: string; description: string };
 export type EquipmentOption = { id: EquipmentId; label: string; shortLabel: string; icon: string };
 
-const mediaVersion = '20260903-higgsfield-video';
+const mediaVersion = '20260907-approved-motion';
 const publicBasePath = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
 const media = (path: string) => `${publicBasePath}${path}?v=${mediaVersion}`;
 
-const exerciseVideos: Record<string, string> = {
-  squat: '/exercises/videos/squat.mp4',
-  'incline-pushup': '/exercises/videos/incline-pushup.mp4',
-  'reverse-lunge': '/exercises/videos/reverse-lunge.mp4',
-  'barbell-squat': '/exercises/videos/barbell-squat.mp4',
-};
+const exerciseVideos: Record<string, string> = videoRegistry;
 
 export const focusOptions: FocusOption[] = [
   { id: 'legs', label: 'Legs & glutes', shortLabel: 'Legs', description: 'Squat, hinge and single-leg strength' },
@@ -252,7 +249,7 @@ const exerciseList: Exercise[] = [
   }),
 ];
 
-const exerciseCatalog = Object.fromEntries(exerciseList.map((exercise) => [exercise.id, exercise])) as Record<string, Exercise>;
+export const exerciseCatalog = Object.fromEntries(exerciseList.map((exercise) => [exercise.id, exercise])) as Record<string, Exercise>;
 
 function uniqueExercises(ids: string[]) {
   const seen = new Set<string>();

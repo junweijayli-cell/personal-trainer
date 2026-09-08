@@ -371,9 +371,11 @@ footer { display: flex; justify-content: space-between; padding: 34px 2px; color
 /* Movement guide modal */
 .preview-backdrop { position: fixed; z-index: 40; inset: 0; display: grid; place-items: center; padding: 20px; background: rgba(10,12,10,.7); backdrop-filter: blur(8px); }
 .exercise-preview { position: relative; width: min(920px, 100%); max-height: calc(100vh - 40px); display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(330px, .85fr); overflow: auto; border-radius: 24px; background: var(--card); box-shadow: 0 30px 80px rgba(0,0,0,.32); }
-.preview-close { position: absolute; z-index: 2; top: 16px; right: 16px; width: 34px; height: 34px; border: 1px solid rgba(21,23,21,.2); border-radius: 50%; background: rgba(251,250,246,.9); font-size: 20px; cursor: pointer; }
+.preview-close { position: absolute; z-index: 5; top: 8px; right: 8px; width: 44px; height: 44px; border: 1px solid rgba(21,23,21,.2); border-radius: 50%; background: rgba(251,250,246,.9); font-size: 20px; cursor: pointer; }
 .preview-visual { position: relative; min-height: 540px; overflow: hidden; background: #eee9dd; }
 .preview-visual img, .preview-visual video { width: 100%; height: 100%; display: block; object-fit: cover; }
+.preview-visual .movement-video { object-fit: contain; }
+.preview-visual .guide-mode-switch { padding-right: 60px; }
 .preview-visual > span { position: absolute; bottom: 15px; border-radius: 99px; background: var(--ink); color: white; padding: 7px 9px; font-size: 7px; font-weight: 850; }
 .preview-visual > span:first-of-type { left: 15px; }
 .preview-visual > span:last-of-type { left: 54%; }
@@ -924,8 +926,8 @@ footer { display: flex; justify-content: space-between; padding: 34px 2px; color
   .guide-mode-switch { position: sticky; top: 0; z-index: 3; }
   .video-coach-note { grid-template-columns: 1fr; }
   .video-coach-note button { min-height: 44px; }
-  .preview-visual { min-height: 0; }
-  .preview-visual .phase-frame { height: min(64vh, 560px); min-height: 470px; }
+  .preview-visual { height: auto; min-height: 0; max-height: none; }
+  .preview-visual .phase-frame { height: min(64vh, 560px); min-height: 0; flex: 0 0 auto; }
   .preview-visual > span { display: none; }
   .exercise-preview { display: block; }
 }
