@@ -1,0 +1,865 @@
+{
+  "glute-bridge": {
+    "sha256": "4cef8148871dc338c7d0f621c671fb755c97b9c59f90d5084d8911298df7351e",
+    "review": {
+      "accepted": true,
+      "notes": "Sequential-frame review and normal-speed browser playback check: one controlled hip lift, brief top hold, and controlled return; matching trainer identity and clothing; intact hands, feet and anatomy; shoulders and feet maintain support; fixed camera and closely matched opening/closing pose. No equipment, cuts, extra limbs, or static-slide substitution.",
+      "reviewed_at": 1788602513.9977477
+    },
+    "settings": {
+      "width": 768,
+      "height": 1024,
+      "fps": 24,
+      "frames": 124,
+      "steps": 20,
+      "turbo": false,
+      "tiled_decode": false,
+      "seed": 57206077484090
+    },
+    "sources": [
+      {
+        "phase": "start",
+        "path": "public/exercises/phase-guides/glute-bridge-start.webp",
+        "sha256": "70f54a920b53e5dcc9942fbc5995f5dfdcf265e3fe98b61ef7dccaaa22c5039e"
+      },
+      {
+        "phase": "middle",
+        "path": "public/exercises/phase-guides/glute-bridge-middle.webp",
+        "sha256": "9092ee882553ea17535d0b4c331934ef10ea97020b784c5b203479fb532efcd5"
+      },
+      {
+        "phase": "finish",
+        "path": "public/exercises/phase-guides/glute-bridge-finish.webp",
+        "sha256": "99c5195eb3e8ce7e48b03c1ff0bdb2f85bc406640e053ae09b968a766f994623"
+      }
+    ],
+    "workflow_sha256": "7eed906c830e65087f4e7e3e9256e44ab463d916f3b5b0e9ebe9c4dfc03d245c",
+    "prompt": "Photorealistic exercise instruction: Glute bridge. The same adult female trainer as the supplied reference images, with identical face, hair, dark workout clothing, lime shoes, proportions, equipment, room and lighting. One continuous locked-off tripod shot. Entire body and all working equipment remain visible. Natural controlled movement at real speed; anatomically coherent joints and hands, stable contact with the floor and equipment. The reference poses constrain the movement. Begin supine with knees bent and both feet planted. Lift hips over two seconds until shoulders, hips and knees form a line; pause briefly, then lower the pelvis to the mat under control. Keep feet, shoulders and arms planted throughout; do not arch the back. Return smoothly to the opening pose, with matched body position and zero camera movement at the loop boundary. No cuts, zooms, panning, morphing, sliding feet, extra limbs, text, logos, music, speech, or theatrical gestures. Audio: silence.",
+    "models": {
+      "unet_name": "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+      "clip_name": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+      "vae_name": "minimax_h3_video_vae_fp16.safetensors"
+    },
+    "elapsed_seconds": 693,
+    "bytes": 612568,
+    "prompt_id": "31430606-4036-4ed2-ad49-2019b08a7455",
+    "attempt": 1,
+    "peak_gpu_memory_mib": 8630
+  },
+  "lat-pulldown": {
+    "sha256": "4f5994e1bfaeb5258e2ce0d1f79d0d047d645dc704b497da153db922ced1db25",
+    "review": {
+      "accepted": true,
+      "notes": "Reviewed browser playback at normal speed and sixteen intermediate frames. One complete controlled pulldown to the upper chest and return overhead. Trainer identity and clothing stay consistent; hands keep their grip, the bar and cable connector remain intact, weight stack moves plausibly, thighs remain secured and both feet stay planted. Stable seat and machine, fixed camera, full movement visible and closely matched loop endpoints.",
+      "reviewed_at": 1788604480.6716623
+    },
+    "settings": {
+      "width": 768,
+      "height": 1024,
+      "fps": 24,
+      "frames": 124,
+      "steps": 20,
+      "turbo": false,
+      "tiled_decode": false,
+      "seed": 117894664773757
+    },
+    "sources": [
+      {
+        "phase": "start",
+        "path": "public/exercises/phase-guides/lat-pulldown-start.webp",
+        "sha256": "5244358694e371b33018abe13b08b7a634c4861052cbf5ab4c7d238b68454975"
+      },
+      {
+        "phase": "middle",
+        "path": "public/exercises/phase-guides/lat-pulldown-middle.webp",
+        "sha256": "147790ee3a2337a870f51f6fb5adc4dd43b92bcfe946baf10183092222995f7f"
+      },
+      {
+        "phase": "finish",
+        "path": "public/exercises/phase-guides/lat-pulldown-finish.webp",
+        "sha256": "a84c1b51d34984bae7bd8d1ffe62a78d440661ce6966f535feccd0bdacc50073"
+      }
+    ],
+    "workflow_sha256": "7eed906c830e65087f4e7e3e9256e44ab463d916f3b5b0e9ebe9c4dfc03d245c",
+    "prompt": "Photorealistic exercise instruction: Lat pulldown. The same adult female trainer as the supplied reference images, with identical face, hair, dark workout clothing, lime shoes, proportions, equipment, room and lighting. One continuous locked-off tripod shot. Entire body and all working equipment remain visible. Natural controlled movement at real speed; anatomically coherent joints and hands, stable contact with the floor and equipment. The reference poses constrain the movement. Start seated with thighs secured and arms long holding the pulldown bar. Pull the bar down toward the upper chest while elbows travel downward, pause, then return the bar overhead slowly. Cable remains taut and connected to the same pulleys; torso and seat remain stable. Return smoothly to the opening pose, with matched body position and zero camera movement at the loop boundary. No cuts, zooms, panning, morphing, sliding feet, extra limbs, text, logos, music, speech, or theatrical gestures. Audio: silence.",
+    "models": {
+      "unet_name": "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+      "clip_name": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+      "vae_name": "minimax_h3_video_vae_fp16.safetensors"
+    },
+    "elapsed_seconds": 693,
+    "bytes": 947834,
+    "prompt_id": "b0af8018-cb68-419f-9bf9-826794efe35e",
+    "attempt": 1,
+    "peak_gpu_memory_mib": 9368,
+    "peak_system_ram_used_bytes": null
+  },
+  "bird-dog": {
+    "sha256": "41383351f805609a80f765016cd1d32cfb2329976006778ab870e83b3ea528d5",
+    "review": {
+      "accepted": true,
+      "notes": "Candidate 2 reviewed at normal 1x browser playback through the eight-second end and in 24 intermediate frames. It now performs two distinct opposite arm-and-leg pairs: the nearer hand visibly leaves the mat for the second reach while the farther hand supports, and the supporting knee switches. Both pairs return to all fours. Trainer identity, clothing, limbs and floor contact remain coherent; trunk remains level, camera fixed and hands and feet visible. Opening and closing posture match without a cut.",
+      "reviewed_at": 1788606287.703895
+    },
+    "settings": {
+      "width": 768,
+      "height": 1024,
+      "fps": 24,
+      "frames": 192,
+      "steps": 20,
+      "turbo": false,
+      "tiled_decode": false,
+      "seed": 71871469272555
+    },
+    "sources": [
+      {
+        "phase": "start",
+        "path": "public/exercises/phase-guides/bird-dog-start.webp",
+        "sha256": "21c197c487ad233c41aeddabf497cd5085d8d241f8f93e0d19a8712e5ecaa380"
+      },
+      {
+        "phase": "middle",
+        "path": "public/exercises/phase-guides/bird-dog-middle.webp",
+        "sha256": "bcf1045894063a1370e5dac4f89b150662260ecd36e960c85b3c2a9968b0ed20"
+      },
+      {
+        "phase": "finish",
+        "path": "public/exercises/phase-guides/bird-dog-finish.webp",
+        "sha256": "b354584c6d8b93ac529e42d944a68bdf88db94b4017feb6c4840670ffda2bbfe"
+      }
+    ],
+    "workflow_sha256": "7eed906c830e65087f4e7e3e9256e44ab463d916f3b5b0e9ebe9c4dfc03d245c",
+    "prompt": "Photorealistic exercise instruction: Bird dog. The same adult female trainer as the supplied reference images, with identical face, hair, dark workout clothing, lime shoes, proportions, equipment, room and lighting. One continuous locked-off tripod shot. Entire body and all working equipment remain visible. Natural controlled movement at real speed; anatomically coherent joints and hands, stable contact with the floor and equipment. The reference poses constrain the movement. Begin on hands and knees. Extend the opposite arm and leg shown in the reference, pause with a level trunk, and return to all fours. Then extend the other opposite arm and leg, pause and return. Keep hips facing down, supporting joints fixed and the reach long rather than high. Return smoothly to the opening pose, with matched body position and zero camera movement at the loop boundary. No cuts, zooms, panning, morphing, sliding feet, extra limbs, text, logos, music, speech, or theatrical gestures. Audio: silence. Exactly two DIFFERENT opposite arm-and-leg pairs. During seconds 1 to 3, perform the reference reach and return both limbs to all fours. During seconds 4 to 6, clearly lift the hand NEARER THE CAMERA off the mat and reach it forward while extending the other leg; the farther hand now supports the body. Switch which hand and knee support the body. Return to all fours by second 7.5. Do not repeat the first pair twice. Keep all four limbs anatomically distinct throughout the support exchange.",
+    "models": {
+      "unet_name": "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+      "clip_name": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+      "vae_name": "minimax_h3_video_vae_fp16.safetensors"
+    },
+    "elapsed_seconds": 1327,
+    "bytes": 931575,
+    "prompt_id": "0adfc20a-aade-4a97-a18c-44d6140a21e8",
+    "attempt": 2,
+    "peak_gpu_memory_mib": 7272,
+    "peak_system_ram_used_bytes": 65055682560
+  },
+  "dumbbell-row": {
+    "sha256": "47a36780f7fa8a0eec5c507dc559de5de6f991c3ead67324a444dc35efeb7ab5",
+    "review": {
+      "accepted": true,
+      "notes": "Reviewed the start and top source photos, 16 intermediate frames, and sampled uninterrupted 1x browser playback through 5.167 seconds. After a brief setup pause, the trainer completes one pull toward the hip with the elbow beside the ribs, holds, then lowers smoothly to the original long-arm position. The supporting palm, knee, planted shoe and bench remain stable; the dumbbell stays rigid with continuous hand contact. Face, hair, clothing and proportions remain consistent. The full trainer and movement remain visible, the room framing stays fixed, and the opening and closing supported stance match without an extra partial repetition.",
+      "reviewed_at": 1788614083.0528686
+    },
+    "settings": {
+      "width": 768,
+      "height": 1024,
+      "fps": 24,
+      "frames": 124,
+      "steps": 20,
+      "turbo": false,
+      "tiled_decode": false,
+      "seed": 5150554369472
+    },
+    "sources": [
+      {
+        "phase": "start",
+        "path": "public/exercises/phase-guides/dumbbell-row-start.webp",
+        "sha256": "48fd58ed42b3515c9dc1f2fac12051df5a6d443ca67eae0b0050e723948eeebb"
+      },
+      {
+        "phase": "middle",
+        "path": "public/exercises/phase-guides/dumbbell-row-middle.webp",
+        "sha256": "de64ca6fe75bee2248ddfabe09da9a527b29e9a2a0e084609f4128b551a5fd7a"
+      },
+      {
+        "phase": "finish",
+        "path": "public/exercises/phase-guides/dumbbell-row-finish.webp",
+        "sha256": "ee5c6f5560c0e961099996bed0bfc556d33c55f5d8f9c4baf6a498235a9f2921"
+      }
+    ],
+    "workflow_sha256": "7eed906c830e65087f4e7e3e9256e44ab463d916f3b5b0e9ebe9c4dfc03d245c",
+    "prompt": "Photorealistic exercise instruction: Supported dumbbell row. The same adult female trainer as the supplied reference images, with identical face, hair, dark workout clothing, lime shoes, proportions, equipment, room and lighting. One continuous locked-off tripod shot. Entire body and all working equipment remain visible. Natural controlled movement at real speed; anatomically coherent joints and hands, stable contact with the floor and equipment. The reference poses constrain the movement. Maintain the exact supported stance shown in the opening image. Pull the single working dumbbell toward the hip until the elbow is beside the ribs, pause, then lower to the original hanging-arm position. Keep torso still, support hand fixed and the bench stationary. Return smoothly to the opening pose, with matched body position and zero camera movement at the loop boundary. No cuts, zooms, panning, morphing, sliding feet, extra limbs, text, logos, music, speech, or theatrical gestures. Audio: silence.",
+    "models": {
+      "unet_name": "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+      "clip_name": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+      "vae_name": "minimax_h3_video_vae_fp16.safetensors"
+    },
+    "elapsed_seconds": 996,
+    "bytes": 610022,
+    "prompt_id": "85efe20d-9a68-45b6-b23a-9b047385ed8b",
+    "attempt": 1,
+    "peak_gpu_memory_mib": 9832,
+    "peak_system_ram_used_bytes": 63380545536
+  },
+  "stability-ball-curl": {
+    "sha256": "f2fdf71cd7202fcc13e74ca4ce1d6c2bee148afd30c219ce9ac2af7dac23455e",
+    "review": {
+      "accepted": true,
+      "notes": "Reviewed start and middle source photos, 16 intermediate frames and uninterrupted normal-speed browser playback sampled from 0.63 through 5.167 seconds. One controlled simultaneous knee curl, brief bent-knee hold and complete leg extension back to the opening posture. Both heels/soles maintain contact as the round ball moves toward the hips and rolls back on the mat. Shoulders, arms and hands remain supported; hips stay lifted, identity and clothing remain consistent, and anatomy is plausible. Mat edges, room and camera framing stay fixed; the complete body and ball remain visible with a matching opening/closing pose and no cut or extra repetition.",
+      "reviewed_at": 1788622069.2494855
+    },
+    "settings": {
+      "width": 768,
+      "height": 1024,
+      "fps": 24,
+      "frames": 124,
+      "steps": 20,
+      "turbo": false,
+      "tiled_decode": false,
+      "seed": 62373707786334
+    },
+    "sources": [
+      {
+        "phase": "start",
+        "path": "public/exercises/phase-guides/stability-ball-curl-start.webp",
+        "sha256": "787c34cc3a3f2253b97452b2c48ef47331969d7695a5000756652080ce14f766"
+      },
+      {
+        "phase": "middle",
+        "path": "public/exercises/phase-guides/stability-ball-curl-middle.webp",
+        "sha256": "9d10c971b3c41ec8bba6283b56c0c290e42ddb3b9aba0988c1deb74afa459278"
+      },
+      {
+        "phase": "finish",
+        "path": "public/exercises/phase-guides/stability-ball-curl-finish.webp",
+        "sha256": "bd787942120c165819d93fa87f7fa3f9f0b7bc3d76ea525c7d44518eb3de2446"
+      }
+    ],
+    "workflow_sha256": "7eed906c830e65087f4e7e3e9256e44ab463d916f3b5b0e9ebe9c4dfc03d245c",
+    "prompt": "Photorealistic exercise instruction: Stability-ball hamstring curl. The same adult female trainer as the supplied reference images, with identical face, hair, dark workout clothing, lime shoes, proportions, equipment, room and lighting. One continuous locked-off tripod shot. Entire body and all working equipment remain visible. Natural controlled movement at real speed; anatomically coherent joints and hands, stable contact with the floor and equipment. The reference poses constrain the movement. Lie supine with heels on the ball and hips lifted. Bend knees to roll the ball toward the hips, then extend the legs and roll it back. Keep hips level, shoulders and arms supported, heels in contact, and the ball round and continuously touching the floor. Return smoothly to the opening pose, with matched body position and zero camera movement at the loop boundary. No cuts, zooms, panning, morphing, sliding feet, extra limbs, text, logos, music, speech, or theatrical gestures. Audio: silence.",
+    "models": {
+      "unet_name": "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+      "clip_name": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+      "vae_name": "minimax_h3_video_vae_fp16.safetensors"
+    },
+    "elapsed_seconds": 967,
+    "bytes": 654702,
+    "prompt_id": "6d6e75a0-42c8-4bb6-97f9-007da1a2323a",
+    "attempt": 1,
+    "peak_gpu_memory_mib": 9450,
+    "peak_system_ram_used_bytes": 63142572032
+  },
+  "upper-trap-stretch": {
+    "sha256": "6d9d2ef7d222333df8c7954c6759520de4bd0bddc5cefb15a044e5c9ba0226b2",
+    "review": {
+      "accepted": true,
+      "notes": "Compared opening reference, 24 intermediate frames and uninterrupted normal-speed browser playback through 8 seconds. One gentle lateral head tilt, brief breathing hold and controlled return to neutral; shoulders stay relaxed, seated support and both feet remain stable, hands stay at bench edges without pulling the head. Consistent trainer, clothing, anatomy, rigid bench, room and fixed camera; complete body visible and matching opening/closing posture. No morphing, sliding or cuts.",
+      "reviewed_at": 1788630604.099546
+    },
+    "settings": {
+      "width": 768,
+      "height": 1024,
+      "fps": 24,
+      "frames": 192,
+      "steps": 20,
+      "turbo": false,
+      "tiled_decode": false,
+      "seed": 84273060691131
+    },
+    "sources": [
+      {
+        "phase": "start",
+        "path": "public/exercises/phase-guides/upper-trap-stretch-start.webp",
+        "sha256": "573bed243a7a4e44006c3eacd0a1c9d54a32991265da7ea5ee764f7adf03f208"
+      },
+      {
+        "phase": "middle",
+        "path": "public/exercises/phase-guides/upper-trap-stretch-middle.webp",
+        "sha256": "49abc2e11648b8fe59fe9ab0e2152ef5b662587df2cc7e8d9322ec616f85b1c0"
+      },
+      {
+        "phase": "finish",
+        "path": "public/exercises/phase-guides/upper-trap-stretch-finish.webp",
+        "sha256": "b6195205f6cc47b09c640a727cc756d73adf3527977e114c92e7989f310c82e9"
+      }
+    ],
+    "workflow_sha256": "7eed906c830e65087f4e7e3e9256e44ab463d916f3b5b0e9ebe9c4dfc03d245c",
+    "prompt": "Photorealistic exercise instruction: Upper-trap stretch. The same adult female trainer as the supplied reference images, with identical face, hair, dark workout clothing, lime shoes, proportions, equipment, room and lighting. One continuous locked-off tripod shot. Entire body and all working equipment remain visible. Natural controlled movement at real speed; anatomically coherent joints and hands, stable contact with the floor and equipment. The reference poses constrain the movement. Remain seated on the same wooden bench as the opening image, with feet planted and shoulders relaxed. Gently hold the edge of the bench with one hand and tilt the head a small distance away from that shoulder. Hold a mild stretch with natural breathing, then return smoothly to neutral. Keep face forward; do not pull the head with the hand. Remain seated throughout; the bench and camera remain fixed. Return smoothly to the opening pose, with matched body position and zero camera movement at the loop boundary. No cuts, zooms, panning, morphing, sliding feet, extra limbs, text, logos, music, speech, or theatrical gestures. Audio: silence.",
+    "models": {
+      "unet_name": "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+      "clip_name": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+      "vae_name": "minimax_h3_video_vae_fp16.safetensors"
+    },
+    "elapsed_seconds": 1358,
+    "bytes": 556337,
+    "prompt_id": "0fed021d-146b-462f-a46b-a518ba8fd6fd",
+    "attempt": 1,
+    "peak_gpu_memory_mib": 8581,
+    "peak_system_ram_used_bytes": 62045995008
+  },
+  "forearm-plank": {
+    "sha256": "0e5543483042e01844b1683c7986b3a490a6f1a9bb9f648b475daf188cc5d5da",
+    "review": {
+      "accepted": true,
+      "notes": "Compared the straight-plank finish reference used as opening, 24 intermediate frames, full-resolution torso crops at frames 0/50/100/150 and uninterrupted normal-speed playback through 8 seconds. Stable forearm-plank hold with subtle abdominal/ribcage breathing motion; pelvis and long legs maintain alignment without the previous hip dips. Forearms, elbows and toes retain contact, hands and trainer anatomy remain consistent. Mat, room, camera and full-body framing stay fixed, with matching loop posture. No sliding, morphing, cuts or dynamic repetitions.",
+      "reviewed_at": 1788633499.17903
+    },
+    "settings": {
+      "width": 768,
+      "height": 1024,
+      "fps": 24,
+      "frames": 192,
+      "steps": 20,
+      "turbo": false,
+      "tiled_decode": false,
+      "seed": 225758526975619
+    },
+    "sources": [
+      {
+        "phase": "start",
+        "path": "public/exercises/phase-guides/forearm-plank-start.webp",
+        "sha256": "76adb67a645d5169d35ff69df1931408d82a575421f4180e0af66c6bf0023c48"
+      },
+      {
+        "phase": "middle",
+        "path": "public/exercises/phase-guides/forearm-plank-middle.webp",
+        "sha256": "172d3d10b7c97a5258c091b06031fd9befccb699c264c32466638635e7dfac5a"
+      },
+      {
+        "phase": "finish",
+        "path": "public/exercises/phase-guides/forearm-plank-finish.webp",
+        "sha256": "29c6cf6fe31ec493cf324f5fa6d6663c7813cd2a68e9ab7df1ff09612f63e078"
+      }
+    ],
+    "workflow_sha256": "7eed906c830e65087f4e7e3e9256e44ab463d916f3b5b0e9ebe9c4dfc03d245c",
+    "prompt": "Photorealistic exercise instruction: Forearm plank. The same adult female trainer as the supplied reference images, with identical face, hair, dark workout clothing, lime shoes, proportions, equipment, room and lighting. One continuous locked-off tripod shot. Entire body and all working equipment remain visible. Natural controlled movement at real speed; anatomically coherent joints and hands, stable contact with the floor and equipment. The reference poses constrain the movement. Maintain the full forearm plank in the reference for all eight seconds, with a straight line from head through hips to heels. Keep elbows, forearms and toes in fixed contact. The pelvis stays at exactly the same height; no hip sag, arching, rocking, piking, knee bend or release. Show only subtle expansion of the ribcage with natural quiet breathing and a small natural blink. Do not move the pelvis with each breath. Return smoothly to the opening pose, with matched body position and zero camera movement at the loop boundary. No cuts, zooms, panning, morphing, sliding feet, extra limbs, text, logos, music, speech, or theatrical gestures. Audio: silence. The full straight-plank reference is the opening and ending posture. Hold a rigid aligned trunk throughout: pelvis does not rise or fall, spine does not bend and knees do not drop. Only very small ribcage expansion and a natural blink are visible. No hip dips or dynamic repetitions.",
+    "models": {
+      "unet_name": "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+      "clip_name": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+      "vae_name": "minimax_h3_video_vae_fp16.safetensors"
+    },
+    "elapsed_seconds": 1328,
+    "bytes": 417142,
+    "prompt_id": "5299e5a0-c860-4958-b80d-043dd7b8b3b9",
+    "attempt": 2,
+    "peak_gpu_memory_mib": 7178,
+    "peak_system_ram_used_bytes": 62383480832
+  },
+  "goblet-squat": {
+    "sha256": "d3f678e9418b18f2cf0247874feea2e830e6b4f746649297077ed25f7f50915a",
+    "review": {
+      "accepted": true,
+      "notes": "Compared opening source, 16 intermediate frames, full-resolution foot crops at frames 0/60/123 and uninterrupted 1x browser playback through 5.167 seconds. Exactly one controlled squat to approximately thigh-parallel depth, brief bottom hold and full return to standing. Both soles stay flat in the original stance without the earlier widening or preliminary dip. Continuous two-hand goblet grip, consistent rigid dumbbell, trainer identity and anatomy. Room edges, camera scale and full-body framing remain fixed; matching loop posture.",
+      "reviewed_at": 1788636282.7824547
+    },
+    "settings": {
+      "width": 768,
+      "height": 1024,
+      "fps": 24,
+      "frames": 124,
+      "steps": 20,
+      "turbo": false,
+      "tiled_decode": false,
+      "seed": 199122574941366
+    },
+    "sources": [
+      {
+        "phase": "start",
+        "path": "public/exercises/phase-guides/goblet-squat-start.webp",
+        "sha256": "694732f54ed8f1a58381477303953dea05ebc9ed8841b33922020cd69d25a302"
+      },
+      {
+        "phase": "middle",
+        "path": "public/exercises/phase-guides/goblet-squat-middle.webp",
+        "sha256": "ea00e299db628aeca307983265b7d3cfd390ef7ab12aa7f5aa8233bebd4465be"
+      },
+      {
+        "phase": "finish",
+        "path": "public/exercises/phase-guides/goblet-squat-finish.webp",
+        "sha256": "0329b0393d82bad05eac0ca5dea35a63e1ed23212a42ed1825ddb2cef0d3a9fd"
+      }
+    ],
+    "workflow_sha256": "7eed906c830e65087f4e7e3e9256e44ab463d916f3b5b0e9ebe9c4dfc03d245c",
+    "prompt": "Photorealistic exercise instruction: Goblet squat. The same adult female trainer as the supplied reference images, with identical face, hair, dark workout clothing, lime shoes, proportions, equipment, room and lighting. One continuous locked-off tripod shot. Entire body and all working equipment remain visible. Natural controlled movement at real speed; anatomically coherent joints and hands, stable contact with the floor and equipment. The reference poses constrain the movement. Hold one dumbbell close to the chest. Sit smoothly between the hips with knees tracking with toes, pause at comfortable squat depth, and stand tall. Both feet stay planted; the weight remains rigid and securely held throughout. Return smoothly to the opening pose, with matched body position and zero camera movement at the loop boundary. No cuts, zooms, panning, morphing, sliding feet, extra limbs, text, logos, music, speech, or theatrical gestures. Audio: silence. Exactly ONE squat in the entire clip. From 0 to 2 seconds descend continuously and smoothly until thighs approach parallel with the floor, pause briefly around 2 to 3 seconds, then rise continuously to stand by 5 seconds. No preliminary shallow dip, second squat, bounce or intermediate return to standing. Both soles stay flat at their exact opening floor positions, with no widening, stepping, heel lift or sliding. Keep the same rigid dumbbell close to the chest with continuous two-hand contact. The wall edges, floor seam, camera position and image scale remain fixed throughout.",
+    "models": {
+      "unet_name": "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+      "clip_name": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+      "vae_name": "minimax_h3_video_vae_fp16.safetensors"
+    },
+    "elapsed_seconds": 664,
+    "bytes": 669130,
+    "prompt_id": "a7f29027-8788-43a5-8e62-74d57e2432e5",
+    "attempt": 2,
+    "peak_gpu_memory_mib": 9338,
+    "peak_system_ram_used_bytes": 61734985728
+  },
+  "dumbbell-rdl": {
+    "sha256": "5c443e505edde0b45de066a52c47d7ce51233f3eedaf153840707b1178c84f74",
+    "review": {
+      "accepted": true,
+      "notes": "Compared opening source, 16 intermediate frames, full-resolution foot crops at frames 0/60/123 and uninterrupted 1x browser playback through 5.167 seconds. One controlled hip hinge with hips moving backward, softly bent knees and long back; dumbbells lower close to the legs to just below knee height, pause and return to a tall stance. Both feet retain original floor contact without sliding, both hands keep their dumbbells and equipment geometry stays consistent. Stable identity, anatomy, room and fixed full-body framing with matching loop stance.",
+      "reviewed_at": 1788636283.786628
+    },
+    "settings": {
+      "width": 768,
+      "height": 1024,
+      "fps": 24,
+      "frames": 124,
+      "steps": 20,
+      "turbo": false,
+      "tiled_decode": false,
+      "seed": 46281545939967
+    },
+    "sources": [
+      {
+        "phase": "start",
+        "path": "public/exercises/phase-guides/dumbbell-rdl-start.webp",
+        "sha256": "2a184addf5d0c5bc4907678ae042b27094fa645f6981988935da4bfe1602fa56"
+      },
+      {
+        "phase": "middle",
+        "path": "public/exercises/phase-guides/dumbbell-rdl-middle.webp",
+        "sha256": "da0d1a04860eedcf2bfb7ee1077a7c5a84fd5caf613e2ceab6bfa5b00a36074b"
+      },
+      {
+        "phase": "finish",
+        "path": "public/exercises/phase-guides/dumbbell-rdl-finish.webp",
+        "sha256": "4e061557b1e0e810b45785acc3e2d36a9db54f0be979a3e019c04a74e0395406"
+      }
+    ],
+    "workflow_sha256": "7eed906c830e65087f4e7e3e9256e44ab463d916f3b5b0e9ebe9c4dfc03d245c",
+    "prompt": "Photorealistic exercise instruction: Dumbbell Romanian deadlift. The same adult female trainer as the supplied reference images, with identical face, hair, dark workout clothing, lime shoes, proportions, equipment, room and lighting. One continuous locked-off tripod shot. Entire body and all working equipment remain visible. Natural controlled movement at real speed; anatomically coherent joints and hands, stable contact with the floor and equipment. The reference poses constrain the movement. Stand holding the same two dumbbells near the thighs. Soften knees and hinge the hips backward with a long back while weights travel close to the legs. Pause, then drive hips forward to stand tall without leaning backward. Feet remain planted. Return smoothly to the opening pose, with matched body position and zero camera movement at the loop boundary. No cuts, zooms, panning, morphing, sliding feet, extra limbs, text, logos, music, speech, or theatrical gestures. Audio: silence. Perform one controlled hip hinge: push hips backward with softly bent knees, lower the dumbbells close to the legs to just below knee height while keeping the back long, pause, then stand tall. Both shoes remain at precisely the same floor coordinates for the whole clip. Do not translate, rotate, step or slide either shoe. Move only the hips and upper body around stable legs. Keep the wall edges and floor seam at fixed image coordinates, with no zoom, reframing or perspective drift. Return to the identical opening stance.",
+    "models": {
+      "unet_name": "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+      "clip_name": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+      "vae_name": "minimax_h3_video_vae_fp16.safetensors"
+    },
+    "elapsed_seconds": 664,
+    "bytes": 670444,
+    "prompt_id": "b9d78ced-7b94-4c12-b4f6-8e50714c94dd",
+    "attempt": 2,
+    "peak_gpu_memory_mib": 9340,
+    "peak_system_ram_used_bytes": 61905027072
+  },
+  "band-row": {
+    "sha256": "e513a77154c6b48e4e9644642a9eef47f94e783591784b2299fcecaccfc4a84e",
+    "review": {
+      "accepted": true,
+      "notes": "Reviewed opening source, 16 intermediate frames, full-resolution shoe crops at frames 0/30/80/123, and uninterrupted 1x playback through 5.167 seconds. Two complete controlled pulls bring both elbows behind the torso and handles beside the ribs, followed by full arm returns. Although the prompt requested one cycle, both actual repetitions are complete, smoothly paced and suitable demonstrations. Both shoes remain fixed, resolving candidate-one sliding. Identity, anatomy, grip, triangular handles, taut connected bands, wall anchor, room and camera remain consistent; full body stays visible with a natural matched loop.",
+      "reviewed_at": 1788637876.8818922
+    },
+    "settings": {
+      "width": 768,
+      "height": 1024,
+      "fps": 24,
+      "frames": 124,
+      "steps": 20,
+      "turbo": false,
+      "tiled_decode": false,
+      "seed": 112763239906130
+    },
+    "sources": [
+      {
+        "phase": "start",
+        "path": "public/exercises/phase-guides/band-row-start.webp",
+        "sha256": "bb50ae7a28f47dcd683d54fa72d4228df471b0b7db57e245db0ea9d36f9dc91d"
+      },
+      {
+        "phase": "middle",
+        "path": "public/exercises/phase-guides/band-row-middle.webp",
+        "sha256": "29cb6759268ac992a927dccbe827f74ce96962e87e7a347259baaf619035e574"
+      },
+      {
+        "phase": "finish",
+        "path": "public/exercises/phase-guides/band-row-finish.webp",
+        "sha256": "02c2dd9d23a3d2aa1a16b5e3e19f0e9bde4dd7eba9773baa3bb68cbf4958d267"
+      }
+    ],
+    "workflow_sha256": "7eed906c830e65087f4e7e3e9256e44ab463d916f3b5b0e9ebe9c4dfc03d245c",
+    "prompt": "Photorealistic exercise instruction: Resistance-band row. The same adult female trainer as the supplied reference images, with identical face, hair, dark workout clothing, lime shoes, proportions, equipment, room and lighting. One continuous locked-off tripod shot. Entire body and all working equipment remain visible. Natural controlled movement at real speed; anatomically coherent joints and hands, stable contact with the floor and equipment. The reference poses constrain the movement. From the starting position with arms long and the band securely anchored, pull handles toward the ribs with elbows traveling backward, pause and slowly extend the arms again. Keep shoulders down, torso tall and the visible band continuously connected and under tension. Return smoothly to the opening pose, with matched body position and zero camera movement at the loop boundary. No cuts, zooms, panning, morphing, sliding feet, extra limbs, text, logos, music, speech, or theatrical gestures. Audio: silence. Keep both shoes and their floor-contact outlines at exactly the opening image coordinates for the entire clip. The stance does not widen or drift toward the camera. Knees and hips hold the same supported stance. Perform one smooth simultaneous pull with both elbows traveling backward until the handles are beside the ribs, pause, then return both arms fully to the opening reach. Maintain continuous hand contact, the same rigid handles, elastic bands under tension and the fixed wall anchor. Only the arms and shoulder blades move appreciably; no torso sway, camera movement, foot sliding or extra repetition.",
+    "models": {
+      "unet_name": "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+      "clip_name": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+      "vae_name": "minimax_h3_video_vae_fp16.safetensors"
+    },
+    "elapsed_seconds": 664,
+    "bytes": 576117,
+    "prompt_id": "bf9619c7-73b3-4281-ac5c-a745d1feed27",
+    "attempt": 2,
+    "peak_gpu_memory_mib": 9340,
+    "peak_system_ram_used_bytes": 62127198208
+  },
+  "bench-step-up": {
+    "sha256": "e597b2933011dd9fdae005b263b29d6773d37e6de9b83c59cefd1554f98f82e2",
+    "review": {
+      "accepted": true,
+      "notes": "Reviewed the finish/opening reference,24 intermediate frames,full-resolution support crops at frames0/40/128/191,and uninterrupted1x playback through8 seconds. Two complete controlled descents place the free foot on the floor behind the bench, followed by ascents and knee lifts to the opening pose. The same supporting shoe remains fixed on the bench throughout; no alternating marching or extra isolated knee lifts. Although one cycle was requested,both actual cycles are complete and smoothly paced. Previous head cropping and bench deformation are resolved. Full head,body,hands and equipment stay in frame; stable identity,anatomy,bench floor contacts and camera,with a natural matched loop.",
+      "reviewed_at": 1788639269.520771
+    },
+    "settings": {
+      "width": 768,
+      "height": 1024,
+      "fps": 24,
+      "frames": 192,
+      "steps": 20,
+      "turbo": false,
+      "tiled_decode": false,
+      "seed": 167507756058442
+    },
+    "sources": [
+      {
+        "phase": "start",
+        "path": "public/exercises/phase-guides/bench-step-up-start.webp",
+        "sha256": "6c3879f4ed00c3fc29094dab495a6113855e692133c92f2743fbed639f23209d"
+      },
+      {
+        "phase": "middle",
+        "path": "public/exercises/phase-guides/bench-step-up-middle.webp",
+        "sha256": "51e4812e6e83da06f329bd577bbcc0bf27ac99476147fcdef064461b82c4590f"
+      },
+      {
+        "phase": "finish",
+        "path": "public/exercises/phase-guides/bench-step-up-finish.webp",
+        "sha256": "35793a17536c1b997a0b5926310782fcf1e91bb3266cbe43ef3bf4ad520b20b2"
+      }
+    ],
+    "workflow_sha256": "7eed906c830e65087f4e7e3e9256e44ab463d916f3b5b0e9ebe9c4dfc03d245c",
+    "prompt": "Photorealistic exercise instruction: Bench step-up. The same adult female trainer as the supplied reference images, with identical face, hair, dark workout clothing, lime shoes, proportions, equipment, room and lighting. One continuous locked-off tripod shot. Entire body and all working equipment remain visible. Natural controlled movement at real speed; anatomically coherent joints and hands, stable contact with the floor and equipment. The reference poses constrain the movement. Begin at the highest step-up position in the reference with one foot fully planted on the bench and the other knee raised. Lower the raised foot backward to the floor while bending the supporting knee under control. Pause briefly, then drive through the same planted bench foot to rise and return the moving knee to the opening height. Show exactly one controlled descent and ascent, with no alternating knee lifts. Keep the supporting shoe, bench and camera fixed and preserve full headroom. Return smoothly to the opening pose, with matched body position and zero camera movement at the loop boundary. No cuts, zooms, panning, morphing, sliding feet, extra limbs, text, logos, music, speech, or theatrical gestures. Audio: silence. Begin at the high position shown in the opening reference, with one support foot firmly planted on the bench and the other knee raised. Keep that SAME support foot on the bench throughout. From 0 to 3 seconds move the raised foot backward and lower it gently to the floor behind the bench while the support knee bends under control. Pause briefly in the low step-up stance. From 4 to 7 seconds push through the planted bench foot, straighten the support knee to rise, and lift the moving knee to the original opening height. Settle into the identical opening pose by 8 seconds. Exactly one descent and ascent. No alternating knees, marching, extra knee lifts, hopping or stepping both feet together on the bench. Keep the bench completely rigid at its opening floor coordinates and preserve the original camera scale and headroom; the full head, body and equipment stay visible.",
+    "models": {
+      "unet_name": "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+      "clip_name": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+      "vae_name": "minimax_h3_video_vae_fp16.safetensors"
+    },
+    "elapsed_seconds": 1297,
+    "bytes": 894456,
+    "prompt_id": "cc0e8a0f-aca4-4881-b4ee-4f1070b36ccf",
+    "attempt": 2,
+    "peak_gpu_memory_mib": 7148,
+    "peak_system_ram_used_bytes": 62618980352
+  },
+  "suspension-row": {
+    "sha256": "5249613e98e175cd8c079415253ca57605069de3496e1a78910d6db27154d441",
+    "review": {
+      "accepted": true,
+      "notes": "Reviewed the opening reference, 16 intermediate frames, full-resolution foot and grip crops, and uninterrupted normal-speed browser playback through 5.1667 seconds. Two complete controlled pull-and-return cycles with full elbow extension. Both shoes remain planted; the aligned body pivots naturally around the feet. Continuous handle grips, taut connected straps, stable loops and buckles, fixed anchor and camera, consistent identity and anatomy, full-body visibility and a natural matching loop. The previous foot sliding is resolved.",
+      "reviewed_at": 1788642477.515156
+    },
+    "settings": {
+      "width": 768,
+      "height": 1024,
+      "fps": 24,
+      "frames": 124,
+      "steps": 20,
+      "turbo": false,
+      "tiled_decode": false,
+      "seed": 154012398218705
+    },
+    "sources": [
+      {
+        "phase": "start",
+        "path": "public/exercises/phase-guides/suspension-row-start.webp",
+        "sha256": "cb0af2cbaea7e7b677c0f64c9396b5af897ccb8b4dce20192752bc9bec9afb20"
+      },
+      {
+        "phase": "middle",
+        "path": "public/exercises/phase-guides/suspension-row-middle.webp",
+        "sha256": "fecbd9f1427ca15fcf1751ca34e85594b7cd12cfd31458058c69580171aac2dd"
+      },
+      {
+        "phase": "finish",
+        "path": "public/exercises/phase-guides/suspension-row-finish.webp",
+        "sha256": "6a52acc7a0232c933bc0fdf7a831731013bb07c1c072fe8f1e9789a20f50b633"
+      }
+    ],
+    "workflow_sha256": "7eed906c830e65087f4e7e3e9256e44ab463d916f3b5b0e9ebe9c4dfc03d245c",
+    "prompt": "Photorealistic exercise instruction: Suspension row. The same adult female trainer as the supplied reference images, with identical face, hair, dark workout clothing, lime shoes, proportions, equipment, room and lighting. One continuous locked-off tripod shot. Entire body and all working equipment remain visible. Natural controlled movement at real speed; anatomically coherent joints and hands, stable contact with the floor and equipment. The reference poses constrain the movement. Begin leaning back with arms long, straight body and feet planted. Pull the chest toward the suspension handles, pause with elbows beside ribs, and lower under control. Both straps stay taut and attached to the anchor; hips remain lifted and the body pivots naturally over fixed feet. Return smoothly to the opening pose, with matched body position and zero camera movement at the loop boundary. No cuts, zooms, panning, morphing, sliding feet, extra limbs, text, logos, music, speech, or theatrical gestures. Audio: silence. Both shoes retain exactly their opening floor-contact positions throughout the entire clip. Do not slide or step either foot toward or away from the anchor. Keep the body aligned from shoulders through hips to ankles. Perform exactly one controlled row by bending both elbows beside the ribs and bringing the chest toward the handles, pivoting the aligned body naturally over the planted feet. Pause, then extend the elbows and lower to the identical opening lean. Both suspension straps remain taut, keep their original lengths and stay attached to the same fixed anchor; maintain uninterrupted handle grips. Keep the rack, floor, room, lighting and camera fixed with no zoom or perspective drift.",
+    "models": {
+      "unet_name": "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+      "clip_name": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+      "vae_name": "minimax_h3_video_vae_fp16.safetensors"
+    },
+    "elapsed_seconds": 665,
+    "bytes": 739226,
+    "prompt_id": "961f64da-66e6-47a5-8752-30116dd8c1f3",
+    "attempt": 2,
+    "peak_gpu_memory_mib": 9342,
+    "peak_system_ram_used_bytes": 62359904256
+  },
+  "stationary-bike": {
+    "sha256": "bf455ed3a3177a4e3360765750df784443cc10fbdbfd8596e50d42159143fce5",
+    "review": {
+      "accepted": true,
+      "notes": "Reviewed the opening reference, 24 intermediate full-body frames, 18 full-resolution crank crops spanning early and late revolutions, base crops at frames 0/96/191, and uninterrupted normal-speed browser playback through eight seconds. Continuous smooth forward pedaling with naturally alternating knees and opposing pedals. Both shoes stay strapped to connected pedals rotating around one stationary axle; no duplicated or bending crank connection. Bike housing, seatpost, handles and floor supports remain stable. Trainer identity, seated contact, grips and anatomy are consistent; complete trainer and bike stay visible, with matched opening/closing pedal phase and a natural loop. The earlier axle and crank deformation is resolved.",
+      "reviewed_at": 1788644124.2996202
+    },
+    "settings": {
+      "width": 768,
+      "height": 1024,
+      "fps": 24,
+      "frames": 192,
+      "steps": 20,
+      "turbo": false,
+      "tiled_decode": false,
+      "seed": 131436461078723
+    },
+    "sources": [
+      {
+        "phase": "start",
+        "path": "public/exercises/phase-guides/stationary-bike-start.webp",
+        "sha256": "d57ec7fa696c126531d76097d36d760258e4d9f1b6f57b07fb802a1fff65316b"
+      },
+      {
+        "phase": "middle",
+        "path": "public/exercises/phase-guides/stationary-bike-middle.webp",
+        "sha256": "6b9b5d053de8353bade60e69a219bd651d07f4d88bac4be3983bbd2d97484341"
+      },
+      {
+        "phase": "finish",
+        "path": "public/exercises/phase-guides/stationary-bike-finish.webp",
+        "sha256": "9364ceaee7b5b8364c5eafdb0649c8449bcfeb211c4edbfa9eaa0534237bff5a"
+      }
+    ],
+    "workflow_sha256": "7eed906c830e65087f4e7e3e9256e44ab463d916f3b5b0e9ebe9c4dfc03d245c",
+    "prompt": "Photorealistic exercise instruction: Stationary bike intervals. The same adult female trainer as the supplied reference images, with identical face, hair, dark workout clothing, lime shoes, proportions, equipment, room and lighting. One continuous locked-off tripod shot. Entire body and all working equipment remain visible. Natural controlled movement at real speed; anatomically coherent joints and hands, stable contact with the floor and equipment. The reference poses constrain the movement. Pedal the stationary bike smoothly at a steady moderate cadence throughout, completing several natural revolutions. Feet stay attached to opposite pedals and follow circles around the crank. Seat, frame, handlebars and wheels remain fixed; shoulders stay relaxed. Finish at the same pedal phase as the opening for a natural loop. Return smoothly to the opening pose, with matched body position and zero camera movement at the loop boundary. No cuts, zooms, panning, morphing, sliding feet, extra limbs, text, logos, music, speech, or theatrical gestures. Audio: silence. Preserve the same rigid bike from the opening image for the whole clip. There is exactly ONE fixed pedal-crank axle at one unchanging point in the housing, with two straight crank arms of constant equal length on opposite sides, always 180 degrees apart. Both attached pedals revolve smoothly in circles around that same axle; the crank arms never bend, duplicate, detach or change length, and no second axle appears. Keep each shoe strapped continuously to its own pedal. Complete four steady forward revolutions over eight seconds and end at the opening pedal phase. Keep the seat, seatpost, housing, handlebar stem, grips and floor supports fixed in shape and location. Remain seated with relaxed shoulders, natural alternating knees, unchanged grip, stable camera and full-body framing.",
+    "models": {
+      "unet_name": "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+      "clip_name": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+      "vae_name": "minimax_h3_video_vae_fp16.safetensors"
+    },
+    "elapsed_seconds": 1297,
+    "bytes": 1181610,
+    "prompt_id": "a83a5e65-a5bd-4ce1-bfa8-53149db5f858",
+    "attempt": 2,
+    "peak_gpu_memory_mib": 7374,
+    "peak_system_ram_used_bytes": 62905790464
+  },
+  "dumbbell-floor-press": {
+    "sha256": "aeb9800d170ef7b029aea419c40a8f6bb1612d93b3196fbdd63fef8318c904d9",
+    "review": {
+      "accepted": true,
+      "notes": "Reviewed opening reference, 16 intermediate full-body frames, full-resolution support crops at frames 0/25/80/123 and uninterrupted normal-speed playback through 5.167 seconds. Two complete simultaneous two-arm press and lower cycles with brief top pauses; both return upper arms to the mat. Mat corners and shape, planted shoes, pelvis, shoulders and head stay stable without the earlier sliding. Same rigid dumbbells, secure neutral-wrist grips, coherent elbows and hands, consistent trainer identity, fixed room/camera and full movement visibility. Opening and closing poses match. Two complete controlled repetitions are accepted despite the prompt requesting one.",
+      "reviewed_at": 1788651605.065696
+    },
+    "settings": {
+      "width": 768,
+      "height": 1024,
+      "fps": 24,
+      "frames": 124,
+      "steps": 20,
+      "turbo": false,
+      "tiled_decode": false,
+      "seed": 199485188105178
+    },
+    "sources": [
+      {
+        "phase": "start",
+        "path": "public/exercises/phase-guides/dumbbell-floor-press-start.webp",
+        "sha256": "eea0c8bb9e52f316269ab33860a09ea26c8a7e2d5b4c0f2a6753be26bcd77c2e"
+      },
+      {
+        "phase": "middle",
+        "path": "public/exercises/phase-guides/dumbbell-floor-press-middle.webp",
+        "sha256": "0fa1d5cfeda4598d43c2d5098177d50ac1ecf708fa4e560afc8aed07a50c1414"
+      },
+      {
+        "phase": "finish",
+        "path": "public/exercises/phase-guides/dumbbell-floor-press-finish.webp",
+        "sha256": "68b1309f4f934b4fc5c2e50fbb7873a20eb668111e508e84ff5cb50adb1882d7"
+      }
+    ],
+    "workflow_sha256": "7eed906c830e65087f4e7e3e9256e44ab463d916f3b5b0e9ebe9c4dfc03d245c",
+    "prompt": "Photorealistic exercise instruction: Dumbbell floor press. The same adult female trainer as the supplied reference images, with identical face, hair, dark workout clothing, lime shoes, proportions, equipment, room and lighting. One continuous locked-off tripod shot. Entire body and all working equipment remain visible. Natural controlled movement at real speed; anatomically coherent joints and hands, stable contact with the floor and equipment. The reference poses constrain the movement. Lie supine with feet planted and elbows bent beside the chest, as in the opening image. Press both dumbbells above the chest, pause briefly, then lower with wrists over elbows until upper arms gently meet the floor again. Shoulders stay anchored, wrists remain neutral and weights retain their shape. Return smoothly to the opening pose, with matched body position and zero camera movement at the loop boundary. No cuts, zooms, panning, morphing, sliding feet, extra limbs, text, logos, music, speech, or theatrical gestures. Audio: silence. Exactly ONE simultaneous two-arm floor press. From 0 to 2 seconds raise both dumbbells continuously until elbows are almost straight above the chest. Hold briefly at 2 to 3 seconds, then lower smoothly until both upper arms gently meet the mat by 5 seconds. The mat is completely stationary: all four corners remain at their opening image coordinates, with unchanged shape, size and angle. Both shoe soles, pelvis, shoulders and the back of the head stay at precisely the original support locations throughout. Do not shift, drag, translate or rotate the trainer or mat during the press. Only the arms and dumbbells move appreciably, with subtle natural breathing. Keep the room, floor, fixed camera and full-body framing unchanged. No preliminary partial press, extra repetition, camera drift or mat sliding. Preserve the same two rigid dumbbells and continuous neutral-wrist grips.",
+    "models": {
+      "unet_name": "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+      "clip_name": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+      "vae_name": "minimax_h3_video_vae_fp16.safetensors"
+    },
+    "elapsed_seconds": 664,
+    "bytes": 534233,
+    "prompt_id": "b492f4de-8b78-45fc-ab6e-44c920c35d9b",
+    "attempt": 3,
+    "peak_gpu_memory_mib": 9310,
+    "peak_system_ram_used_bytes": 61779845120
+  },
+  "kettlebell-deadlift": {
+    "sha256": "8b388913af0945c780458c9075e7dff053844549928f6c57994dea1407691a57",
+    "review": {
+      "accepted": true,
+      "notes": "Reviewed standing finish/opening reference, 16 intermediate full-body frames, full-resolution foot and bell crops at frames 0/50/85/123 and uninterrupted normal-speed browser playback through 5.167 seconds. One complete controlled hip hinge and knee bend lowers the bell to the floor, pauses, then returns to the original tall stance. Both soles stay planted at their original positions, the bell and handle remain rigid with continuous two-hand grips, and elbows stay long. Stable identity, anatomy, room and camera. Complete head, ponytail, feet and equipment remain visible throughout; the previous standing head crop is resolved. Opening and closing standing poses and framing match.",
+      "reviewed_at": 1788651644.4738216
+    },
+    "settings": {
+      "width": 768,
+      "height": 1024,
+      "fps": 24,
+      "frames": 124,
+      "steps": 20,
+      "turbo": false,
+      "tiled_decode": false,
+      "seed": 144632692377093
+    },
+    "sources": [
+      {
+        "phase": "start",
+        "path": "public/exercises/phase-guides/kettlebell-deadlift-start.webp",
+        "sha256": "d1d8974bc404ce64814b06bb1a5c03b2efb2b543a5806fa08b3ecb422d44ac26"
+      },
+      {
+        "phase": "middle",
+        "path": "public/exercises/phase-guides/kettlebell-deadlift-middle.webp",
+        "sha256": "27fd10ae7ca1396acac98f2e3616631b273e15bc7254a5e3a0330aacca72feb1"
+      },
+      {
+        "phase": "finish",
+        "path": "public/exercises/phase-guides/kettlebell-deadlift-finish.webp",
+        "sha256": "10632e3da65b7efd447ffddea12c2d3b471e03857a0bb03fbfaba1e542b637fe"
+      }
+    ],
+    "workflow_sha256": "7eed906c830e65087f4e7e3e9256e44ab463d916f3b5b0e9ebe9c4dfc03d245c",
+    "prompt": "Photorealistic exercise instruction: Kettlebell deadlift. The same adult female trainer as the supplied reference images, with identical face, hair, dark workout clothing, lime shoes, proportions, equipment, room and lighting. One continuous locked-off tripod shot. Entire body and all working equipment remain visible. Natural controlled movement at real speed; anatomically coherent joints and hands, stable contact with the floor and equipment. The reference poses constrain the movement. Begin standing tall with the kettlebell hanging between the thighs as in the opening reference. Hinge the hips backward and bend the knees under control to set the bell gently on the floor between the planted feet. Pause briefly with the grip retained, then push through both feet and extend hips and knees to return to the same tall standing pose. Keep the back long, arms straight, grip continuous and bell rigid; preserve the original shoe contacts and full headroom. Return smoothly to the opening pose, with matched body position and zero camera movement at the loop boundary. No cuts, zooms, panning, morphing, sliding feet, extra limbs, text, logos, music, speech, or theatrical gestures. Audio: silence. Use the exact standing pose and full-body framing shown in the opening reference. The complete crown of the head and ponytail must remain inside the image at all times, with the same visible margin above the head when standing. From 0 to 2 seconds hinge the hips backward and bend both knees to lower the kettlebell gently to the floor between the feet. Keep arms long, back long and both hands securely on the handle. Briefly pause at the floor around 2 to 3 seconds, then extend hips and knees smoothly to stand tall again by 5 seconds. Exactly one complete lowering and lifting cycle. Both shoe soles remain at precisely their opening floor coordinates and maintain the same stance width throughout. No sliding, stepping, foot rotation or backward lean. Preserve the same rigid kettlebell, continuous two-hand grip, unchanged room and camera scale. Do not zoom, pan, reframe or crop any part of the head, body or equipment.",
+    "models": {
+      "unet_name": "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+      "clip_name": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+      "vae_name": "minimax_h3_video_vae_fp16.safetensors"
+    },
+    "elapsed_seconds": 664,
+    "bytes": 633918,
+    "prompt_id": "3c104754-e63e-4c40-9328-c1d580fe9296",
+    "attempt": 3,
+    "peak_gpu_memory_mib": 9310,
+    "peak_system_ram_used_bytes": 62099742720
+  },
+  "leg-press": {
+    "sha256": "631890736473f4c27899a0c4c6ea6e0242a52631d3d3d4cc3c19bc3583f24d41",
+    "review": {
+      "accepted": true,
+      "notes": "Reviewed extended finish/opening reference, 16 intermediate full-body frames, full-resolution mechanism/contact crops at 0/50/85/123 and uninterrupted normal-speed playback through 5.167 seconds. One controlled carriage descent with knee bend, pause and press back to the original softly bent extension. No overshoot or extra partial press. Base, rails, floor feet and footplate remain rigid and stationary; the seat, trainer and attached plate translate together along the rails. Soles stay on the platform, hands maintain handles and torso remains supported. Complete plate and axle stay inside the left boundary throughout, resolving earlier clipping. Stable identity, anatomy, equipment and fixed framing, with matched opening and closing pose.",
+      "reviewed_at": 1788653077.8432453
+    },
+    "settings": {
+      "width": 768,
+      "height": 1024,
+      "fps": 24,
+      "frames": 124,
+      "steps": 20,
+      "turbo": false,
+      "tiled_decode": false,
+      "seed": 186589676059607
+    },
+    "sources": [
+      {
+        "phase": "start",
+        "path": "public/exercises/phase-guides/leg-press-start.webp",
+        "sha256": "220326036409f1f82408322411cb245936da4b290909a25b2bdd8ead8e063c88"
+      },
+      {
+        "phase": "middle",
+        "path": "public/exercises/phase-guides/leg-press-middle.webp",
+        "sha256": "f4bb3a8ea996a64d11ba4279bbd2ee6130eaadcd28c3b80c7e1c168ee6800249"
+      },
+      {
+        "phase": "finish",
+        "path": "public/exercises/phase-guides/leg-press-finish.webp",
+        "sha256": "e2e1aa35f48c6ffe804b08dbadda05e00531ba5b8cc4d42d6665cf9e7e69dbb1"
+      }
+    ],
+    "workflow_sha256": "7eed906c830e65087f4e7e3e9256e44ab463d916f3b5b0e9ebe9c4dfc03d245c",
+    "prompt": "Photorealistic exercise instruction: Leg press. The same adult female trainer as the supplied reference images, with identical face, hair, dark workout clothing, lime shoes, proportions, equipment, room and lighting. One continuous locked-off tripod shot. Entire body and all working equipment remain visible. Natural controlled movement at real speed; anatomically coherent joints and hands, stable contact with the floor and equipment. The reference poses constrain the movement. Begin at the comfortable leg extension shown in the opening reference, with knees still softly bent and back, hips and feet supported. Bend both knees together to lower the supported seat carriage forward and downward along the existing diagonal rails, stopping at a comfortable bend near a right angle. Pause briefly, then press through the fixed footplate to return the carriage and trainer to exactly the opening extension. Keep every weight plate visible, the machine base, guide rails and footplate rigid, and all hand and foot contacts continuous. Return smoothly to the opening pose, with matched body position and zero camera movement at the loop boundary. No cuts, zooms, panning, morphing, sliding feet, extra limbs, text, logos, music, speech, or theatrical gestures. Audio: silence. Exactly one complete controlled leg-press cycle, beginning at the comfortable extension in the opening reference. From 0 to 2 seconds bend both knees together while the seat carriage, trainer and attached weight plates travel forward and downward along the existing diagonal rails. Stop at a comfortable knee angle near 90 degrees without bringing the thighs against the chest. Pause near 2 to 3 seconds. From 3 to 5 seconds extend the legs smoothly and move the carriage back to exactly the opening position, with knees still softly bent. Never travel farther upward or backward than the opening position; every edge of the left weight plate and its axle must remain visible inside the frame throughout. No extra partial press, overshoot, bounce or knee locking. The base, floor contacts, rails and footplate are completely rigid and stationary. Keep both soles fixed on the platform and back, hips and hands continuously supported. Preserve the same fixed camera and full equipment framing.",
+    "models": {
+      "unet_name": "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+      "clip_name": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+      "vae_name": "minimax_h3_video_vae_fp16.safetensors"
+    },
+    "elapsed_seconds": 664,
+    "bytes": 887597,
+    "prompt_id": "5cedd9e8-c285-48a2-975d-145d4e092ec6",
+    "attempt": 3,
+    "peak_gpu_memory_mib": 9310,
+    "peak_system_ram_used_bytes": 61964320768
+  },
+  "cable-chest-press": {
+    "sha256": "5f95027c2adb1a221c3b57ef81d8c762e57a9b1fcdfb1af109f9e31dda132ec5",
+    "review": {
+      "accepted": true,
+      "notes": "Reviewed opening reference, 16 intermediate full-body frames, enlarged left and right stack details at 0/25/50/80/100/123 and uninterrupted normal-speed playback through 5.167 seconds. Two complete simultaneous chest press and return cycles with secure grips, continuous taut cables and planted split-stance feet. The same upper plate blocks now rise together above stationary lower plates with visible gaps and descend on each return; plate shapes and thickness remain consistent instead of disappearing. Machine towers, guide rods, base and floor contacts remain stable. Consistent trainer identity and anatomy, fixed camera, full body and moving equipment visible, matched loop. Two complete controlled repetitions accepted despite one requested.",
+      "reviewed_at": 1788653078.2325628
+    },
+    "settings": {
+      "width": 768,
+      "height": 1024,
+      "fps": 24,
+      "frames": 124,
+      "steps": 20,
+      "turbo": false,
+      "tiled_decode": false,
+      "seed": 225284283745561
+    },
+    "sources": [
+      {
+        "phase": "start",
+        "path": "public/exercises/phase-guides/cable-chest-press-start.webp",
+        "sha256": "17bb40248cfa77cf4d7a9d0b16edc69b80d2bb507b16fc0c15c80a66f675fc3a"
+      },
+      {
+        "phase": "middle",
+        "path": "public/exercises/phase-guides/cable-chest-press-middle.webp",
+        "sha256": "57b370425c3a89a099ffc18a6393f25cc52a387083c7d44a96177b8370a089da"
+      },
+      {
+        "phase": "finish",
+        "path": "public/exercises/phase-guides/cable-chest-press-finish.webp",
+        "sha256": "cc826696eedec85a0844a9cfc6c3dfabc5c799101f94c32c5af2afb58cf6d468"
+      }
+    ],
+    "workflow_sha256": "7eed906c830e65087f4e7e3e9256e44ab463d916f3b5b0e9ebe9c4dfc03d245c",
+    "prompt": "Photorealistic exercise instruction: Standing cable chest press. The same adult female trainer as the supplied reference images, with identical face, hair, dark workout clothing, lime shoes, proportions, equipment, room and lighting. One continuous locked-off tripod shot. Entire body and all working equipment remain visible. Natural controlled movement at real speed; anatomically coherent joints and hands, stable contact with the floor and equipment. The reference poses constrain the movement. Maintain the opening split stance with cable handles by the chest. Press both handles forward to comfortable extension, pause and bring them back slowly. Keep ribs, hips and feet still; cables remain attached to the same pulleys without intersecting the body. During the press, the same selected upper weight plates on each stack rise together as a rigid block along the guide rods, opening a gap above the stationary unselected plates. Lower these same blocks on return. Every plate retains its thickness and shape throughout; no plates disappear, compress, stretch or change count. Return smoothly to the opening pose, with matched body position and zero camera movement at the loop boundary. No cuts, zooms, panning, morphing, sliding feet, extra limbs, text, logos, music, speech, or theatrical gestures. Audio: silence. Perform one slow simultaneous press from 0 to 2 seconds, hold briefly near 2 to 3 seconds, and return both handles beside the chest by 5 seconds. Keep both shoes at exactly the opening floor locations and preserve stable hips, ribs and camera. The two visible weight stacks must work physically: a fixed selected upper block of plates rises together as a rigid solid along its vertical guide rods when its handle moves forward, leaving a visible air gap above the stationary unselected lower plates. The same upper block descends to meet the lower stack as the handle returns. Preserve the exact same number, thickness, width and solid shape of every plate through the full clip. Do not shrink a stack downward, remove upper plates, substitute empty rods for plates, compress, stretch or morph the weights. Both selected blocks remain clearly visible and connected to their moving cable linkages. Preserve the same handles, continuous grips, taut connected cables, pulleys, rigid frame and machine floor contacts.",
+    "models": {
+      "unet_name": "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+      "clip_name": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+      "vae_name": "minimax_h3_video_vae_fp16.safetensors"
+    },
+    "elapsed_seconds": 664,
+    "bytes": 760984,
+    "prompt_id": "94f80e0b-19d1-4c2c-bcc8-5062a6403133",
+    "attempt": 3,
+    "peak_gpu_memory_mib": 9310,
+    "peak_system_ram_used_bytes": 61926924288
+  },
+  "medicine-ball-press": {
+    "sha256": "625bc5f5a2b976d57a703f9b0e79ec21b4fb9e1e405b9b6193e4a3be9bf237bb",
+    "review": {
+      "accepted": true,
+      "notes": "Reviewed overhead finish/opening reference, 24 intermediate full-body frames, foot and ball/grip detail crops at 0/40/87/130/176/191 and uninterrupted normal-speed playback through eight seconds. Two complete controlled cycles lower the ball to the chest, descend into a squat, rise and press overhead, with brief pauses. Both soles keep their original positions and stance width, and the same round ball stays in continuous two-hand contact. Head, fingers and complete ball remain inside the fixed frame at both overhead positions, resolving previous clipping. Stable identity, coherent anatomy, room, camera and full-body framing; opening and closing overhead poses match. Two complete cycles accepted despite one requested.",
+      "reviewed_at": 1788654461.7258627
+    },
+    "settings": {
+      "width": 768,
+      "height": 1024,
+      "fps": 24,
+      "frames": 192,
+      "steps": 20,
+      "turbo": false,
+      "tiled_decode": false,
+      "seed": 252013146360072
+    },
+    "sources": [
+      {
+        "phase": "start",
+        "path": "public/exercises/phase-guides/medicine-ball-press-start.webp",
+        "sha256": "93d2973872b4a7b85d6670c030645d825fb5251dc871eb1f1fa6a529bd4f9930"
+      },
+      {
+        "phase": "middle",
+        "path": "public/exercises/phase-guides/medicine-ball-press-middle.webp",
+        "sha256": "fd4d3779c0c7f6b3c91c29ee3f6a6c80018d0120dbf48c65c26a6687e4d374cf"
+      },
+      {
+        "phase": "finish",
+        "path": "public/exercises/phase-guides/medicine-ball-press-finish.webp",
+        "sha256": "92c5725d4437cf2241d5c47220417547d4e6fc858fbf607a39790375b422fdb3"
+      }
+    ],
+    "workflow_sha256": "7eed906c830e65087f4e7e3e9256e44ab463d916f3b5b0e9ebe9c4dfc03d245c",
+    "prompt": "Photorealistic exercise instruction: Medicine-ball squat to press. The same adult female trainer as the supplied reference images, with identical face, hair, dark workout clothing, lime shoes, proportions, equipment, room and lighting. One continuous locked-off tripod shot. Entire body and all working equipment remain visible. Natural controlled movement at real speed; anatomically coherent joints and hands, stable contact with the floor and equipment. The reference poses constrain the movement. Begin standing tall with the ball overhead exactly as in the opening reference, with the entire ball and all fingertips visible. Lower the ball to the chest, then sit back into a controlled squat with knees tracking over the planted feet. Pause briefly, stand smoothly and press the ball back only to the opening overhead position. Keep ribs down, the same stance and continuous two-hand contact with the same rigid ball. Preserve the fixed camera and visible margin above the ball throughout. Return smoothly to the opening pose, with matched body position and zero camera movement at the loop boundary. No cuts, zooms, panning, morphing, sliding feet, extra limbs, text, logos, music, speech, or theatrical gestures. Audio: silence. Exactly one complete controlled cycle over eight seconds, beginning in the fully framed overhead standing pose shown in the opening image. During 0 to 3 seconds lower the ball smoothly to the chest and bend hips and knees into a comfortable squat, with knees tracking over the planted shoes. Pause briefly around 3 to 4 seconds. During 4 to 7 seconds stand smoothly and press the ball back to exactly its original overhead height and position; settle by eight seconds. The entire ball and every fingertip remain inside the image, with the same visible margin above the ball as at the opening. Never reach higher than the opening pose, stretch the arms beyond it or lift the shoulders to the ears. Both shoes remain at precisely the original floor contacts with unchanged stance width and toe angles. Keep ribs down, continuous two-hand grip, the same rigid spherical ball, stable identity, room and camera. No zoom, pan, camera shift, cropped equipment, sliding feet, bounce or extra partial repetition.",
+    "models": {
+      "unet_name": "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+      "clip_name": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+      "vae_name": "minimax_h3_video_vae_fp16.safetensors"
+    },
+    "elapsed_seconds": 1297,
+    "bytes": 938998,
+    "prompt_id": "71413bae-d997-4fe8-a58b-90f4a667af1b",
+    "attempt": 3,
+    "peak_gpu_memory_mib": 7150,
+    "peak_system_ram_used_bytes": 62668709888
+  }
+}
