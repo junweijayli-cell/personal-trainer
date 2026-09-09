@@ -50,7 +50,7 @@ export type AccountSnapshot = {
 };
 
 export type Market = 'global' | 'cn';
-export type BillingPlan = 'trial' | 'monthly' | 'annual';
+export type BillingPlan = 'trial' | 'daily' | 'monthly' | 'annual';
 export type MembershipStatus = 'pending_verification' | 'trial' | 'active' | 'past_due' | 'expired' | 'canceled';
 
 export type Membership = {

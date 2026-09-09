@@ -1,3 +1,5 @@
+import { assertBillingMode, type BillingMode } from './billing-mode.ts';
+import type { BillingPlan } from './billing-policy.ts';
 // Pure lifecycle rules shared by the Edge Functions and regression tests.
 export function objectId(value: unknown): string | null {
   if (typeof value === 'string' && value) return value;
@@ -11,20 +13,20 @@ export function invoiceSubscription(invoice: { parent?: { type?: string; subscri
 export function isTerminalSubscription(status: string) {
   return status === 'canceled' || status === 'incomplete_expired';
 }
-export function recognizedPlan(price: string, monthly: string[], annual: string[]): 'monthly' | 'annual' {
-  if (monthly.includes(price) && !annual.includes(price)) return 'monthly';
-  if (annual.includes(price) && !monthly.includes(price)) return 'annual';
-  throw new Error('Unrecognized subscription price.');
+export function recognizedPlan(price: string, monthly: string[], annual: string[], daily: string[] = []): BillingPlan {
+  const matches = (['daily', 'monthly', 'annual'] as const).filter(plan => ({daily, monthly, annual})[plan].includes(price));
+  if (matches.length !== 1) throw new Error('Unrecognized subscription price.');
+  return matches[0];
 }
 export function subscriptionPatch(subscription: {
   id: string; livemode: boolean; status: string; customer: unknown; cancel_at_period_end?: boolean; cancel_at?: number | null;
   items: { data: Array<{ quantity?: number; price: { id: string }; current_period_start?: number; current_period_end?: number }> };
   current_period_start?: number; current_period_end?: number;
-}, monthly: string[], annual: string[]) {
-  if (subscription.livemode) throw new Error('Live payments are disabled.');
+}, monthly: string[], annual: string[], daily: string[] = [], mode: BillingMode = 'test') {
+  assertBillingMode(subscription.livemode, mode);
   if (subscription.items.data.length !== 1 || subscription.items.data[0].quantity !== 1) throw new Error('Unsupported subscription items.');
   const item = subscription.items.data[0];
-  const plan = recognizedPlan(item.price.id, monthly, annual);
+  const plan = recognizedPlan(item.price.id, monthly, annual, daily);
   const start = item.current_period_start ?? subscription.current_period_start;
   const end = item.current_period_end ?? subscription.current_period_end;
   // Current Portal cancellation can set cancel_at instead of the legacy flag.
@@ -38,10 +40,10 @@ export function subscriptionPatch(subscription: {
   return { status, plan, current_period_start: validPeriod ? new Date(Number(start)*1000).toISOString() : null,
     current_period_end: validPeriod ? new Date(Number(accessEnd)*1000).toISOString() : null,
     cancel_at_period_end: Boolean(subscription.cancel_at_period_end || scheduledEnd), stripe_customer_id: objectId(subscription.customer),
-    stripe_subscription_id: subscription.id, stripe_price_id: item.price.id, billing_mode: 'test' };
+    stripe_subscription_id: subscription.id, stripe_price_id: item.price.id, billing_mode: mode };
 }
 export type CheckoutOperation = {
-  id: string; plan: 'monthly' | 'annual'; price: string; createdAt: number;
+  id: string; plan: BillingPlan; mode?: BillingMode; price: string; createdAt: number;
   sessionId?: string; state: 'creating' | 'open' | 'complete' | 'expired';
 };
 export function canRecoverOperation(operation: CheckoutOperation, now = Date.now()) {

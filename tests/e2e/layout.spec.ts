@@ -30,7 +30,8 @@ async function isolateBrowser(page: Page, locale: Locale, membership?: 'trial' |
     if (url.origin !== fixtureOrigin) return route.abort();
     const endpoint = url.pathname.replace('/rest/v1/', '');
     if (url.pathname === '/auth/v1/user') return route.fulfill({ json: user });
-    if (url.pathname === '/functions/v1/get-billing-catalog') return route.fulfill({ json: { mode: 'test', enabled: billingEnabled, market: 'global', plans: [
+    if (url.pathname === '/functions/v1/get-billing-catalog') return route.fulfill({ json: { mode: 'live', enabled: billingEnabled, market: 'global', plans: [
+      { plan: 'daily', currency: 'usd', unitAmount: 100, recurring: 'day' },
       { plan: 'monthly', currency: 'usd', unitAmount: 1000, recurring: 'month' },
       { plan: 'annual', currency: 'usd', unitAmount: 6000, recurring: 'year' },
     ] } });
@@ -113,7 +114,7 @@ for (const locale of ['en', 'zh'] as const) {
     await link.click();
     await expect(page).toHaveURL(/view=membership/);
     await expect(page.locator('.paywall-shell h1')).toHaveText(locale === 'zh' ? '选择会员方案' : 'Choose your membership');
-    await expect(page.locator('.paywall-shell')).toContainText(locale === 'zh' ? '不会收取真实款项' : 'No real money is charged');
+    await expect(page.locator('.paywall-shell')).toContainText(locale === 'zh' ? '自动续费' : 'Renews automatically');
     await auditAndCapture(page, testInfo, `${locale}-membership-plans`);
     await page.reload();
     await expect(page.locator('.paywall-shell h1')).toBeVisible();
@@ -126,7 +127,10 @@ for (const locale of ['en', 'zh'] as const) {
     await page.goto('http://127.0.0.1:3012/?view=membership');
     await page.getByRole('button', { name: locale === 'zh' ? /选择年付/ : /Choose annual/ }).click();
     await expect(page).toHaveURL('https://checkout.stripe.com/c/pay/cs_test_annual');
-    expect(selections).toEqual(['monthly', 'annual']);
+    await page.goto('http://127.0.0.1:3012/?view=membership');
+    await page.getByRole('button', { name: locale === 'zh' ? /选择日付/ : /Choose daily/ }).click();
+    await expect(page).toHaveURL('https://checkout.stripe.com/c/pay/cs_test_daily');
+    expect(selections).toEqual(['monthly', 'annual', 'daily']);
   });
 
   test(`membership remains reachable while checkout is disabled (${locale})`, async ({ page }) => {

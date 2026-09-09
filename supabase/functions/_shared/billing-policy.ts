@@ -1,5 +1,6 @@
 // Public product prices only. Stripe credentials and approved Price IDs stay in server secrets.
 export const GLOBAL_PLANS = {
+  daily: { currency: 'usd', unitAmount: 100, interval: 'day' },
   monthly: { currency: 'usd', unitAmount: 1000, interval: 'month' },
   annual: { currency: 'usd', unitAmount: 6000, interval: 'year' },
 } as const;
