@@ -3,16 +3,18 @@ import { authenticatedUser } from '../_shared/auth.ts';
 import { errorResponse, json } from '../_shared/response.ts';
 import { appUrl, approvedStripePrice, stripeClient } from '../_shared/stripe.ts';
 import { openCheckout } from '../_shared/checkout.ts';
+import { runtime } from '../_shared/billing-store.ts';
 Deno.serve(async (request) => {
   const options=handleOptions(request); if(options) return options;
   if(request.method!=='POST') return json(request,{error:'Method not allowed.'},405);
   try {
     const {user,admin}=await authenticatedUser(request);
     const {plan}=await request.json();
-    if(plan!=='monthly' && plan!=='annual') throw new Error('Choose monthly or annual access.');
-    const stripe=stripeClient();
-    const price=await approvedStripePrice(stripe,plan);
+    if(plan!=='daily' && plan!=='monthly' && plan!=='annual') throw new Error('Choose daily, monthly or annual access.');
+    const { mode } = await runtime(admin);
+    const stripe=stripeClient(mode);
+    const price=await approvedStripePrice(stripe,plan,mode);
     const url=await openCheckout(admin,stripe,user,plan,price.id,appUrl());
-    return json(request,{url,mode:'test'});
+    return json(request,{url,mode});
   } catch(error) { return errorResponse(request,error,409); }
 });

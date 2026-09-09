@@ -29,7 +29,7 @@ for (const language of ['en', 'zh'] as const) {
       await trigger.click();
       await expect(legalDialog).toBeVisible();
       await expect(legalDialog.getByRole('heading', { name: label, exact: true })).toBeFocused();
-      await expect(legalDialog.getByText(language === 'en' ? /Operator review required/ : /收费上线前需运营方审核/)).toBeVisible();
+      await expect(legalDialog.getByText(language === 'en' ? /Account, membership and privacy information/ : /账户、会员与隐私说明/)).toBeVisible();
       expect(await legalDialog.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
       expect(await legalDialog.locator('.legal-content').evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
       await legalDialog.locator('.legal-dialog-actions button').focus();

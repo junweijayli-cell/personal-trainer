@@ -12,7 +12,8 @@ describe('billing client boundaries',()=>{
   it('only exposes enabled, correctly priced test plans',()=>{
     const catalog={market:'global',mode:'test',enabled:true,plans:[{plan:'monthly',currency:'usd',unitAmount:1000,recurring:'month'}]};
     expect(approvedCatalogPlans(catalog,'global')).toEqual(['monthly']);
-    for(const patch of [{mode:'live'},{enabled:false},{plans:[{...catalog.plans[0],unitAmount:500}]}]) expect(()=>approvedCatalogPlans({...catalog,...patch},'global')).toThrow();
+    expect(approvedCatalogPlans({...catalog,mode:'live',plans:[{plan:'daily',currency:'usd',unitAmount:100,recurring:'day'}]},'global')).toEqual(['daily']);
+    for(const patch of [{mode:'unknown'},{enabled:false},{plans:[{...catalog.plans[0],unitAmount:500}]}]) expect(()=>approvedCatalogPlans({...catalog,...patch},'global')).toThrow();
   });
   it('keeps a new account action locked when an old account request settles',async()=>{
     const lock={current:false,generation:0};let finish!:()=>void;

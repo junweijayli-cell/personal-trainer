@@ -76,12 +76,21 @@ describe('approved TrainWell prices', () => {
     const checkout = readFileSync(new URL('../supabase/functions/create-checkout-session/index.ts', import.meta.url), 'utf8');
     const stripe = readFileSync(new URL('../supabase/functions/_shared/stripe.ts', import.meta.url), 'utf8');
     const catalog = readFileSync(new URL('../supabase/functions/get-billing-catalog/index.ts', import.meta.url), 'utf8');
-    expect(stripe).toContain('stripe.prices.retrieve(priceId(plan))');
+    expect(stripe).toContain('stripe.prices.retrieve(priceId(plan, mode))');
     expect(stripe).toContain('assertApprovedPrice(price, plan, appMarket())');
-    expect(checkout).toMatch(/await approvedStripePrice\(stripe,\s*plan\)/);
+    expect(checkout).toMatch(/await approvedStripePrice\(stripe,\s*plan,\s*mode\)/);
     expect(checkout.indexOf('await approvedStripePrice')).toBeLessThan(checkout.indexOf('await openCheckout'));
     expect(checkout).not.toMatch(/body\.(price|amount|currency|access_days)/);
     expect(checkout).toContain('plan,price.id,appUrl()');
-    expect(catalog).toContain('await approvedStripePrice(stripe, plan)');
+    expect(catalog).toContain('await approvedStripePrice(stripe, plan, mode)');
   });
+});
+
+it('validates one US dollar daily and rejects a mismatched interval or amount', () => {
+  expect(globalPriceLabel('daily','en')).toBe('US$1 / day');
+  expect(globalPriceLabel('daily','zh')).toBe('US$1 / 天');
+  const day={...monthlyPrice,unit_amount:100,recurring:{...monthlyPrice.recurring,interval:'day'}};
+  expect(()=>assertApprovedPrice(day,'daily','global')).not.toThrow();
+  expect(()=>assertApprovedPrice({...day,unit_amount:1000},'daily','global')).toThrow();
+  expect(()=>assertApprovedPrice({...day,recurring:monthlyPrice.recurring},'daily','global')).toThrow();
 });

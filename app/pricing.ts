@@ -5,8 +5,8 @@ export { ANNUAL_SAVING_PERCENT };
 export function globalPriceLabel(plan: BillingPlan, language: 'en' | 'zh') {
   const amount = GLOBAL_PLANS[plan].unitAmount / 100;
   const period = language === 'zh'
-    ? (plan === 'monthly' ? '月' : '年')
-    : (plan === 'monthly' ? 'month' : 'year');
+    ? (plan === 'daily' ? '天' : plan === 'monthly' ? '月' : '年')
+    : (plan === 'daily' ? 'day' : plan === 'monthly' ? 'month' : 'year');
   return `US$${amount} / ${period}`;
 }
 

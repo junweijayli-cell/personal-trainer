@@ -11,12 +11,12 @@ Deno.serve(async (request) => {
   try {
     if (appMarket() === 'cn') throw new Error('Mainland annual access is prepaid and does not auto-renew. Renew from TrainWell before expiry.');
     const { user, admin } = await authenticatedUser(request);
-    await runtime(admin);
+    const { mode } = await runtime(admin);
     const { data: membership, error } = await admin.from('memberships').select('stripe_customer_id,billing_mode').eq('user_id', user.id).single();
     if (error) throw new Error(error.message);
     if (!membership.stripe_customer_id) throw new Error('No billing profile exists for this account.');
-    if (membership.billing_mode !== 'test') throw new Error('This account is not a test billing account.');
-    const portal = await stripeClient().billingPortal.sessions.create({
+    if (membership.billing_mode !== mode) throw new Error('Billing mode changed. Refresh your account.');
+    const portal = await stripeClient(mode).billingPortal.sessions.create({
       customer: membership.stripe_customer_id,
       return_url: `${appUrl()}/?view=you&billing=return`,
     });
