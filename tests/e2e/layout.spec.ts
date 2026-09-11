@@ -92,12 +92,79 @@ for (const locale of ['en', 'zh'] as const) {
   test(`Checkout return URLs preserve trial and cannot grant expired access (${locale})`, async ({ page }) => {
     await isolateBrowser(page, locale, 'expired', true);
     await page.goto('/?view=membership&billing=success');
-    await expect(page.locator('.paywall-shell h1')).toBeVisible();
+    await expect(page.locator('.payment-card h1')).toHaveText(locale === 'zh' ? '请确认付款状态' : 'Let’s check your payment');
     await expect(page.locator('.today-head')).toHaveCount(0);
-    await expect(page.getByRole('button', { name: locale === 'zh' ? /选择月付/ : /Choose monthly/ })).toBeDisabled();
+    await expect(page.getByRole('button', { name: locale === 'zh' ? '开始训练' : 'Continue training', exact: true })).toHaveCount(0);
     await page.goto('/?view=membership&billing=canceled');
     await expect(page.locator('.paywall-shell')).toContainText(locale === 'zh' ? '支付页面已关闭' : 'Checkout was closed');
     await expect(page.locator('.paywall-shell h1')).toBeVisible();
+  });
+
+  test(`verified payment thank-you, invoices and refresh (${locale})`, async ({ page }, testInfo) => {
+    await isolateBrowser(page, locale, 'trial', true);
+    let checks = 0;
+    await page.route('**/functions/v1/get-checkout-confirmation', (route) => {
+      expect(route.request().postDataJSON()).toEqual({ sessionId: 'cs_live_confirmed' });
+      checks++;
+      return route.fulfill({ json: { status: 'confirmed', mode: 'live', plan: 'daily', amount: 100, currency: 'usd' } });
+    });
+    await page.route('**/rest/v1/rpc/get_my_entitlement', (route) => route.fulfill({ json: [{
+      status: 'active', plan: 'daily', billing_mode: 'live', current_period_end: new Date(Date.now() + 86400000).toISOString(),
+      server_now: new Date().toISOString(), has_access: true, cancel_at_period_end: false,
+    }] }));
+    await page.goto('/?view=payment&billing=success&session_id=cs_live_confirmed');
+    await expect(page.locator('.payment-card h1')).toHaveText(locale === 'zh' ? '感谢你的付款' : 'Thank you for your payment');
+    await expect(page.locator('.payment-details')).toContainText('US$1.00');
+    await expect(page.getByRole('button', { name: locale === 'zh' ? '开始训练' : 'Continue training', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: locale === 'zh' ? '管理账单与发票' : 'Manage billing & invoices' })).toBeVisible();
+    await auditAndCapture(page, testInfo, `${locale}-payment-confirmed`);
+    await page.reload();
+    await expect(page.locator('.payment-card h1')).toHaveText(locale === 'zh' ? '感谢你的付款' : 'Thank you for your payment');
+    expect(checks).toBeGreaterThanOrEqual(2);
+    await page.getByRole('button', { name: locale === 'zh' ? '开始训练' : 'Continue training', exact: true }).click();
+    await expect(page.locator('.today-head')).toBeVisible();
+    await expect(page).not.toHaveURL(/billing=|session_id=/);
+  });
+
+  test(`payment status retry does not create a payment (${locale})`, async ({ page }, testInfo) => {
+    await isolateBrowser(page, locale, 'expired', true);
+    let checks = 0;
+    await page.route('**/functions/v1/get-checkout-confirmation', (route) => {
+      checks++;
+      return route.fulfill({ json: checks === 1 ? { status: 'pending', mode: 'live' }
+        : { status: 'confirmed', mode: 'live', plan: 'monthly', amount: 1000, currency: 'usd' } });
+    });
+    await page.goto('/?view=payment&billing=success&session_id=cs_live_pending');
+    await expect(page.locator('.payment-card h1')).toHaveText(locale === 'zh' ? '请确认付款状态' : 'Let’s check your payment');
+    await auditAndCapture(page, testInfo, `${locale}-payment-pending`);
+    await page.getByRole('button', { name: locale === 'zh' ? '查看付款状态' : 'Check payment status' }).click();
+    await expect(page.locator('.payment-card')).toContainText(locale === 'zh' ? '无需重复付款' : 'you don’t need to pay again');
+    await expect(page.getByRole('button', { name: locale === 'zh' ? '开始训练' : 'Continue training', exact: true })).toHaveCount(0);
+    expect(checks).toBe(2);
+    await page.getByRole('button', { name: locale === 'zh' ? '返回账户' : 'Back to account', exact: true }).click();
+    await expect(page.locator('.paywall-shell')).toBeVisible();
+    await expect(page).not.toHaveURL(/billing=|session_id=/);
+  });
+
+  test(`leaving confirmation and signing out discard a late payment response (${locale})`, async ({ page }) => {
+    await isolateBrowser(page, locale, 'trial', true);
+    let release!: () => void;
+    const hold = new Promise<void>((resolve) => { release = resolve; });
+    await page.route('**/functions/v1/get-checkout-confirmation', async (route) => {
+      await hold;
+      await route.fulfill({ json: { status: 'confirmed', mode: 'live', plan: 'annual', amount: 6000, currency: 'usd' } });
+    });
+    await page.route('**/auth/v1/logout**', (route) => route.fulfill({ status: 204 }));
+    const request = page.waitForRequest('**/functions/v1/get-checkout-confirmation');
+    await page.goto('/?view=payment&billing=success&session_id=cs_live_previous');
+    await request;
+    await page.getByRole('button', { name: locale === 'zh' ? '返回账户' : 'Back to account', exact: true }).click();
+    await page.locator('.profile-card').getByRole('button', { name: locale === 'zh' ? '退出登录' : 'Sign out', exact: true }).click();
+    const response = page.waitForResponse('**/functions/v1/get-checkout-confirmation');
+    release(); await response;
+    await expect(page.locator('.landing-hero h1')).toBeVisible();
+    await expect(page.locator('.payment-card')).toHaveCount(0);
+    await expect(page).not.toHaveURL(/billing=|session_id=/);
   });
 
   test(`account membership link, plans and Stripe redirect (${locale})`, async ({ page }, testInfo) => {

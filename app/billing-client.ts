@@ -5,6 +5,18 @@ import { membershipHasAccess } from './membership';
 export type BillingReturn = 'success' | 'canceled' | 'return';
 export type BillingNotice = 'none' | 'pending' | 'confirmed' | 'canceled' | 'unconfirmed' | 'refreshed' | 'error';
 
+export type CheckoutConfirmation = { status: 'pending'; mode: 'test' | 'live' }
+  | { status: 'confirmed'; mode: 'test' | 'live'; plan: BillingPlan; amount: number; currency: 'usd' };
+
+export function parseCheckoutConfirmation(value: unknown): CheckoutConfirmation {
+  const data = value as Record<string, unknown> | null;
+  if (!data || (data.mode !== 'test' && data.mode !== 'live')) throw new Error('Invalid payment confirmation.');
+  if (data.status === 'pending') return { status: 'pending', mode: data.mode };
+  if (data.status !== 'confirmed' || !['daily', 'monthly', 'annual'].includes(String(data.plan))
+    || data.currency !== 'usd' || !Number.isSafeInteger(data.amount) || Number(data.amount) < 0) throw new Error('Invalid payment confirmation.');
+  return { status: 'confirmed', mode: data.mode, plan: data.plan as BillingPlan, amount: Number(data.amount), currency: 'usd' };
+}
+
 export function readBillingReturn(search: string): BillingReturn | null {
   const values = new URLSearchParams(search).getAll('billing');
   return values.length === 1 && ['success', 'canceled', 'return'].includes(values[0]) ? values[0] as BillingReturn : null;

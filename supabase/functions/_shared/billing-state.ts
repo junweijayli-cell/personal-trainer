@@ -43,6 +43,7 @@ export function subscriptionPatch(subscription: {
     stripe_subscription_id: subscription.id, stripe_price_id: item.price.id, billing_mode: mode };
 }
 export type CheckoutOperation = {
+  checkoutVersion?: 2;
   id: string; plan: BillingPlan; mode?: BillingMode; price: string; createdAt: number;
   sessionId?: string; state: 'creating' | 'open' | 'complete' | 'expired';
 };

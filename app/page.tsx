@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
 import CameraCoach from './camera-coach';
+import PaymentConfirmation from './payment-confirmation';
 import LandingAuth, { LanguageSwitch, type Language } from './landing-auth';
 import {
   createCheckout,
@@ -13,6 +14,7 @@ import {
   importLegacySnapshot,
   loadAccountSnapshot,
   loadBillingCatalog,
+  loadCheckoutConfirmation,
   loadMember,
   observeAuth,
   readLegacySnapshot,
@@ -24,7 +26,7 @@ import {
 } from './account-service';
 import { membershipDaysRemaining, membershipHasAccess } from './membership';
 import { annualSavingLabel, globalPriceLabel } from './pricing';
-import { billingNoticeText, readBillingReturn, refreshBillingMembership, runBillingAction, type BillingNotice, type BillingReturn } from './billing-client';
+import { billingNoticeText, readBillingReturn, refreshBillingMembership, runBillingAction, type BillingNotice, type BillingReturn, type CheckoutConfirmation } from './billing-client';
 import type { AccountSnapshot, DailyLog, MemberAccount, ScheduleItem } from './account-types';
 import {
   buildWorkout,
@@ -39,11 +41,12 @@ import {
   type FocusId,
 } from './workout-data';
 
-type View = 'today' | 'history' | 'you' | 'membership';
+type View = 'today' | 'history' | 'you' | 'membership' | 'payment';
 
 function viewFromUrl(): View {
+  if (readBillingReturn(window.location.search) === 'success') return 'payment';
   const requested = new URLSearchParams(window.location.search).get('view');
-  return requested === 'membership' || requested === 'you' || requested === 'history' ? requested : 'today';
+  return requested === 'membership' || requested === 'you' || requested === 'history' || requested === 'payment' ? requested : 'today';
 }
 type SessionStage = 'setup' | 'guide' | 'camera' | 'rest' | 'summary';
 type CoachingMode = 'photos' | 'camera';
@@ -149,6 +152,8 @@ export default function Home() {
   const [billingBusy, setBillingBusy] = useState(false);
   const [billingReturn, setBillingReturn] = useState<BillingReturn | null>(null);
   const [billingNotice, setBillingNotice] = useState<BillingNotice>('none');
+  const [paymentReceipt, setPaymentReceipt] = useState<CheckoutConfirmation | null>(null);
+  const [paymentCheck, setPaymentCheck] = useState(0);
   const [billingMode, setBillingMode] = useState<'test' | 'live' | null>(null);
   const [billingPlans, setBillingPlans] = useState<('daily' | 'monthly' | 'annual')[]>([]);
   const [catalogStatus, setCatalogStatus] = useState<'loading' | 'ready' | 'unavailable'>('loading');
@@ -160,11 +165,15 @@ export default function Home() {
     setBillingBusy(false);
     setBillingReturn(null);
     setBillingNotice('none');
+    setPaymentReceipt(null);
+    setView((current) => current === 'payment' ? 'today' : current);
     setBillingPlans([]); setBillingMode(null);
     setCatalogStatus('loading');
     setSaveStatus('');
     const url = new URL(window.location.href);
     url.searchParams.delete('billing');
+    url.searchParams.delete('session_id');
+    if (url.searchParams.get('view') === 'payment') url.searchParams.delete('view');
     window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
   }, [billingActionLock]);
   const [startingSession, setStartingSession] = useState(false);
@@ -275,7 +284,14 @@ export default function Home() {
   }, [memberId, needsSubscription, view]);
 
   useEffect(() => {
-    const restoreView = () => setView(viewFromUrl());
+    const restoreView = () => {
+      billingAbort.current?.abort();
+      setPaymentReceipt(null);
+      setBillingNotice('none');
+      setBillingReturn(readBillingReturn(window.location.search));
+      setView(viewFromUrl());
+      setPaymentCheck((value) => value + 1);
+    };
     window.addEventListener('popstate', restoreView);
     return () => window.removeEventListener('popstate', restoreView);
   }, []);
@@ -292,7 +308,8 @@ export default function Home() {
   }, [billingActionLock]);
 
   useEffect(() => {
-    if (!memberId || !billingReturn) return;
+    if (!memberId || (!billingReturn && view !== 'payment')) return;
+    const paymentReturn = view === 'payment';
     const controller = new AbortController();
     billingAbort.current = controller;
     const clearReturnParameter = () => {
@@ -311,32 +328,39 @@ export default function Home() {
       }
       setBillingNotice('pending');
       try {
+        if (paymentReturn) {
+          const receipt = await loadCheckoutConfirmation(new URLSearchParams(window.location.search).get('session_id'));
+          if (controller.signal.aborted) return;
+          setPaymentReceipt(receipt);
+          if (receipt.status !== 'confirmed') { setBillingNotice('unconfirmed'); return; }
+        }
         const result = await refreshBillingMembership(memberId!, loadMember, (latest) => {
           setMember((current) => current?.userId === latest.userId ? latest : current);
-        }, { signal: controller.signal, requirePaid: billingReturn === 'success' });
+        }, { signal: controller.signal, requirePaid: paymentReturn });
         if (result === 'aborted' || controller.signal.aborted) return;
         setBillingNotice(result);
-        if (result !== 'unconfirmed') clearReturnParameter();
+        if (!paymentReturn && result !== 'unconfirmed') clearReturnParameter();
       } catch {
         if (!controller.signal.aborted) setBillingNotice('error');
       }
     }
     void checkBillingReturn();
     return () => controller.abort();
-  }, [memberId, billingReturn]);
+  }, [memberId, billingReturn, view, paymentCheck]);
 
   useEffect(() => {
     // Never overwrite the saved locale with the initial render's English default.
     // This also protects the second hydration pass in React StrictMode.
     if (!languageHydrated) return;
     document.documentElement.lang = language === 'zh' ? 'zh-CN' : 'en';
-    document.title = language === 'zh' ? '悦练 — 清晰训练 · 自信行动' : 'TrainWell — See it · Do it · Move better';
+    document.title = view === 'payment' ? (language === 'zh' ? '付款确认 — 悦练' : 'Payment confirmation — TrainWell')
+      : language === 'zh' ? '悦练 — 清晰训练 · 自信行动' : 'TrainWell — See it · Do it · Move better';
     try {
       window.localStorage.setItem('relay-language', language);
     } catch {
       // Language preferences are optional.
     }
-  }, [language, languageHydrated]);
+  }, [language, languageHydrated, view]);
 
   useEffect(() => {
     try {
@@ -685,6 +709,14 @@ export default function Home() {
   function navigate(next: View) {
     setView(next);
     const url = new URL(window.location.href);
+    if (view === 'payment' && next !== 'payment') {
+      billingAbort.current?.abort();
+      setBillingReturn(null);
+      setBillingNotice('none');
+      setPaymentReceipt(null);
+      url.searchParams.delete('billing');
+      url.searchParams.delete('session_id');
+    }
     if (next === 'today') url.searchParams.delete('view');
     else url.searchParams.set('view', next);
     window.history.pushState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
@@ -697,6 +729,13 @@ export default function Home() {
 
   if (!member || !account) {
     return <LandingAuth language={language} onLanguageChange={setLanguage} onAuthenticated={completeAuthentication} initialMode={passwordRecovery ? 'reset' : undefined} />;
+  }
+
+  if (view === 'payment') {
+    return <PaymentConfirmation language={language} onLanguageChange={setLanguage} receipt={paymentReceipt} notice={billingNotice}
+      accessReady={paymentReceipt?.status === 'confirmed' && member.membership.billingMode === paymentReceipt.mode && member.membership.plan !== 'trial' && membershipHasAccess(member.membership)}
+      busy={billingBusy} message={saveStatus} onRetry={() => { setBillingNotice('pending'); setPaymentCheck((value) => value + 1); }}
+      onContinue={() => navigate('today')} onAccount={() => navigate('you')} onManageBilling={manageBilling} />;
   }
 
   if (needsSubscription || view === 'membership') {

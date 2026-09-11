@@ -86,6 +86,36 @@ const event=(id:string,type:string,object:unknown)=>({id,type,livemode:false,dat
 const reconcile=(s:Stripe,e:Stripe.Event)=>reconcileBilling(adapter,s,e,['price_month','price_old_month'],['price_year','price_old_year'],['price_day']);
 
 describe('serialized Checkout with real PostgreSQL leases',()=>{
+  it('collects the full billing address and returns to a verifiable thank-you page', async () => {
+    const s = fakeStripe(); await checkout(s.api);
+    const session = [...s.sessions.values()][0];
+    expect(session.billing_address_collection).toBe('required');
+    expect(session.customer_update).toEqual({ address: 'auto' });
+    expect(session.success_url).toBe('https://trainwell.win/?view=payment&billing=success&session_id={CHECKOUT_SESSION_ID}');
+  });
+  it('recovers a legacy ambiguous request with unchanged parameters, then replaces its open checkout', async () => {
+    const s = fakeStripe(); s.loseNextResponse();
+    await expect(checkout(s.api)).rejects.toThrow('lost');
+    await db.exec(`update billing_checkout_operations set operation=operation-'checkoutVersion';`);
+    const legacy = [...s.sessions.values()][0];
+    delete legacy.billing_address_collection; delete legacy.customer_update;
+    legacy.success_url = 'https://trainwell.win/?view=you&billing=success';
+    const create = s.api.checkout.sessions.create.bind(s.api.checkout.sessions);
+    let calls = 0;
+    s.api.checkout.sessions.create = (async (params: Stripe.Checkout.SessionCreateParams, options: Stripe.RequestOptions) => {
+      if (calls++ === 0) {
+        expect(params.billing_address_collection).toBeUndefined();
+        expect(params.customer_update).toBeUndefined();
+        expect(params.success_url).toBe(legacy.success_url);
+      }
+      return create(params, options);
+    }) as typeof s.api.checkout.sessions.create;
+    await checkout(s.api);
+    expect(legacy.status).toBe('expired');
+    expect(s.created()).toBe(2);
+    expect([...s.sessions.values()][1].billing_address_collection).toBe('required');
+    await checkout(s.api); expect(s.created()).toBe(2);
+  });
   it('allows only selected test accounts to validate before public rollout', async()=>{
     const s=fakeStripe();
     await db.exec('update billing_runtime set checkout_enabled=false');
