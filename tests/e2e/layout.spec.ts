@@ -125,6 +125,20 @@ test('gym music renders real audio, pauses, resumes and closes with the session'
   expect(await page.evaluate(()=>(window as unknown as {coachOutput:{context:AudioContext}}).coachOutput.context.state)).toBe('closed');
 });
 
+test('finishing every set reaches the summary once and stops active listening',async({page})=>{
+  await mockCoachSpeech(page);await openGuidedSession(page,'en');
+  const header=await page.locator('.session-top > div').first().innerText();
+  const total=Number(header.match(/0 \/ (\d+)/)?.[1]);expect(total).toBeGreaterThan(0);
+  for(let index=0;index<total;index++) {
+    if(index===total-1)await page.getByRole('button',{name:'Talk to coach',exact:true}).click();
+    await page.locator('.manual-cta').click();
+    if(index<total-1)await page.getByRole('button',{name:'I’m ready — skip rest',exact:true}).click();
+  }
+  await expect(page.locator('.trainer-finish')).toBeVisible();
+  await expect(page.locator('.trainer-stats span').nth(1).locator('strong')).toHaveText(String(total));
+  expect(await page.evaluate(()=>(window as unknown as {coachMicStopped:boolean}).coachMicStopped)).toBe(true);
+});
+
 for (const locale of ['en', 'zh'] as const) {
   test(`guided trainer counts reps, rests, session time and speaks the restart (${locale})`,async({page},testInfo)=>{
     await page.clock.install();await mockCoachSpeech(page);await openGuidedSession(page,locale);

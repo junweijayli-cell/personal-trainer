@@ -16,5 +16,7 @@ Camera coaching remains available, shares the session timer and audio controls, 
 - Focused browser checks passed for rep and rest timing, the spoken rest-finished cue, pause/resume, voice commands and permission-error fallback, completed-set saving/retry, and English/Chinese mobile layouts.
 - A real browser AudioContext test measured nonzero music output, silence during pause, output after resume and a closed audio context after leaving. It does not merely assert that the music button changed state.
 - Mobile screenshots were inspected and the timer is checked to be in the initial viewport. The existing video/guide layout was adjusted so it cannot cover the new clock.
+- A complete planned session was exercised through the UI; the final set reached the summary once and immediately stopped active voice input.
+- A disposable verified account tested the production database save policy. Repeated writes with one session ID retained a single original record and its completed-set count. The disposable account and training data were removed afterward.
 
 Full release validation and production deployment identifiers will be recorded after rollout. This is a frontend-only release; no Stripe, SMTP, Supabase function or database migration changes are required. The original dirty `app` checkout remains untouched.

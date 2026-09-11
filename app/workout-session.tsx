@@ -65,10 +65,15 @@ export default function WorkoutSession({workout,startAt,cameraFirst,language,onL
     audio.current?.setPaused(state.paused || state.phase==='summary' || listening);
   },[music,volume,musicStyle,state.paused,state.started,state.phase,listening]);
   useEffect(()=>{if(!voiceEnabled)audio.current?.silence();},[voiceEnabled]);
+  useEffect(()=>{
+    if(state.phase!=='summary')return;
+    const mic=recognition.current;recognition.current=null;mic?.abort();
+    if(listeningTimeout.current)clearTimeout(listeningTimeout.current);
+  },[state.phase]);
 
   let cue=tr('Ready when you are. Press Start set and I’ll count with you.', '准备好后点击“开始本组”，我会陪你一起计时。');
   let cueKey=`${state.phase}:${state.move}:${state.done[state.move]}:${state.side}:${state.rep}:${language}`;
-  if(state.phase==='countdown') {cue=tr(seconds===3?'Ready in three':String(seconds),seconds===3?'准备，三':String(seconds));cueKey+=`:${seconds}`;}
+  if(state.phase==='countdown') {cue=tr(seconds===3?'Three':String(seconds),seconds===3?'三':String(seconds));cueKey+=`:${seconds}`;}
   if(state.phase==='rep') cue=timing.hold?exercise.id==='stationary-bike'?tr('Keep a steady rhythm. Relax your shoulders.', '保持稳定节奏，放松肩膀。'):tr('Hold steady. Keep breathing.', '保持动作，均匀呼吸。')
     :tr(`Rep ${state.rep+1}${state.rep===Math.floor(timing.reps/2)?'. Halfway. Keep it steady.':''}`,`第 ${state.rep+1} 次${state.rep===Math.floor(timing.reps/2)?'，已经过半，保持稳定。':''}`);
   if(state.phase==='rep' && timing.hold && seconds<=3) {cue=String(seconds);cueKey+=`:${seconds}`;}
@@ -117,7 +122,7 @@ export default function WorkoutSession({workout,startAt,cameraFirst,language,onL
     setSaving(true);setSaveError('');
     try{await onSave({...result,sessionId});}catch{setSaveError(tr('Your workout could not be saved. Please retry.', '训练未能保存，请重试。'));}finally{setSaving(false);}
   }
-  const start=()=>{unlock();setVoiceIssue(false);audio.current?.say(tr('Ready in three','准备，三'),language,voiceEnabled);dispatch({type:'start'});};
+  const start=()=>{unlock();setVoiceIssue(false);audio.current?.say(tr('Three','三'),language,voiceEnabled);dispatch({type:'start'});};
   const finished=state.phase==='summary';
   const resting=state.phase==='rest';
   const phaseLabel=state.paused?tr('PAUSED','已暂停'):({ready:tr('READY FOR YOUR SET','准备开始本组'),countdown:tr('GET READY','准备'),rep:timing.hold?exercise.id==='stationary-bike'?tr('WORK INTERVAL','计时骑行'):tr('HOLD','保持'):tr('REP TIME','本次动作时间'),repRest:tr('BETWEEN REPS','动作间休息'),switchSide:tr('SWITCH SIDES','换侧'),rest:tr('REST BETWEEN SETS','组间休息'),camera:tr('CAMERA COACH','摄像指导'),summary:tr('SESSION FINISHED','训练结束')})[state.phase];
