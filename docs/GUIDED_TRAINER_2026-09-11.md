@@ -1,5 +1,7 @@
 # Guided workout partner — 2026-09-11
 
+Update 2026-09-12: the device speech described below has been replaced by the owner's selected Annie (English) and Lea (Mandarin) recordings at a slower pace. See [Natural voices release](NATURAL_VOICES_2026-09-12.md) for current playback behavior and deployment evidence.
+
 ## Delivered behavior
 
 Start today's workout, choose focus/equipment, complete the ready check, then press **Start set**. The guided session counts a three-second preparation, each paced rep, optional breaks between reps, side changes and prescribed rests between sets. Timed holds and bike intervals use their prescribed seconds. A visible session clock tracks time excluding pauses. Rest completion speaks a reminder and waits for **I'm ready** before beginning the next set.
