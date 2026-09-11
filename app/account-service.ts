@@ -260,6 +260,7 @@ export async function loadAccountSnapshot(member: MemberAccount): Promise<Accoun
 }
 
 export async function saveWorkout(member: MemberAccount, input: {
+  sessionId?: string;
   workoutId: string;
   workoutName: string;
   durationSeconds: number;
@@ -268,7 +269,8 @@ export async function saveWorkout(member: MemberAccount, input: {
   cameraSets: number;
   notes?: string;
 }) {
-  const { error } = await getSupabase().from('workout_sessions').insert({
+  const row = {
+    ...(input.sessionId ? { id: input.sessionId } : {}),
     user_id: member.userId,
     workout_id: input.workoutId,
     workout_name: input.workoutName,
@@ -278,7 +280,10 @@ export async function saveWorkout(member: MemberAccount, input: {
     movements_completed: input.movementsCompleted,
     camera_sets: input.cameraSets,
     notes: input.notes ?? '',
-  });
+  };
+  const table = getSupabase().from('workout_sessions');
+  // Reuse the session ID after an ambiguous save or a failed history refresh.
+  const { error } = await (input.sessionId ? table.upsert(row, { onConflict: 'id', ignoreDuplicates: true }) : table.insert(row));
   if (error) throw new Error(error.message);
 }
 

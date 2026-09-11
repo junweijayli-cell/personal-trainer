@@ -19,6 +19,9 @@ type CameraCoachProps = {
   language: 'en' | 'zh';
   exercise: Exercise;
   audioEnabled: boolean;
+  paused?: boolean;
+  onStart?: () => void;
+  onSpeak?: (text: string) => void;
   onClose: () => void;
   onSetComplete: () => void;
 };
@@ -45,7 +48,9 @@ function visible(point?: Landmark) {
   return Boolean(point && (point.visibility ?? 1) > 0.42);
 }
 
-export default function CameraCoach({ exercise, audioEnabled, onClose, onSetComplete, language }: CameraCoachProps) {
+export default function CameraCoach({ exercise, audioEnabled, onClose, onSetComplete, language, paused = false, onStart, onSpeak }: CameraCoachProps) {
+  const controls = useRef({ paused, audioEnabled, onSpeak, language });
+  useEffect(() => { controls.current = { paused, audioEnabled, onSpeak, language }; if (paused) holdStartRef.current = null; }, [paused, audioEnabled, onSpeak, language]);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -64,12 +69,21 @@ export default function CameraCoach({ exercise, audioEnabled, onClose, onSetComp
   const [complete, setComplete] = useState(false);
 
   function speak(text: string, important = false) {
-    if (!audioEnabled || !('speechSynthesis' in window)) return;
+    if (!controls.current.audioEnabled || controls.current.paused || !('speechSynthesis' in window)) return;
     const now = Date.now();
     if (!important && now - lastSpeechRef.current.time < 4500) return;
     if (!important && lastSpeechRef.current.text === text) return;
+    const translated: Record<string, string> = {
+      'Set complete. Nice work.': '本组完成，做得不错。', 'Hold complete. Nice work.': '保持训练完成，做得不错。',
+      'Step back until your head and shoes are both visible.': '请向后退，让头部和双脚都出现在画面中。',
+      'Bring your hips into line with your shoulders and heels.': '让髋部与肩膀、脚跟保持在一条直线上。',
+      'Camera ready. Step back until your whole body is visible.': '摄像指导已准备好。请向后退，让全身出现在画面中。',
+    };
+    const spoken = controls.current.language === 'zh' ? translated[text] ?? text.replace(' seconds', ' 秒') : text;
+    if (controls.current.onSpeak) { controls.current.onSpeak(spoken); lastSpeechRef.current = { text, time: now }; return; }
     window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
+    const utterance = new SpeechSynthesisUtterance(spoken);
+    utterance.lang = controls.current.language === 'zh' ? 'zh-CN' : 'en-US';
     utterance.rate = 1.04;
     utterance.pitch = 1;
     window.speechSynthesis.speak(utterance);
@@ -258,7 +272,7 @@ export default function CameraCoach({ exercise, audioEnabled, onClose, onSetComp
     if (!video || !landmarker) return;
     const now = performance.now();
     if (
-      video.readyState >= 2 &&
+      !controls.current.paused && video.readyState >= 2 &&
       video.currentTime !== lastVideoTimeRef.current &&
       now - lastInferenceRef.current > 65
     ) {
@@ -280,6 +294,7 @@ export default function CameraCoach({ exercise, audioEnabled, onClose, onSetComp
   }
 
   async function startCamera() {
+    onStart?.();
     if (!navigator.mediaDevices?.getUserMedia) {
       setStatus('error');
       setFeedback('Camera coaching needs a modern browser with camera access.');

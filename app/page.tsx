@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
-import CameraCoach from './camera-coach';
+import WorkoutSession from './workout-session';
+import type { WorkoutResult } from './workout-clock';
 import PaymentConfirmation from './payment-confirmation';
 import LandingAuth, { LanguageSwitch, type Language } from './landing-auth';
 import {
@@ -48,14 +49,8 @@ function viewFromUrl(): View {
   const requested = new URLSearchParams(window.location.search).get('view');
   return requested === 'membership' || requested === 'you' || requested === 'history' || requested === 'payment' ? requested : 'today';
 }
-type SessionStage = 'setup' | 'guide' | 'camera' | 'rest' | 'summary';
+type SessionStage = 'setup' | 'guide' | 'camera';
 type CoachingMode = 'photos' | 'camera';
-
-function formatClock(totalSeconds: number) {
-  const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
-  const seconds = (totalSeconds % 60).toString().padStart(2, '0');
-  return `${minutes}:${seconds}`;
-}
 
 function localDateKey(date = new Date()) {
   const offset = date.getTimezoneOffset() * 60_000;
@@ -124,7 +119,6 @@ export default function Home() {
     [selectedFocus, selectedEquipment],
   );
   const workoutStats = useMemo(() => getWorkoutStats(activeWorkout), [activeWorkout]);
-  const totalSets = workoutStats.sets;
   const focusInfo = getFocusOption(selectedFocus);
   const recommendedFocusInfo = getFocusOption(recommendedFocus);
   const planName = `${focusInfo.shortLabel} Day 01`;
@@ -132,10 +126,6 @@ export default function Home() {
   const equipmentSummary = selectedEquipment.length > 0
     ? selectedEquipment.map((id) => equipmentOptions.find((item) => item.id === id)?.shortLabel).filter(Boolean).join(' · ')
     : 'Bodyweight only';
-  const [setsDone, setSetsDone] = useState<number[]>(activeWorkout.map(() => 0));
-  const [restSeconds, setRestSeconds] = useState(45);
-  const [elapsed, setElapsed] = useState(0);
-  const [cameraSets, setCameraSets] = useState(0);
   const [audioEnabled, setAudioEnabled] = useState(() => {
     if (typeof window === 'undefined') return true;
     try { return window.localStorage.getItem('relay-audio') !== 'off'; } catch { return true; }
@@ -164,6 +154,7 @@ export default function Home() {
     billingIdentity.current = null;
     setBillingBusy(false);
     setBillingReturn(null);
+    setSessionOpen(false);
     setBillingNotice('none');
     setPaymentReceipt(null);
     setView((current) => current === 'payment' ? 'today' : current);
@@ -177,13 +168,9 @@ export default function Home() {
     window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
   }, [billingActionLock]);
   const [startingSession, setStartingSession] = useState(false);
-  const [pendingExerciseIndex, setPendingExerciseIndex] = useState(0);
   const [todayWeekday, setTodayWeekday] = useState(-1);
   const [passwordRecovery, setPasswordRecovery] = useState(false);
   const [legacySnapshot, setLegacySnapshot] = useState<AccountSnapshot | null>(null);
-  const exercise = activeWorkout[exerciseIndex] ?? activeWorkout[0];
-  const completedSetCount = setsDone.reduce((sum, count) => sum + count, 0);
-  const sessionPercent = Math.round(completedSetCount / totalSets * 100);
   const sessionHistory = account?.sessions ?? [];
   const totalTrainingMinutes = sessionHistory.length > 0
     ? Math.max(1, Math.round(sessionHistory.reduce((sum, session) => sum + session.durationSeconds, 0) / 60))
@@ -385,8 +372,6 @@ export default function Home() {
   useEffect(() => {
     const timer = window.setTimeout(() => {
       setExerciseIndex(0);
-      setPendingExerciseIndex(0);
-      setSetsDone(activeWorkout.map(() => 0));
     }, 0);
     return () => window.clearTimeout(timer);
   }, [activeWorkout]);
@@ -398,26 +383,6 @@ export default function Home() {
       // Device storage is optional.
     }
   }, [audioEnabled]);
-
-  useEffect(() => {
-    if (!sessionOpen || stage === 'summary' || stage === 'setup') return;
-    const timer = window.setInterval(() => setElapsed((value) => value + 1), 1000);
-    return () => window.clearInterval(timer);
-  }, [sessionOpen, stage]);
-
-  useEffect(() => {
-    if (stage !== 'rest') return;
-    const timer = window.setTimeout(() => {
-      if (restSeconds <= 1) {
-        setRestSeconds(0);
-        setExerciseIndex(pendingExerciseIndex);
-        setStage('guide');
-      } else {
-        setRestSeconds(restSeconds - 1);
-      }
-    }, 1000);
-    return () => window.clearTimeout(timer);
-  }, [stage, restSeconds, pendingExerciseIndex]);
 
   useEffect(() => {
     if (!sessionOpen) return;
@@ -445,9 +410,6 @@ export default function Home() {
       setSetupStep(1);
       setCoachingMode('photos');
       setExerciseIndex(startAt);
-      setSetsDone(activeWorkout.map(() => 0));
-      setElapsed(0);
-      setCameraSets(0);
       setPreviewIndex(null);
       setSaveStatus('');
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -458,27 +420,10 @@ export default function Home() {
     }
   }
 
-  function completeSet() {
-    const nextSetCount = Math.min(exercise.sets, setsDone[exerciseIndex] + 1);
-    setSetsDone((counts) => counts.map((count, index) => index === exerciseIndex ? nextSetCount : count));
-    if (exerciseIndex === activeWorkout.length - 1 && nextSetCount >= exercise.sets) {
-      setStage('summary');
-      return;
-    }
-    setPendingExerciseIndex(nextSetCount >= exercise.sets ? exerciseIndex + 1 : exerciseIndex);
-    setRestSeconds(exercise.rest);
-    setStage('rest');
-  }
-
   function toggleEquipment(item: EquipmentId) {
     setSelectedEquipment((current) => current.includes(item)
       ? current.filter((entry) => entry !== item)
       : [...current, item]);
-  }
-
-  function endRest() {
-    setExerciseIndex(pendingExerciseIndex);
-    setStage('guide');
   }
 
   async function postAccount(action: string, data?: unknown) {
@@ -495,6 +440,7 @@ export default function Home() {
       throw new Error('Unsupported account update.');
     }
     const snapshot = await loadAccountSnapshot(member);
+    if (billingIdentity.current !== member.userId) throw new Error('Account changed.');
     setAccount(snapshot);
     setAccountStatus('signed-in');
     return snapshot;
@@ -609,28 +555,15 @@ export default function Home() {
     }
   }
 
-  async function saveWorkout() {
-    setCompletedToday(true);
-    if (accountStatus === 'signed-in') {
-      setSaveStatus('Saving workout…');
-      try {
-        await postAccount('save-workout', {
-          workoutId: `${selectedFocus}-day-01`,
-          workoutName: planName,
-          durationSeconds: Math.max(1, elapsed),
-          setsCompleted: totalSets,
-          movementsCompleted: activeWorkout.length,
-          cameraSets,
-          notes: `${equipmentSummary}; focus: ${focusInfo.label}`,
-        });
-        setSaveStatus('Workout saved to your account.');
-      } catch (error) {
-        setSaveStatus(error instanceof Error ? error.message : 'Could not save. Try again.');
-        return;
-      }
-    }
-    setSessionOpen(false);
-    setView('today');
+  async function saveWorkout(result: WorkoutResult) {
+    if (!member || !account || !result.setsCompleted) throw new Error('Sign in to save your completed sets.');
+    const expectedUser = member.userId;
+    await postAccount('save-workout', {
+      workoutId: `${selectedFocus}-day-01`, workoutName: planName,
+      ...result, notes: `${equipmentSummary}; focus: ${focusInfo.label}; guided session`,
+    });
+    if (billingIdentity.current !== expectedUser) return;
+    setCompletedToday(true); setSessionOpen(false); setView('today');
   }
 
   async function beginWorkout() {
@@ -806,7 +739,7 @@ export default function Home() {
               <p className="coach-choice-label">{tr('How should TrainWell guide you?', '你希望悦练如何指导？')}</p>
               <div className="coach-choice compact" role="radiogroup" aria-label="Coaching mode">
                 <button className={coachingMode === 'photos' ? 'selected' : ''} role="radio" aria-checked={coachingMode === 'photos'} type="button" onClick={() => setCoachingMode('photos')}>
-                  <span className="choice-icon">1·2·3</span><div><strong>{tr('Follow 3 clear steps', '跟随 3 个清晰步骤')}</strong><small>{tr('Set up, move, finish', '准备、动作、完成')}</small></div><b>{coachingMode === 'photos' ? '✓' : ''}</b>
+                  <span className="choice-icon">1·2·3</span><div><strong>{tr('Follow 3 clear steps', '跟随 3 个清晰步骤')}</strong><small>{tr('Rep timers, rest cues and music', '动作计时、休息提醒与音乐')}</small></div><b>{coachingMode === 'photos' ? '✓' : ''}</b>
                 </button>
                 <button className={coachingMode === 'camera' ? 'selected' : ''} role="radio" aria-checked={coachingMode === 'camera'} type="button" onClick={() => setCoachingMode('camera')}>
                   <span className="choice-icon camera-choice-icon"><i /></span><div><strong>{tr('Use live camera coach', '使用实时摄像指导')}</strong><small>{tr('Rep counting and form cues', '计数与动作纠正提示')}</small></div><b>{coachingMode === 'camera' ? '✓' : ''}</b>
@@ -831,111 +764,12 @@ export default function Home() {
       );
     }
 
-    if (stage === 'camera') {
-      return (
-        <CameraCoach
-          language={language}
-          exercise={exercise}
-          audioEnabled={audioEnabled}
-          onClose={() => setStage('guide')}
-          onSetComplete={() => { setCameraSets((count) => count + 1); completeSet(); }}
-        />
-      );
-    }
-
-    if (stage === 'rest') {
-      const nextExercise = activeWorkout[pendingExerciseIndex];
-      return (
-        <main className="rest-screen">
-          <header className="session-top">
-            <button type="button" onClick={() => setSessionOpen(false)} aria-label="Exit workout">×</button>
-            <div><span>{planName.toUpperCase()}</span><strong>{completedSetCount} of {totalSets} sets</strong></div>
-            <span>{formatClock(elapsed)}</span>
-          </header>
-          <div className="rest-content">
-            <p>REST</p>
-            <div className="rest-ring" style={{ '--rest': `${Math.max(0, restSeconds / exercise.rest * 100)}%` } as React.CSSProperties}>
-              <strong>{restSeconds}</strong><span>SECONDS</span>
-            </div>
-            <h1>Nice set<br />Breathe slowly</h1>
-            <p className="up-next">{pendingExerciseIndex === exerciseIndex ? `Next: set ${setsDone[exerciseIndex] + 1} of ${exercise.sets}` : `Up next: ${nextExercise.name}`}</p>
-            <button type="button" onClick={endRest}>Skip rest <span>→</span></button>
-          </div>
-        </main>
-      );
-    }
-
-    if (stage === 'summary') {
-      return (
-        <main className="summary-screen">
-          <div className="summary-confetti"><i /><i /><i /><i /><i /></div>
-          <div className="summary-mark">T</div>
-          <p>WORKOUT COMPLETE</p>
-          <h1>You showed up<br />That&apos;s the win</h1>
-          <div className="summary-stats">
-            <span><strong>{formatClock(elapsed)}</strong><small>TIME</small></span>
-            <span><strong>{totalSets}</strong><small>SETS</small></span>
-            <span><strong>{activeWorkout.length}</strong><small>MOVES</small></span>
-          </div>
-          <div className="summary-coach">
-            <span>COACH NOTE</span>
-            <p>{cameraSets > 0
-              ? `Camera coaching was used on ${cameraSets} set${cameraSets === 1 ? '' : 's'}. Next time, reuse the same phone position for more consistent tracking.`
-              : 'You logged this session manually. Turn on camera coaching next time if you want rep counting and live movement cues.'}</p>
-          </div>
-          <button type="button" onClick={saveWorkout}>{accountStatus === 'signed-in' ? 'Save to my account' : 'Finish workout'} <span>→</span></button>
-          <small>Movement feedback is an estimate from visible joint positions.</small>
-        </main>
-      );
-    }
-
-    return (
-      <main className="guided-session">
-        <header className="session-top">
-          <button type="button" onClick={() => setSessionOpen(false)} aria-label="Exit workout">×</button>
-          <div><span>{planName.toUpperCase()}</span><strong>Move {exerciseIndex + 1} of {activeWorkout.length}</strong></div>
-          <button className={audioEnabled ? 'audio-on' : ''} type="button" onClick={() => setAudioEnabled((value) => !value)} aria-label="Toggle voice coaching">{audioEnabled ? '♪' : '×'}</button>
-        </header>
-        <div className="session-progress"><i style={{ width: `${Math.max(3, sessionPercent)}%` }} /></div>
-        <section className="guide-layout">
-          <div className="guide-visual">
-            <PhaseGuide key={exercise.id} exercise={exercise} language={language} />
-            <span className="start-label">{exercise.video ? tr('VIDEO + AUTO DEMO', '视频 + 自动示范') : tr('AUTO MOVEMENT DEMO', '自动动作示范')}</span>
-            <span className="move-label">{tr('LOOK, THEN MOVE', '先看，再练')}</span>
-            <button type="button" onClick={() => setPreviewIndex(exerciseIndex)}>↗ <span>Full guide</span></button>
-          </div>
-          <div className="guide-copy">
-            <p className="kicker">SET {setsDone[exerciseIndex] + 1} OF {exercise.sets}</p>
-            <h1>{exercise.name}</h1>
-            <p className="exercise-intro">{exercise.intro}</p>
-            <div className="prescription">
-              <span><small>DO</small><strong>{exercise.targetLabel}</strong></span>
-              <span><small>THEN REST</small><strong>{exercise.rest} sec</strong></span>
-            </div>
-            <div className="one-cue"><span>KEY CUE</span><p>{exercise.tips[1]}</p></div>
-            <button className="camera-cta" type="button" onClick={() => setStage('camera')}><span className="camera-dot"><i /></span><b>Coach me with camera</b><em>→</em></button>
-            <button className="manual-cta" type="button" onClick={completeSet}>I did this set <span>✓</span></button>
-            <p className="device-note">Camera feedback stays on this device. You can always log manually.</p>
-          </div>
-        </section>
-        <div className="session-queue">
-          {activeWorkout.map((item, index) => (
-            <button
-              className={`${index === exerciseIndex ? 'active' : ''} ${setsDone[index] >= item.sets ? 'done' : ''}`}
-              type="button"
-              key={item.id}
-              onClick={() => setExerciseIndex(index)}
-            >
-              <span>{setsDone[index] >= item.sets ? '✓' : index + 1}</span>
-              <small>{item.name}</small>
-            </button>
-          ))}
-        </div>
-        {previewIndex !== null && activeWorkout[previewIndex] && (
-          <ExercisePreview exercise={activeWorkout[previewIndex]} index={previewIndex} total={activeWorkout.length} language={language} onClose={() => setPreviewIndex(null)} onStartCamera={() => { setExerciseIndex(previewIndex); setPreviewIndex(null); setStage('camera'); }} />
-        )}
-      </main>
-    );
+    return <WorkoutSession key={member.userId} workout={activeWorkout} startAt={exerciseIndex} cameraFirst={stage === 'camera'}
+      language={language} onLanguageChange={setLanguage} voiceEnabled={audioEnabled} onVoiceChange={setAudioEnabled}
+      exerciseName={(item) => language === 'zh' ? exerciseChinese[item.id] ?? item.name : item.name}
+      renderGuide={(item) => <PhaseGuide key={item.id} exercise={item} language={language} />}
+      renderPreview={(item, close, camera) => <ExercisePreview exercise={item} index={activeWorkout.indexOf(item)} total={activeWorkout.length} language={language} onClose={close} onStartCamera={camera} />}
+      onSave={saveWorkout} onExit={() => setSessionOpen(false)} />;
   }
 
   return (
@@ -1118,7 +952,7 @@ export default function Home() {
             </article>
 
             <article className="setting-card">
-              <div><span>VOICE COACH</span><h2>Hear reps and form cues</h2><p>{tr('TrainWell speaks only during a camera-coached set.', '悦练仅在摄像指导训练组中提供语音提示。')}</p></div>
+              <div><span>VOICE COACH</span><h2>Hear reps and form cues</h2><p>{tr('Hear rep pacing, rest reminders and encouragement throughout your session.', '全程聆听动作计时、休息提醒与鼓励。')}</p></div>
               <button className={audioEnabled ? 'switch on' : 'switch'} type="button" onClick={() => setAudioEnabled((value) => !value)} aria-pressed={audioEnabled}><i /></button>
             </article>
             <article className="privacy-card"><span className="shield">✓</span><div><small>CAMERA PRIVACY</small><h2>Your video stays yours</h2><p>{tr('Pose tracking runs in your browser. TrainWell never saves or uploads camera frames; only your completed workout totals are stored.', '姿态分析在浏览器本地运行。悦练不会保存或上传摄像画面，只保存你已完成的训练统计。')}</p></div></article>

@@ -1231,3 +1231,72 @@ html:lang(zh) :is(h1, h2, h3, h4, h5, h6) { letter-spacing: 0; }
 .payment-actions button:focus-visible, .payment-support a:focus-visible { outline:3px solid #92ba47; outline-offset:3px; }
 .payment-support { margin:28px 0 0; font-size:13px; color:#496258; overflow-wrap:anywhere; }
 .payment-support a { color:inherit; text-underline-offset:3px; }
+
+/* Guided training: large running clocks, reachable controls, and quiet coach replies. */
+.trainer-session { padding-bottom:40px; }
+.trainer-session .session-top { position:sticky;top:0;grid-template-columns:44px minmax(0,1fr) auto; padding-inline:clamp(16px,4vw,48px); gap:12px; }
+.trainer-session .trainer-session-time { text-align:right; }
+.trainer-session-time small { font-size:9px; letter-spacing:.07em; }
+.trainer-session .trainer-session-time strong { font-size:22px; color:var(--ink); font-variant-numeric:tabular-nums; }
+.trainer-toolbar,.trainer-music { display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:10px 16px; padding:14px 18px; }
+.trainer-toolbar > button,.trainer-replies button,.trainer-main-actions > button:not(.trainer-primary),.trainer-finish > button:not(.trainer-primary),.trainer-exit > button:not(.trainer-primary) { padding:12px 16px; min-height:44px; border:1px solid var(--line); border-radius:12px; background:var(--card); color:var(--ink); font:inherit; font-size:14px; font-weight:650; cursor:pointer; }
+.trainer-toolbar > button[aria-pressed=true] { background:var(--ink);color:var(--lime);border-color:var(--ink); }
+.trainer-music { border-top:1px solid var(--line); background:#e7e9de; }
+.trainer-music label { display:flex;align-items:center;gap:12px;font-size:13px; }
+.trainer-music input { width:110px;accent-color:var(--ink); }
+.trainer-music select,.trainer-pacing select { font:inherit;min-height:40px;padding:7px 12px;border:1px solid var(--line);border-radius:9px;background:var(--card);color:var(--ink); }
+.trainer-music small { font-size:12px;line-height:1.6; }
+.trainer-coach { max-width:1212px; margin:24px auto; padding:24px; border:1px solid #cfd5c0; border-radius:20px; background:#e9eedc; }
+.trainer-coach > span { font-size:11px;letter-spacing:.1em;font-weight:800; }
+.trainer-coach > p { font-size:20px;line-height:1.5;margin:10px 0 16px; }
+.trainer-replies { display:flex;gap:8px;flex-wrap:wrap; }
+.trainer-coach > small { display:block;margin-top:14px;max-width:85ch;font-size:12px;line-height:1.6;color:#535b48; }
+.trainer-session .guide-layout { display:grid;min-height:0;align-items:start;grid-template-columns:minmax(0,1fr) minmax(360px,.85fr);padding:24px 0; }
+.trainer-session .guide-copy { padding:0; }
+.trainer-session .guide-copy .trainer-coach { margin:22px 0; padding:18px; }
+.trainer-session .guide-copy h1 { font-size:clamp(30px,3.5vw,46px); }
+.trainer-session .guide-visual { min-height:480px; height:620px; max-height:70vh; }
+.trainer-session .guide-visual > button { top:68px;right:12px; }
+.trainer-clock { display:grid;justify-items:center;gap:5px;margin:24px 0 12px;padding:24px;background:var(--ink);color:var(--lime);border-radius:22px; }
+.trainer-clock > span { font-size:12px;letter-spacing:.09em;font-weight:700; }
+.trainer-clock > strong { font-size:80px;line-height:1.1;font-weight:800;font-variant-numeric:tabular-nums; }
+.trainer-clock > small { color:#d1d8c0;font-size:13px; }
+.trainer-clock[data-phase=rest],.trainer-clock[data-phase=repRest],.trainer-clock[data-phase=switchSide] { background:#dfe7ce;color:var(--ink); }
+.trainer-clock[data-phase=rest] > small,.trainer-clock[data-phase=repRest] > small,.trainer-clock[data-phase=switchSide] > small { color:#4b5341; }
+.trainer-rep-count { text-align:center;font-weight:700;font-size:18px;line-height:1.6; }
+.trainer-primary { min-height:52px;padding:15px 22px;border:0;border-radius:13px;background:var(--ink);color:var(--lime);font:inherit;font-size:17px;font-weight:750;cursor:pointer; }
+.trainer-main-actions { display:grid;gap:10px; }
+.trainer-pacing { display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:20px; }
+.trainer-pacing label { display:grid;gap:8px;font-size:13px;line-height:1.6; }
+.trainer-note,.trainer-issue { font-size:13px;line-height:1.65;color:#535b48; }
+.trainer-issue { max-width:1100px;margin:12px auto;padding:12px 18px; }
+.trainer-session .camera-cta { justify-content:center;gap:12px;padding:15px;font:inherit;font-size:14px; }
+.trainer-session button:disabled { opacity:.5;cursor:default; }
+.trainer-session button:focus-visible,.trainer-session select:focus-visible,.trainer-session input:focus-visible { outline:3px solid #7e983a;outline-offset:3px; }
+.trainer-finish { max-width:760px;margin:32px auto;padding:32px 24px;text-align:center; }
+.trainer-finish-mark { display:grid;place-items:center;width:82px;height:82px;border-radius:50%;margin:0 auto 24px;background:var(--lime);font-size:40px; }
+.trainer-finish h1 { font-size:clamp(32px,5vw,58px);line-height:1.2;margin:14px 0 30px; }
+.trainer-finish p { font-size:16px;line-height:1.7; }
+.trainer-finish > button { display:block;width:100%;margin-top:12px; }
+.trainer-stats { display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:22px 0;border-block:1px solid var(--line); }
+.trainer-stats span { display:grid;gap:8px;font-size:12px;line-height:1.5; }
+.trainer-stats strong { font-size:28px; }
+.trainer-exit-backdrop { position:fixed;inset:0;background:#101710b8;display:grid;place-items:center;padding:18px;z-index:1000; }
+.trainer-exit { width:min(100%,440px);padding:28px;border-radius:20px;background:var(--paper); }
+.trainer-exit h2 { font-size:26px;line-height:1.3; }
+.trainer-exit p { line-height:1.65; }
+.trainer-exit > button { width:100%;margin-top:12px; }
+@media(max-width:760px) {
+  .trainer-session .guide-layout { width:calc(100% - 32px);grid-template-columns:minmax(0,1fr);gap:20px; }
+  .trainer-session .guide-copy { order:-1; }
+  .trainer-session .guide-visual { min-height:0;height:auto;max-height:none; }
+  .trainer-session .guide-visual .phase-guide { height:auto; }
+  .trainer-coach { margin:16px;padding:18px; }
+  .trainer-coach > p { font-size:18px; }
+  .trainer-session .guide-copy h1 { font-size:34px; }
+  .trainer-session .trainer-session-time strong { font-size:19px; }
+  .trainer-toolbar { gap:8px;padding:10px; }
+  .trainer-toolbar > button { font-size:12px;padding:10px; }
+  .trainer-music { justify-content:flex-start; }
+  .trainer-finish { margin:20px 0; }
+}

@@ -65,7 +65,133 @@ async function isolateBrowser(page: Page, locale: Locale, membership?: 'trial' |
   }, { user, locale, membership });
 }
 
+async function openGuidedSession(page: Page, locale: Locale) {
+  await isolateBrowser(page,locale,'trial');
+  await page.goto('/');await page.locator('.start-session').click();
+  await page.locator('.focus-grid button').last().click();
+  await page.locator('.setup-next').click();await page.locator('.setup-next').click();
+  await page.locator('.setup-next').click();await page.locator('.start-workout-now').click();
+  await expect(page.locator('.start-paced-set')).toBeVisible();
+  await expect(page.getByTestId('phase-time')).toBeInViewport();
+}
+
+async function mockCoachSpeech(page:Page) {
+  await page.addInitScript(()=>{
+    const host=window as unknown as Record<string,unknown>;
+    host.coachSpeech=[];
+    class Utterance {text:string;lang='';onend:(()=>void)|null=null;constructor(text:string){this.text=text;}}
+    Object.defineProperty(window,'SpeechSynthesisUtterance',{value:Utterance});
+    Object.defineProperty(window,'speechSynthesis',{value:{getVoices:()=>[],cancel:()=>{},resume:()=>{},speak:(utterance:Utterance)=>{
+      (host.coachSpeech as Array<{text:string;lang:string}>).push({text:utterance.text,lang:utterance.lang});setTimeout(()=>utterance.onend?.(),40);
+    }}});
+    class Recognition {
+      lang='';continuous=false;interimResults=false;onresult:((event:unknown)=>void)|null=null;onerror:(()=>void)|null=null;onend:(()=>void)|null=null;
+      start(){host.coachMic=this;}abort(){host.coachMicStopped=true;}
+    }
+    host.SpeechRecognition=Recognition;
+  });
+}
+
+test('gym music renders real audio, pauses, resumes and closes with the session',async({page},testInfo)=>{
+  await mockCoachSpeech(page);
+  await page.addInitScript(()=>{
+    const Native=window.AudioContext;
+    const host=window as unknown as {coachOutput?:{context:AudioContext;meter:AnalyserNode}};
+    window.AudioContext=class extends Native {
+      createGain(){
+        const gain=super.createGain();
+        if(!host.coachOutput){const meter=super.createAnalyser();gain.connect(meter);host.coachOutput={context:this,meter};}
+        return gain;
+      }
+    };
+  });
+  await openGuidedSession(page,'en');
+  const rms=()=>page.evaluate(()=>{
+    const meter=(window as unknown as {coachOutput?:{meter:AnalyserNode}}).coachOutput?.meter;
+    if(!meter)return 0;const samples=new Float32Array(meter.fftSize);meter.getFloatTimeDomainData(samples);
+    return Math.sqrt(samples.reduce((sum,value)=>sum+value*value,0)/samples.length);
+  });
+  await page.getByRole('button',{name:'Gym music off',exact:true}).click();
+  await expect.poll(rms).toBeGreaterThan(.001);
+  await auditAndCapture(page,testInfo,'trainer-music-controls');
+  await page.locator('.start-paced-set').click();
+  await page.getByRole('button',{name:'Pause timer',exact:true}).click();
+  await expect.poll(rms).toBeLessThan(.0001);
+  await page.getByRole('button',{name:'Resume timer',exact:true}).click();
+  await expect.poll(rms).toBeGreaterThan(.001);
+  await page.getByRole('button',{name:'Exit workout',exact:true}).click();
+  await page.getByRole('button',{name:'Discard session',exact:true}).click();
+  await expect(page.locator('.today-head')).toBeVisible();
+  expect(await page.evaluate(()=>(window as unknown as {coachOutput:{context:AudioContext}}).coachOutput.context.state)).toBe('closed');
+});
+
 for (const locale of ['en', 'zh'] as const) {
+  test(`guided trainer counts reps, rests, session time and speaks the restart (${locale})`,async({page},testInfo)=>{
+    await page.clock.install();await mockCoachSpeech(page);await openGuidedSession(page,locale);
+    await page.getByRole('button',{name:locale==='zh'?'语音 关':'Voice off',exact:true}).click();
+    await page.locator('.trainer-pacing select').nth(0).selectOption('2');
+    await page.locator('.start-paced-set').click();await page.clock.runFor(3100);
+    await expect(page.locator('.trainer-clock')).toHaveAttribute('data-phase','rep');
+    await page.clock.runFor(2000);await expect(page.locator('.trainer-clock')).toHaveAttribute('data-phase','repRest');
+    await page.clock.runFor(1000);await expect(page.getByTestId('rep-count')).toContainText('2 / 10');
+    await page.getByRole('button',{name:locale==='zh'?'暂停计时':'Pause timer',exact:true}).click();
+    const elapsed=await page.getByTestId('session-time').innerText();
+    await page.clock.runFor(5000);await expect(page.getByTestId('session-time')).toHaveText(elapsed);
+    await auditAndCapture(page,testInfo,`${locale}-trainer-paused`);
+    await page.getByRole('button',{name:locale==='zh'?'继续计时':'Resume timer',exact:true}).click();
+    await page.clock.runFor(27000);await expect(page.locator('.trainer-clock')).toHaveAttribute('data-phase','rest');
+    await auditAndCapture(page,testInfo,`${locale}-trainer-rest`);
+    await page.getByRole('button',{name:locale==='zh'?'多休息 15 秒':'+15 seconds rest',exact:true}).click();
+    await page.clock.runFor(60000);await expect(page.locator('.start-paced-set')).toBeVisible();
+    const speech=await page.evaluate(()=> (window as unknown as {coachSpeech:Array<{text:string;lang:string}>}).coachSpeech);
+    expect(speech.some(item=>item.text.includes(locale==='zh'?'休息结束':'Rest finished'))).toBe(true);
+    expect(speech.some(item=>item.text.includes(locale==='zh'?'第 2 次':'Rep 2'))).toBe(true);
+    expect(speech.every(item=>item.lang===(locale==='zh'?'zh-CN':'en-US'))).toBe(true);
+    await page.getByRole('button',{name:locale==='zh'?'退出训练':'Exit workout',exact:true}).click();
+    await page.getByRole('button',{name:locale==='zh'?'现在结束':'Finish now',exact:true}).click();
+    await expect(page.locator('.trainer-finish')).toBeVisible();
+    await expect(page.locator('.trainer-stats span').nth(1).locator('strong')).toHaveText('1');
+    await auditAndCapture(page,testInfo,`${locale}-trainer-summary`);
+  });
+
+  test(`coach replies, optional voice commands and hidden-page pause (${locale})`,async({page})=>{
+    await mockCoachSpeech(page);await openGuidedSession(page,locale);
+    await page.getByRole('button',{name:locale==='zh'?'请慢一点':'Slower, please',exact:true}).click();
+    await expect(page.locator('.trainer-pacing select').first()).toHaveValue('5');
+    await page.getByRole('button',{name:locale==='zh'?'对教练说话':'Talk to coach',exact:true}).click();
+    await page.evaluate((text)=>{(window as unknown as {coachMic:{onresult:(event:unknown)=>void}}).coachMic.onresult({results:[[{transcript:text}]]});},locale==='zh'?'准备好了':'I am ready');
+    await expect(page.locator('.trainer-clock')).toHaveAttribute('data-phase','countdown');
+    await page.evaluate(()=>window.dispatchEvent(new PageTransitionEvent('pagehide')));
+    await expect(page.getByRole('button',{name:locale==='zh'?'继续计时':'Resume timer',exact:true})).toBeVisible();
+    expect(await page.evaluate(()=>(window as unknown as {coachMicStopped:boolean}).coachMicStopped)).toBe(true);
+    await page.getByRole('button',{name:locale==='zh'?'对教练说话':'Talk to coach',exact:true}).click();
+    await page.evaluate(()=>{(window as unknown as {coachMic:{onerror:()=>void}}).coachMic.onerror();});
+    await expect(page.locator('.trainer-coach [role=alert]')).toContainText(locale==='zh'?'麦克风权限':'microphone permission');
+    await page.getByRole('button',{name:locale==='zh'?'我想多休息一下':'I need more rest',exact:true}).click();
+    await expect(page.locator('.trainer-coach > p[role=status]')).toContainText(locale==='zh'?'先暂停':'pause');
+  });
+
+  test(`guided session saves completed sets and reports save failures (${locale})`,async({page})=>{
+    await mockCoachSpeech(page);await openGuidedSession(page,locale);
+    await page.locator('.manual-cta').click();
+    await page.getByRole('button',{name:locale==='zh'?'退出训练':'Exit workout',exact:true}).click();
+    await page.getByRole('button',{name:locale==='zh'?'现在结束':'Finish now',exact:true}).click();
+    let attempts=0;const records:Record<string,unknown>[]=[];
+    await page.route('**/rest/v1/workout_sessions*',route=>{
+      if(route.request().method()!=='POST')return route.fallback();
+      attempts++;records.push(route.request().postDataJSON());
+      return attempts===1?route.fulfill({status:503,json:{message:'Temporary fixture outage'}}):route.fulfill({status:201,json:[]});
+    });
+    await page.getByRole('button',{name:locale==='zh'?'保存本次训练':'Save my session',exact:true}).click();
+    await expect(page.locator('.trainer-finish [role=alert]')).toBeVisible();
+    await page.getByRole('button',{name:locale==='zh'?'保存本次训练':'Save my session',exact:true}).click();
+    await expect(page.locator('.today-head')).toBeVisible();
+    expect(records).toHaveLength(2);
+    expect(records[1].id).toBe(records[0].id);
+    expect(records[1].id).toMatch(/^[a-f0-9-]{36}$/);
+    expect(records[1]).toMatchObject({sets_completed:1,movements_completed:1,camera_sets:0});
+    expect(Number(records[1].duration_seconds)).toBeGreaterThanOrEqual(1);
+  });
   test(`signing out invalidates pending Checkout redirects (${locale})`, async ({ page }) => {
     await isolateBrowser(page, locale, 'trial', true);
     let releaseCheckout!: () => void;
