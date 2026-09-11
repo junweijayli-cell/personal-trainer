@@ -1,0 +1,207 @@
+[
+  {
+    "id": "ready",
+    "en": "Ready when you are. I’ll count with you.",
+    "zh": "准备好后开始，我会陪你一起计时。"
+  },
+  {
+    "id": "hold",
+    "en": "Hold steady. Keep breathing.",
+    "zh": "保持动作，均匀呼吸。"
+  },
+  {
+    "id": "bike",
+    "en": "Keep a steady rhythm. Relax your shoulders.",
+    "zh": "保持稳定节奏，放松肩膀。"
+  },
+  {
+    "id": "reset",
+    "en": "Reset.",
+    "zh": "调整。"
+  },
+  {
+    "id": "switch",
+    "en": "Switch sides.",
+    "zh": "换到另一侧。"
+  },
+  {
+    "id": "rest",
+    "en": "Nice set. Take a breath. I’ll let you know when it’s time.",
+    "zh": "这一组完成得不错。放松呼吸，到时间我会提醒你。"
+  },
+  {
+    "id": "rest-finished",
+    "en": "Rest finished. Ready for your next set? I’m here with you.",
+    "zh": "休息结束，该继续训练了。准备好下一组了吗？我陪着你。"
+  },
+  {
+    "id": "camera",
+    "en": "Your camera coach will count your movement. You can pause any time.",
+    "zh": "摄像教练会根据动作计数，你可以随时暂停。"
+  },
+  {
+    "id": "summary",
+    "en": "Well done. Your session is finished.",
+    "zh": "训练结束，做得不错。"
+  },
+  {
+    "id": "paused",
+    "en": "Paused. Take your time. Continue when you’re ready.",
+    "zh": "已暂停。慢慢休息，准备好后再继续。"
+  },
+  {
+    "id": "slower",
+    "en": "Of course. Let’s slow down and keep it controlled.",
+    "zh": "没问题，我们放慢节奏，把每次动作做稳。"
+  },
+  {
+    "id": "more-rest",
+    "en": "You’ve got fifteen more seconds. Recover at your pace.",
+    "zh": "多休息十五秒，按自己的节奏恢复。"
+  },
+  {
+    "id": "music-off",
+    "en": "Music off. I’m still here to guide you.",
+    "zh": "音乐已关闭，我会继续指导你。"
+  },
+  {
+    "id": "test",
+    "en": "Ready. Let’s train together.",
+    "zh": "准备好，我们一起训练。"
+  },
+  {
+    "id": "camera-complete",
+    "en": "Set complete. Nice work.",
+    "zh": "本组完成，做得不错。"
+  },
+  {
+    "id": "camera-hold",
+    "en": "Hold complete. Nice work.",
+    "zh": "保持训练完成，做得不错。"
+  },
+  {
+    "id": "camera-frame",
+    "en": "Step back until your head and shoes are both visible.",
+    "zh": "请向后退，让头部和双脚都出现在画面中。"
+  },
+  {
+    "id": "camera-line",
+    "en": "Bring your hips into line with your shoulders and heels.",
+    "zh": "让髋部与肩膀、脚跟保持在一条直线上。"
+  },
+  {
+    "id": "camera-ready",
+    "en": "Camera ready. Step back until your whole body is visible.",
+    "zh": "摄像指导已准备好。请向后退，让全身出现在画面中。"
+  },
+  {
+    "id": "count-1",
+    "en": "One.",
+    "zh": "一。"
+  },
+  {
+    "id": "count-2",
+    "en": "Two.",
+    "zh": "二。"
+  },
+  {
+    "id": "count-3",
+    "en": "Three.",
+    "zh": "三。"
+  },
+  {
+    "id": "count-4",
+    "en": "Four.",
+    "zh": "四。"
+  },
+  {
+    "id": "count-5",
+    "en": "Five.",
+    "zh": "五。"
+  },
+  {
+    "id": "count-6",
+    "en": "Six.",
+    "zh": "六。"
+  },
+  {
+    "id": "count-7",
+    "en": "Seven.",
+    "zh": "七。"
+  },
+  {
+    "id": "count-8",
+    "en": "Eight.",
+    "zh": "八。"
+  },
+  {
+    "id": "count-9",
+    "en": "Nine.",
+    "zh": "九。"
+  },
+  {
+    "id": "count-10",
+    "en": "Ten.",
+    "zh": "十。"
+  },
+  {
+    "id": "count-11",
+    "en": "Eleven.",
+    "zh": "十一。"
+  },
+  {
+    "id": "count-12",
+    "en": "Twelve.",
+    "zh": "十二。"
+  },
+  {
+    "id": "count-13",
+    "en": "Thirteen.",
+    "zh": "十三。"
+  },
+  {
+    "id": "count-14",
+    "en": "Fourteen.",
+    "zh": "十四。"
+  },
+  {
+    "id": "count-15",
+    "en": "Fifteen.",
+    "zh": "十五。"
+  },
+  {
+    "id": "count-16",
+    "en": "Sixteen.",
+    "zh": "十六。"
+  },
+  {
+    "id": "count-17",
+    "en": "Seventeen.",
+    "zh": "十七。"
+  },
+  {
+    "id": "count-18",
+    "en": "Eighteen.",
+    "zh": "十八。"
+  },
+  {
+    "id": "count-19",
+    "en": "Nineteen.",
+    "zh": "十九。"
+  },
+  {
+    "id": "count-20",
+    "en": "Twenty.",
+    "zh": "二十。"
+  },
+  {
+    "id": "count-30",
+    "en": "Thirty.",
+    "zh": "三十。"
+  },
+  {
+    "id": "count-40",
+    "en": "Forty.",
+    "zh": "四十。"
+  }
+]

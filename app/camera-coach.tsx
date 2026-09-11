@@ -69,7 +69,7 @@ export default function CameraCoach({ exercise, audioEnabled, onClose, onSetComp
   const [complete, setComplete] = useState(false);
 
   function speak(text: string, important = false) {
-    if (!controls.current.audioEnabled || controls.current.paused || !('speechSynthesis' in window)) return;
+    if (!controls.current.audioEnabled || controls.current.paused) return;
     const now = Date.now();
     if (!important && now - lastSpeechRef.current.time < 4500) return;
     if (!important && lastSpeechRef.current.text === text) return;
@@ -81,12 +81,6 @@ export default function CameraCoach({ exercise, audioEnabled, onClose, onSetComp
     };
     const spoken = controls.current.language === 'zh' ? translated[text] ?? text.replace(' seconds', ' 秒') : text;
     if (controls.current.onSpeak) { controls.current.onSpeak(spoken); lastSpeechRef.current = { text, time: now }; return; }
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(spoken);
-    utterance.lang = controls.current.language === 'zh' ? 'zh-CN' : 'en-US';
-    utterance.rate = 1.04;
-    utterance.pitch = 1;
-    window.speechSynthesis.speak(utterance);
     lastSpeechRef.current = { text, time: now };
   }
 

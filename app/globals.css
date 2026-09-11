@@ -1300,3 +1300,5 @@ html:lang(zh) :is(h1, h2, h3, h4, h5, h6) { letter-spacing: 0; }
   .trainer-music { justify-content:flex-start; }
   .trainer-finish { margin:20px 0; }
 }
+
+.trainer-voice-name { margin: 0; padding: 0 20px 12px; color: #566044; font-size: 12px; text-align: center; }

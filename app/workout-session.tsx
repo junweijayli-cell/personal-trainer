@@ -7,6 +7,7 @@ import type { Exercise } from './workout-data';
 import { clockLabel, coachCommand, exerciseTiming, initialClock, trainingStep, workoutResult, type CoachCommand, type WorkoutResult } from './workout-clock';
 import { recognitionConstructor, WorkoutAudio, type Recognition } from './workout-audio';
 import { coachExerciseCue } from './workout-coach-copy';
+import { coachVoices } from './coach-voice';
 
 type Props = { workout:Exercise[]; startAt:number; cameraFirst:boolean; language:'en'|'zh'; onLanguageChange:(language:'en'|'zh')=>void;
   voiceEnabled:boolean; onVoiceChange:(value:boolean)=>void; exerciseName:(exercise:Exercise)=>string;
@@ -21,6 +22,7 @@ export default function WorkoutSession({workout,startAt,cameraFirst,language,onL
   const [volume,setVolume]=useState(.25);
   const [musicStyle,setMusicStyle]=useState<'focus'|'energy'>('energy');
   const [voiceIssue,setVoiceIssue]=useState(false);
+  const [voicePrepared,setVoicePrepared]=useState('');
   const [musicIssue,setMusicIssue]=useState(false);
   const [listening,setListening]=useState(false);
   const [micIssue,setMicIssue]=useState('');
@@ -34,6 +36,8 @@ export default function WorkoutSession({workout,startAt,cameraFirst,language,onL
   const listeningTimeout=useRef<ReturnType<typeof setTimeout>|null>(null);
   const commandRef=useRef<(command:CoachCommand)=>void>(()=>{});
   const exercise=workout[state.move];
+  const voiceKey=language+'/'+exercise.id;
+  const voiceLoading=voiceEnabled && voicePrepared!==voiceKey;
   const timing=exerciseTiming(exercise,state.pace);
   const seconds=Math.ceil(state.remaining/1000);
   const result=workoutResult(state);
@@ -44,7 +48,7 @@ export default function WorkoutSession({workout,startAt,cameraFirst,language,onL
     const current=recognition.current;recognition.current=null;current?.abort();
     setListening(false);audio.current?.duck(false);
   },[]);
-  const say=useCallback((text:string)=>{setReply(text);audio.current?.say(text,language,voiceEnabled);},[language,voiceEnabled]);
+  const say=useCallback((text:string,response=false)=>{setReply(text);audio.current?.say(text,language,voiceEnabled,response);},[language,voiceEnabled]);
   const unlock=()=>{audio.current?.unlock();setMusicIssue(false);};
 
   useEffect(()=>{
@@ -64,7 +68,18 @@ export default function WorkoutSession({workout,startAt,cameraFirst,language,onL
     audio.current?.setMusic(music,volume,musicStyle);
     audio.current?.setPaused(state.paused || state.phase==='summary' || listening);
   },[music,volume,musicStyle,state.paused,state.started,state.phase,listening]);
-  useEffect(()=>{if(!voiceEnabled)audio.current?.silence();},[voiceEnabled]);
+  useEffect(()=>{
+    audio.current?.silence();
+    if(!voiceEnabled)return;
+    let canceled=false;
+    const timer=setTimeout(()=>{
+      setVoiceIssue(false);
+      void audio.current?.preloadVoice(language,coachExerciseCue(exercise,language))
+        .catch(()=>{if(!canceled)setVoiceIssue(true);})
+        .finally(()=>{if(!canceled)setVoicePrepared(voiceKey);});
+    },0);
+    return ()=>{canceled=true;clearTimeout(timer);};
+  },[voiceEnabled,language,exercise,voiceKey]);
   useEffect(()=>{
     if(state.phase!=='summary')return;
     const mic=recognition.current;recognition.current=null;mic?.abort();
@@ -92,12 +107,12 @@ export default function WorkoutSession({workout,startAt,cameraFirst,language,onL
 
   function command(action:CoachCommand) {
     unlock();
-    if(action==='pause') {dispatch({type:'pause'});say(tr('Paused. Take a breath. We’ll continue when you’re ready.', '已暂停，放松呼吸，准备好后再继续。'));}
-    if(action==='resume') {dispatch({type:state.phase==='ready'?'start':'resume'});}
-    if(action==='slower') {dispatch({type:'slower'});say(tr('Of course. Let’s slow the pace and keep each movement controlled.', '没问题，我们放慢节奏，把每次动作做稳。'));}
-    if(action==='moreRest') {dispatch({type:'moreRest'});say(['rest','repRest','switchSide'].includes(state.phase)?tr('You’ve got fifteen more seconds. Recover at your pace.', '多休息十五秒，按自己的节奏恢复。'):tr('Let’s pause. Press Resume when you feel ready.', '我们先暂停，准备好后再继续。'));}
-    if(action==='repeat')say(coachExerciseCue(exercise,language));
-    if(action==='musicOff'){setMusic(false);say(tr('Music off. I’m still here to guide you.', '音乐已关闭，我会继续指导你。'));}
+    if(action==='pause') {dispatch({type:'pause'});say(tr('Paused. Take a breath. We’ll continue when you’re ready.', '已暂停，放松呼吸，准备好后再继续。'),true);}
+    if(action==='resume') {if(voiceEnabled && voiceLoading)return;dispatch({type:state.phase==='ready'?'start':'resume'});}
+    if(action==='slower') {dispatch({type:'slower'});say(tr('Of course. Let’s slow the pace and keep each movement controlled.', '没问题，我们放慢节奏，把每次动作做稳。'),true);}
+    if(action==='moreRest') {dispatch({type:'moreRest'});say(['rest','repRest','switchSide'].includes(state.phase)?tr('You’ve got fifteen more seconds. Recover at your pace.', '多休息十五秒，按自己的节奏恢复。'):tr('Let’s pause. Press Resume when you feel ready.', '我们先暂停，准备好后再继续。'),true);}
+    if(action==='repeat')say(coachExerciseCue(exercise,language),true);
+    if(action==='musicOff'){setMusic(false);say(tr('Music off. I’m still here to guide you.', '音乐已关闭，我会继续指导你。'),true);}
   }
   useEffect(()=>{commandRef.current=command;});
   function listen() {
@@ -122,7 +137,7 @@ export default function WorkoutSession({workout,startAt,cameraFirst,language,onL
     setSaving(true);setSaveError('');
     try{await onSave({...result,sessionId});}catch{setSaveError(tr('Your workout could not be saved. Please retry.', '训练未能保存，请重试。'));}finally{setSaving(false);}
   }
-  const start=()=>{unlock();setVoiceIssue(false);audio.current?.say(tr('Three','三'),language,voiceEnabled);dispatch({type:'start'});};
+  const start=()=>{if(voiceEnabled && voiceLoading)return;unlock();setVoiceIssue(false);audio.current?.say(tr('Three','三'),language,voiceEnabled);dispatch({type:'start'});};
   const finished=state.phase==='summary';
   const resting=state.phase==='rest';
   const phaseLabel=state.paused?tr('PAUSED','已暂停'):({ready:tr('READY FOR YOUR SET','准备开始本组'),countdown:tr('GET READY','准备'),rep:timing.hold?exercise.id==='stationary-bike'?tr('WORK INTERVAL','计时骑行'):tr('HOLD','保持'):tr('REP TIME','本次动作时间'),repRest:tr('BETWEEN REPS','动作间休息'),switchSide:tr('SWITCH SIDES','换侧'),rest:tr('REST BETWEEN SETS','组间休息'),camera:tr('CAMERA COACH','摄像指导'),summary:tr('SESSION FINISHED','训练结束')})[state.phase];
@@ -142,6 +157,7 @@ export default function WorkoutSession({workout,startAt,cameraFirst,language,onL
     </header>
     <div className="trainer-toolbar"><LanguageSwitch language={language} onChange={onLanguageChange}/><button type="button" onClick={()=>{unlock();onVoiceChange(!voiceEnabled);}} aria-pressed={voiceEnabled}>{tr('Voice','语音')} {voiceEnabled?tr('on','开'):tr('off','关')}</button>
       <button type="button" onClick={()=>{unlock();setMusic(!music);}} aria-pressed={music}>{tr('Gym music','健身音乐')} {music?tr('on','开'):tr('off','关')}</button></div>
+    <p className="trainer-voice-name">{tr('Coach voice','教练声音')} · {coachVoices[language]} · {tr('Natural, relaxed pace · AI voice','自然舒缓语速 · AI 语音')}{voiceEnabled && voiceLoading ? tr(' · Loading…',' · 正在加载…') : ''}</p>
     {music && <div className="trainer-music"><label>{tr('Music volume','音乐音量')}<input type="range" min="0" max="60" value={Math.round(volume*100)} onChange={event=>setVolume(Number(event.target.value)/100)}/></label><label>{tr('Music style','音乐风格')}<select value={musicStyle} onChange={event=>setMusicStyle(event.target.value as 'focus'|'energy')}><option value="energy">{tr('Energy beat','活力节拍')}</option><option value="focus">{tr('Steady focus','专注节奏')}</option></select></label><small>{tr('Instrumental music softens while your coach speaks','教练说话时，背景音乐会自动调低')}</small></div>}
     {voiceIssue && <p className="trainer-issue">{tr('Voice playback is unavailable. Check device sound; all cues remain on screen.', '语音播放暂不可用，请检查设备声音；所有提示仍会显示在屏幕上。')} <button type="button" onClick={()=>{setVoiceIssue(false);audio.current?.say(tr('Ready. Let’s train together.','准备好，我们一起训练。'),language,true);}}>{tr('Test voice','测试语音')}</button></p>}
     {musicIssue && <p className="trainer-issue">{tr('Music could not start. Tap the music button to retry.', '音乐未能开始，请点击音乐按钮重试。')}</p>}
@@ -158,7 +174,7 @@ export default function WorkoutSession({workout,startAt,cameraFirst,language,onL
           <div className="guide-copy"><p className="kicker">{tr(`SET ${Math.min(state.done[state.move]+1,exercise.sets)} OF ${exercise.sets}`,`第 ${Math.min(state.done[state.move]+1,exercise.sets)} / ${exercise.sets} 组`)}</p><h1>{exerciseName(resting?workout[state.nextMove]:exercise)}</h1>
             <div className="trainer-clock" data-phase={state.phase}><span>{phaseLabel}</span><strong data-testid="phase-time">{state.phase==='ready'?'—':seconds}</strong><small>{state.phase==='ready'?tr('Press start when you’re ready','准备好后点击开始'):tr('seconds','秒')}</small></div>
             {!resting&&<p className="trainer-rep-count" data-testid="rep-count">{timing.hold?exercise.id==='stationary-bike'?tr(`${timing.seconds} second interval`, `骑行 ${timing.seconds} 秒`):tr(`${timing.seconds} second hold`, `保持 ${timing.seconds} 秒`):tr(`Rep ${Math.min(timing.reps,state.rep+1)} / ${timing.reps}`,`第 ${Math.min(timing.reps,state.rep+1)} / ${timing.reps} 次`)}{timing.sides===2?tr(` · Side ${state.side+1} / 2`,` · 第 ${state.side+1} / 2 侧`):''}</p>}
-            <div className="trainer-main-actions">{state.phase==='ready'?<button className="trainer-primary start-paced-set" type="button" onClick={start}>{tr('Start set','开始本组')} →</button>:<button className="trainer-primary" type="button" onClick={()=>command(state.paused?'resume':'pause')}>{state.paused?tr('Resume timer','继续计时'):tr('Pause timer','暂停计时')}</button>}
+            <div className="trainer-main-actions">{state.phase==='ready'?<button className="trainer-primary start-paced-set" type="button" onClick={start} disabled={voiceEnabled && voiceLoading}>{voiceEnabled && voiceLoading?tr('Preparing voice…','正在准备语音…'):tr('Start set','开始本组')} →</button>:<button className="trainer-primary" type="button" onClick={()=>command(state.paused?'resume':'pause')}>{state.paused?tr('Resume timer','继续计时'):tr('Pause timer','暂停计时')}</button>}
               {resting && <><button type="button" onClick={()=>command('moreRest')}>{tr('+15 seconds rest','多休息 15 秒')}</button><button type="button" onClick={()=>dispatch({type:'skipRest'})}>{tr('I’m ready — skip rest','准备好了，结束休息')}</button></>}
             </div>
             {coachPanel}

@@ -1,4 +1,5 @@
-// Original instrumental accompaniment synthesized on this device; no external tracks or uploads.
+import { CoachVoicePlayer } from './coach-voice-player';
+// Original instrumental accompaniment synthesized on this device; approved voice recordings served locally.
 export class WorkoutAudio {
   private context: AudioContext | null = null;
   private bus: GainNode | null = null;
@@ -11,9 +12,12 @@ export class WorkoutAudio {
   private enabled=false;
   private paused=false;
   private style: 'focus' | 'energy'='energy';
-  private utterance: SpeechSynthesisUtterance | null=null;
+  private voice: CoachVoicePlayer;
   private disposed=false;
-  constructor(private onIssue: (kind:'voice'|'music')=>void) {}
+  constructor(private onIssue: (kind:'voice'|'music')=>void) {
+    this.voice=new CoachVoicePlayer(()=>{this.unlock();return this.context;},value=>this.duck(value),()=>this.onIssue('voice'));
+  }
+  preloadVoice(language:'en'|'zh',exerciseText:string) {return this.voice.preload(language,exerciseText);}
 
   unlock() {
     if(this.disposed) return;
@@ -78,23 +82,12 @@ export class WorkoutAudio {
       this.nextBeat+=step;
     }
   }
-  say(text:string, language:'en'|'zh', enabled:boolean) {
+  say(text:string, language:'en'|'zh', enabled:boolean, response=false) {
     if(!enabled || this.disposed) return;
-    if(!('speechSynthesis' in window) || !('SpeechSynthesisUtterance' in window)) {this.onIssue('voice');return;}
-    this.silence();
-    const utterance=new SpeechSynthesisUtterance(text);this.utterance=utterance;
-    utterance.lang=language==='zh'?'zh-CN':'en-US';utterance.rate=language==='zh'?1:1.04;
-    const voices=window.speechSynthesis.getVoices();
-    utterance.voice=voices.find(voice=>voice.lang===utterance.lang && voice.localService)
-      ?? voices.find(voice=>voice.lang.toLowerCase().startsWith(language==='zh'?'zh':'en')) ?? null;
-    this.duck(true);
-    const ended=()=>{if(this.utterance===utterance){this.utterance=null;this.duck(false);}};
-    utterance.onend=ended;
-    utterance.onerror=(event)=>{ended();if(!this.disposed && event.error!=='canceled' && event.error!=='interrupted')this.onIssue('voice');};
-    window.speechSynthesis.resume();window.speechSynthesis.speak(utterance);
+    this.voice.say(text,language,response);
   }
-  silence() {this.utterance=null;if('speechSynthesis' in window)window.speechSynthesis.cancel();this.duck(false);}
-  dispose() {this.disposed=true;this.silence();if(this.timer)clearInterval(this.timer);this.timer=null;void this.context?.close().catch(()=>{});this.context=null;}
+  silence() {this.voice.stop();}
+  dispose() {this.disposed=true;this.voice.dispose();if(this.timer)clearInterval(this.timer);this.timer=null;void this.context?.close().catch(()=>{});this.context=null;}
 }
 
 export type Recognition = {lang:string;continuous:boolean;interimResults:boolean;start:()=>void;abort:()=>void;
