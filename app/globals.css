@@ -1209,3 +1209,25 @@ html:lang(zh) :is(h1, h2, h3, h4, h5, h6) { letter-spacing: 0; }
 .membership-plans-link b { font-size:26px; }
 .membership-plans-link:focus-visible, .paywall-back:focus-visible { outline:3px solid #92ba47; outline-offset:4px; }
 .paywall-back { display:block; margin-bottom:24px; padding:10px 0; border:0; background:transparent; color:inherit; cursor:pointer; }
+
+.payment-shell { min-height:100dvh; background:#f3f5ed; padding:24px clamp(18px, 5vw, 72px) 48px; color:#183c32; }
+.payment-shell > header { display:flex; align-items:center; justify-content:space-between; gap:16px; max-width:1200px; margin:0 auto 36px; }
+.payment-card { max-width:640px; margin:0 auto; padding:clamp(24px, 5vw, 52px); background:#fff; border:1px solid #dbe1d5; border-radius:28px; text-align:center; box-shadow:0 16px 60px #183c3209; }
+.payment-symbol { width:72px; height:72px; margin:0 auto 24px; display:grid; place-items:center; border-radius:50%; background:#edf0e8; font-size:36px; }
+.payment-symbol.paid { background:#d9ff43; }
+.payment-card h1 { margin:12px 0 20px; font-size:clamp(30px, 6vw, 44px); line-height:1.16; letter-spacing:-.035em; }
+.payment-card p { line-height:1.65; }
+.payment-card > p[role=status] { color:#496258; }
+.payment-details { margin:28px 0 18px; padding:8px 20px; background:#f5f7f1; border-radius:16px; text-align:left; }
+.payment-details > div { display:flex; flex-wrap:wrap; justify-content:space-between; gap:8px 16px; padding:14px 0; }
+.payment-details > div + div { border-top:1px solid #dbe1d5; }
+.payment-details dt { color:#496258; }
+.payment-details dd { margin:0; font-weight:700; }
+.payment-note { font-size:14px; color:#496258; }
+.payment-actions { display:grid; gap:10px; margin-top:28px; }
+.payment-actions button { padding:15px 18px; min-height:48px; border:1px solid #dbe1d5; border-radius:12px; background:#fff; color:#183c32; font:inherit; font-weight:600; cursor:pointer; }
+.payment-actions .payment-primary { background:#183c32; color:#fff; border-color:#183c32; }
+.payment-actions button:disabled { opacity:.6; cursor:wait; }
+.payment-actions button:focus-visible, .payment-support a:focus-visible { outline:3px solid #92ba47; outline-offset:3px; }
+.payment-support { margin:28px 0 0; font-size:13px; color:#496258; overflow-wrap:anywhere; }
+.payment-support a { color:inherit; text-underline-offset:3px; }

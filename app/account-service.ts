@@ -12,7 +12,7 @@ import type {
 } from './account-types';
 import { appUrl, backendConfigured, getSupabase, market } from './supabase-client';
 import { getFocusOption, weeklyRotation } from './workout-data';
-import { approvedCatalogPlans, secureStripeUrl } from './billing-client';
+import { approvedCatalogPlans, parseCheckoutConfirmation, secureStripeUrl } from './billing-client';
 
 type EntitlementRow = {
   billing_mode?: 'test' | 'live' | null;
@@ -344,6 +344,12 @@ export async function createCheckout(plan: 'daily' | 'monthly' | 'annual') {
 
 export async function createCustomerPortal() {
   return invokeBillingFunction('create-customer-portal-session');
+}
+
+export async function loadCheckoutConfirmation(sessionId: string | null) {
+  const { data, error } = await getSupabase().functions.invoke('get-checkout-confirmation', { body: { sessionId }, timeout: 15000 });
+  if (error) throw new Error('Payment confirmation is unavailable.');
+  return parseCheckoutConfirmation(data);
 }
 
 export async function deleteAccount() {
