@@ -108,7 +108,7 @@ export default function WorkoutSession({workout,startAt,cameraFirst,language,onL
   function command(action:CoachCommand) {
     unlock();
     if(action==='pause') {dispatch({type:'pause'});say(tr('Paused. Take a breath. We’ll continue when you’re ready.', '已暂停，放松呼吸，准备好后再继续。'),true);}
-    if(action==='resume') {if(voiceEnabled && voiceLoading)return;dispatch({type:state.phase==='ready'?'start':'resume'});}
+    if(action==='resume') {if(voiceEnabled && voiceLoading)return;audio.current?.silence();dispatch({type:state.phase==='ready'?'start':'resume'});}
     if(action==='slower') {dispatch({type:'slower'});say(tr('Of course. Let’s slow the pace and keep each movement controlled.', '没问题，我们放慢节奏，把每次动作做稳。'),true);}
     if(action==='moreRest') {dispatch({type:'moreRest'});say(['rest','repRest','switchSide'].includes(state.phase)?tr('You’ve got fifteen more seconds. Recover at your pace.', '多休息十五秒，按自己的节奏恢复。'):tr('Let’s pause. Press Resume when you feel ready.', '我们先暂停，准备好后再继续。'),true);}
     if(action==='repeat')say(coachExerciseCue(exercise,language),true);
@@ -137,7 +137,7 @@ export default function WorkoutSession({workout,startAt,cameraFirst,language,onL
     setSaving(true);setSaveError('');
     try{await onSave({...result,sessionId});}catch{setSaveError(tr('Your workout could not be saved. Please retry.', '训练未能保存，请重试。'));}finally{setSaving(false);}
   }
-  const start=()=>{if(voiceEnabled && voiceLoading)return;unlock();setVoiceIssue(false);audio.current?.say(tr('Three','三'),language,voiceEnabled);dispatch({type:'start'});};
+  const start=()=>{if(voiceEnabled && voiceLoading)return;unlock();audio.current?.silence();setVoiceIssue(false);audio.current?.say(tr('Three','三'),language,voiceEnabled);dispatch({type:'start'});};
   const finished=state.phase==='summary';
   const resting=state.phase==='rest';
   const phaseLabel=state.paused?tr('PAUSED','已暂停'):({ready:tr('READY FOR YOUR SET','准备开始本组'),countdown:tr('GET READY','准备'),rep:timing.hold?exercise.id==='stationary-bike'?tr('WORK INTERVAL','计时骑行'):tr('HOLD','保持'):tr('REP TIME','本次动作时间'),repRest:tr('BETWEEN REPS','动作间休息'),switchSide:tr('SWITCH SIDES','换侧'),rest:tr('REST BETWEEN SETS','组间休息'),camera:tr('CAMERA COACH','摄像指导'),summary:tr('SESSION FINISHED','训练结束')})[state.phase];
