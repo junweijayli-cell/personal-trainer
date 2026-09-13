@@ -29,6 +29,7 @@ import { membershipDaysRemaining, membershipHasAccess } from './membership';
 import { annualSavingLabel, globalPriceLabel } from './pricing';
 import { billingNoticeText, readBillingReturn, refreshBillingMembership, runBillingAction, type BillingNotice, type BillingReturn, type CheckoutConfirmation } from './billing-client';
 import type { AccountSnapshot, DailyLog, MemberAccount, ScheduleItem } from './account-types';
+import type { PurchasableBillingPlan } from '../supabase/functions/_shared/billing-policy';
 import {
   buildWorkout,
   equipmentOptions,
@@ -145,7 +146,7 @@ export default function Home() {
   const [paymentReceipt, setPaymentReceipt] = useState<CheckoutConfirmation | null>(null);
   const [paymentCheck, setPaymentCheck] = useState(0);
   const [billingMode, setBillingMode] = useState<'test' | 'live' | null>(null);
-  const [billingPlans, setBillingPlans] = useState<('daily' | 'monthly' | 'annual')[]>([]);
+  const [billingPlans, setBillingPlans] = useState<PurchasableBillingPlan[]>([]);
   const [catalogStatus, setCatalogStatus] = useState<'loading' | 'ready' | 'unavailable'>('loading');
   const resetBilling = useCallback(() => {
     billingAbort.current?.abort();
@@ -479,7 +480,7 @@ export default function Home() {
     void signOutAccount();
   }
 
-  async function selectSubscription(plan: 'daily' | 'monthly' | 'annual') {
+  async function selectSubscription(plan: PurchasableBillingPlan) {
     if (!member || accountActionBusy || billingAwaitingConfirmation || !billingPlans.includes(plan)) return;
     await runBillingAction(billingActionLock, async () => {
       const generation = billingActionLock.generation;
@@ -917,7 +918,7 @@ export default function Home() {
             <a className="membership-plans-link" href="?view=membership" onClick={(event) => {
               if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
               event.preventDefault(); navigate('membership');
-            }}><span><strong>{tr('Membership plans', '会员订阅')}</strong><small>{tr('Choose daily, monthly or annual access', '选择日付、月付或年付方案')}</small></span><b aria-hidden="true">→</b></a>
+            }}><span><strong>{tr('Membership plans', '会员订阅')}</strong><small>{tr('Choose monthly or annual access', '选择月付或年付方案')}</small></span><b aria-hidden="true">→</b></a>
 
             {legacySnapshot && <article className="legacy-import-card"><div><small>{tr('DEVICE HISTORY FOUND', '发现设备历史记录')}</small><h2>{tr('Bring your previous Relay activity with you', '导入之前的 Relay 训练记录')}</h2><p>{tr('Only workouts, wellness, and schedule data will be imported. Demo passwords and billing status are never copied.', '仅导入训练、健康记录与日程。演示密码和账单状态绝不会被复制。')}</p></div><button type="button" onClick={importDeviceData}>{tr('Import securely', '安全导入')} <span>→</span></button></article>}
 
@@ -1103,14 +1104,14 @@ function TrialPaywall({ language, member, onBack, onLanguageChange, onSubscribe,
   member: MemberAccount;
   onBack: () => void;
   onLanguageChange: (language: Language) => void;
-  onSubscribe: (plan: 'daily' | 'monthly' | 'annual') => void;
+  onSubscribe: (plan: PurchasableBillingPlan) => void;
   onSignOut: () => void;
   onExport: () => void;
   onDelete: () => void;
   onManageBilling: () => void;
   accountActionBusy: boolean;
   billingBusy: boolean;
-  billingPlans: ('daily' | 'monthly' | 'annual')[];
+  billingPlans: PurchasableBillingPlan[];
   billingMode: 'test' | 'live' | null;
   catalogStatus: 'loading' | 'ready' | 'unavailable';
   billingNotice: BillingNotice;
@@ -1132,7 +1133,6 @@ function TrialPaywall({ language, member, onBack, onLanguageChange, onSubscribe,
         {billingNotice !== 'none' && <p className="account-save-status" role="status">{billingNoticeText(billingNotice, language, member.membership.billingMode)}</p>}
         {catalogStatus !== 'ready' && <p role="status">{catalogStatus === 'loading' ? tr('Checking available payment plans…', '正在确认可用付款方案…') : tr('Online payment is not available yet. Your saved data remains safe; please check back later.', '在线支付暂未开放，你的数据仍被安全保存，请稍后再来查看。')}</p>}
         <div className="paywall-options">
-          {member.market === 'global' && <article><span>{tr('DAILY', '日付')}</span><h2>{globalPriceLabel('daily', language)}</h2><p>{tr('US$1 charged every day until canceled. Cancel renewal from Account → Manage billing; access lasts through the paid day.', '每天扣款 US$1，直至取消。可在账户的管理账单中取消续订，权限保留至已付费当天的周期结束。')}</p><button type="button" onClick={() => onSubscribe('daily')} disabled={managesSubscription || accountActionBusy || billingBusy || !billingPlans.includes('daily')} aria-busy={billingBusy}>{tr('Choose daily', '选择日付')}<b>→</b></button></article>}
           {member.market === 'global' && <article><span>{tr('MONTHLY', '月付')}</span><h2>{globalPriceLabel('monthly', language)}</h2><p>{tr('Billed monthly in USD. Cancel renewal from the secure billing portal.', '以美元按月续费，可在安全账单页面取消续订。')}</p><button type="button" onClick={() => onSubscribe('monthly')} disabled={managesSubscription || accountActionBusy || billingBusy || !billingPlans.includes('monthly')} aria-busy={billingBusy}>{tr('Choose monthly', '选择月付')}<b>→</b></button></article>}
           <article className="featured"><small>{member.market === 'global' ? annualSavingLabel(language) : tr('BEST VALUE', '超值方案')}</small><span>{tr('ANNUAL', '年付')}</span><h2>{member.market === 'cn' ? tr('One secure annual payment', '一次安全年付') : globalPriceLabel('annual', language)}</h2><p>{member.market === 'cn' ? tr('365 days of access with Alipay or an eligible card. It does not auto-renew.', '可使用支付宝或支持的银行卡购买 365 天权限，不会自动续费。') : tr('Billed yearly in USD. Cancel renewal from the secure billing portal.', '以美元按年续费，可在安全账单页面取消续订。')}</p><button type="button" onClick={() => onSubscribe('annual')} disabled={managesSubscription || accountActionBusy || billingBusy || !billingPlans.includes('annual')} aria-busy={billingBusy}>{tr('Choose annual', '选择年付')}<b>→</b></button></article>
         </div>

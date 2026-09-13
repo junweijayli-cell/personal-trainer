@@ -13,6 +13,7 @@ import type {
 import { appUrl, backendConfigured, getSupabase, market } from './supabase-client';
 import { getFocusOption, weeklyRotation } from './workout-data';
 import { approvedCatalogPlans, parseCheckoutConfirmation, secureStripeUrl } from './billing-client';
+import type { PurchasableBillingPlan } from '../supabase/functions/_shared/billing-policy';
 
 type EntitlementRow = {
   billing_mode?: 'test' | 'live' | null;
@@ -343,7 +344,7 @@ export async function loadBillingCatalog() {
   return { plans: approvedCatalogPlans(data, market), mode: data.mode as 'test' | 'live' };
 }
 
-export async function createCheckout(plan: 'daily' | 'monthly' | 'annual') {
+export async function createCheckout(plan: PurchasableBillingPlan) {
   return invokeBillingFunction('create-checkout-session', { plan });
 }
 

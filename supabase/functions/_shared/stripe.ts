@@ -1,6 +1,6 @@
 import Stripe from 'npm:stripe@19.0.0';
 import { assertBillingMode, assertStripeKey, type BillingMode } from './billing-mode.ts';
-import { assertApprovedPrice, type BillingPlan } from './billing-policy.ts';
+import { assertApprovedPrice, GLOBAL_PURCHASE_PLANS, type BillingPlan, type PurchasableBillingPlan } from './billing-policy.ts';
 
 export function stripeClient(mode: BillingMode = 'test') {
   const secret = assertStripeKey(Deno.env.get(mode === 'live' ? 'STRIPE_LIVE_SECRET_KEY' : 'STRIPE_SECRET_KEY')?.trim(), mode);
@@ -42,8 +42,7 @@ export function recognizedPrices(plan: BillingPlan, mode: BillingMode = 'test') 
   return [priceId(plan, mode), ...history.split(',').map(value => value.trim()).filter(Boolean)];
 }
 
-export function configuredPlans(mode: BillingMode): BillingPlan[] {
+export function configuredPlans(): PurchasableBillingPlan[] {
   if (appMarket() === 'cn') return ['annual'];
-  return mode === 'live' || Deno.env.get('STRIPE_PRICE_DAILY')
-    ? ['daily', 'monthly', 'annual'] : ['monthly', 'annual'];
+  return [...GLOBAL_PURCHASE_PLANS];
 }

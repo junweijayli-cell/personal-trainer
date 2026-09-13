@@ -6,6 +6,8 @@ export const GLOBAL_PLANS = {
 } as const;
 
 export type BillingPlan = keyof typeof GLOBAL_PLANS;
+export type PurchasableBillingPlan = Exclude<BillingPlan, 'daily'>;
+export const GLOBAL_PURCHASE_PLANS: readonly PurchasableBillingPlan[] = ['monthly', 'annual'];
 export const ANNUAL_SAVING_PERCENT = Math.round(
   (1 - GLOBAL_PLANS.annual.unitAmount / (GLOBAL_PLANS.monthly.unitAmount * 12)) * 100,
 );

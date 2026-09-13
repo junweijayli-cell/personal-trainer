@@ -17,7 +17,7 @@ Deno.serve(async (request) => {
     }
     if (!(await checkoutAvailable(adminClient(), userId))) return json(request, { market, mode, enabled: false, plans: [] });
     const stripe = stripeClient(mode);
-    const plans = configuredPlans(mode);
+    const plans = configuredPlans();
     const catalog = await Promise.all(plans.map(async (plan) => {
       const price = await approvedStripePrice(stripe, plan, mode);
       return { plan, currency: price.currency, unitAmount: price.unit_amount, recurring: price.recurring?.interval ?? null };

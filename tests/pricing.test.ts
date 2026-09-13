@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { annualSavingLabel, globalPriceLabel } from '../app/pricing';
-import { ANNUAL_SAVING_PERCENT, GLOBAL_PLANS, assertApprovedPrice } from '../supabase/functions/_shared/billing-policy';
+import { ANNUAL_SAVING_PERCENT, GLOBAL_PLANS, GLOBAL_PURCHASE_PLANS, assertApprovedPrice } from '../supabase/functions/_shared/billing-policy';
 
 const monthlyPrice = {
   active: true, currency: 'usd', unit_amount: 1000, type: 'recurring', billing_scheme: 'per_unit',
@@ -23,6 +23,7 @@ describe('approved TrainWell prices', () => {
     expect(globalPriceLabel('annual', 'zh')).toBe('US$60 / 年');
     expect(annualSavingLabel('en')).toBe('Save 50% vs monthly');
     expect(annualSavingLabel('zh')).toBe('比按月付费省 50%');
+    expect(GLOBAL_PURCHASE_PLANS).toEqual(['monthly', 'annual']);
   });
 
   it('accepts only the two approved global recurring offers', () => {
@@ -42,6 +43,7 @@ describe('approved TrainWell prices', () => {
     for (const language of ['en', 'zh']) {
       for (const plan of ['monthly', 'annual']) expect(legal).toContain(`globalPriceLabel('${plan}', '${language}')`);
     }
+    expect(legal).not.toContain("globalPriceLabel('daily'");
     expect(legal).not.toMatch(/US\$(5|30)\b|每月 5 美元|每年 30 美元/);
   });
 
@@ -82,11 +84,13 @@ describe('approved TrainWell prices', () => {
     expect(checkout.indexOf('await approvedStripePrice')).toBeLessThan(checkout.indexOf('await openCheckout'));
     expect(checkout).not.toMatch(/body\.(price|amount|currency|access_days)/);
     expect(checkout).toContain('plan,price.id,appUrl()');
+    expect(checkout).toContain("plan!=='monthly' && plan!=='annual'");
+    expect(checkout).not.toContain("plan!=='daily'");
     expect(catalog).toContain('await approvedStripePrice(stripe, plan, mode)');
   });
 });
 
-it('validates one US dollar daily and rejects a mismatched interval or amount', () => {
+it('retains historical daily price validation without offering it for purchase', () => {
   expect(globalPriceLabel('daily','en')).toBe('US$1 / day');
   expect(globalPriceLabel('daily','zh')).toBe('US$1 / 天');
   const day={...monthlyPrice,unit_amount:100,recurring:{...monthlyPrice.recurring,interval:'day'}};
