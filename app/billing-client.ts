@@ -1,5 +1,5 @@
 import type { MemberAccount, Market } from './account-types';
-import { GLOBAL_PLANS, type BillingPlan } from '../supabase/functions/_shared/billing-policy';
+import { GLOBAL_PLANS, type BillingPlan, type PurchasableBillingPlan } from '../supabase/functions/_shared/billing-policy';
 import { membershipHasAccess } from './membership';
 
 export type BillingReturn = 'success' | 'canceled' | 'return';
@@ -33,14 +33,14 @@ export function secureStripeUrl(value: unknown, kind: 'checkout' | 'portal') {
   return url.href;
 }
 
-export function approvedCatalogPlans(value: unknown, expectedMarket: Market): BillingPlan[] {
+export function approvedCatalogPlans(value: unknown, expectedMarket: Market): PurchasableBillingPlan[] {
   const catalog = value as { market?: unknown; plans?: unknown; mode?: unknown; enabled?: unknown } | null;
   if (!catalog || !['test', 'live'].includes(String(catalog.mode)) || catalog.enabled !== true || catalog.market !== expectedMarket || !Array.isArray(catalog.plans)) throw new Error('Billing is unavailable.');
-  const plans: BillingPlan[] = [];
+  const plans: PurchasableBillingPlan[] = [];
   for (const item of catalog.plans) {
     if (!item || typeof item !== 'object' || !('plan' in item)) continue;
     const row = item as { plan: unknown; currency: unknown; unitAmount: unknown; recurring: unknown };
-    if (row.plan !== 'daily' && row.plan !== 'monthly' && row.plan !== 'annual') continue;
+    if (row.plan !== 'monthly' && row.plan !== 'annual') continue;
     if (expectedMarket === 'global') {
       const approved = GLOBAL_PLANS[row.plan];
       if (row.currency !== approved.currency || row.unitAmount !== approved.unitAmount || row.recurring !== approved.interval) continue;

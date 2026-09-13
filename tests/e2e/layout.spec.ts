@@ -31,7 +31,6 @@ async function isolateBrowser(page: Page, locale: Locale, membership?: 'trial' |
     const endpoint = url.pathname.replace('/rest/v1/', '');
     if (url.pathname === '/auth/v1/user') return route.fulfill({ json: user });
     if (url.pathname === '/functions/v1/get-billing-catalog') return route.fulfill({ json: { mode: 'live', enabled: billingEnabled, market: 'global', plans: [
-      { plan: 'daily', currency: 'usd', unitAmount: 100, recurring: 'day' },
       { plan: 'monthly', currency: 'usd', unitAmount: 1000, recurring: 'month' },
       { plan: 'annual', currency: 'usd', unitAmount: 6000, recurring: 'year' },
     ] } });
@@ -365,6 +364,7 @@ for (const locale of ['en', 'zh'] as const) {
     await expect(page).toHaveURL(/view=membership/);
     await expect(page.locator('.paywall-shell h1')).toHaveText(locale === 'zh' ? '选择会员方案' : 'Choose your membership');
     await expect(page.locator('.paywall-shell')).toContainText(locale === 'zh' ? '自动续费' : 'Renews automatically');
+    await expect(page.getByRole('button', { name: locale === 'zh' ? /选择日付/ : /Choose daily/ })).toHaveCount(0);
     await auditAndCapture(page, testInfo, `${locale}-membership-plans`);
     await page.reload();
     await expect(page.locator('.paywall-shell h1')).toBeVisible();
@@ -377,10 +377,7 @@ for (const locale of ['en', 'zh'] as const) {
     await page.goto('http://127.0.0.1:3012/?view=membership');
     await page.getByRole('button', { name: locale === 'zh' ? /选择年付/ : /Choose annual/ }).click();
     await expect(page).toHaveURL('https://checkout.stripe.com/c/pay/cs_test_annual');
-    await page.goto('http://127.0.0.1:3012/?view=membership');
-    await page.getByRole('button', { name: locale === 'zh' ? /选择日付/ : /Choose daily/ }).click();
-    await expect(page).toHaveURL('https://checkout.stripe.com/c/pay/cs_test_daily');
-    expect(selections).toEqual(['monthly', 'annual', 'daily']);
+    expect(selections).toEqual(['monthly', 'annual']);
   });
 
   test(`membership remains reachable while checkout is disabled (${locale})`, async ({ page }) => {
@@ -408,6 +405,7 @@ for (const locale of ['en', 'zh'] as const) {
     await expect(page.locator('.landing-shell').getByRole('heading').filter({ hasText: /[.。]/ })).toHaveCount(0);
     await expect(page.locator('.price-options')).toContainText(locale === 'zh' ? 'US$10 / 月' : 'US$10 / month');
     await expect(page.locator('.price-options')).toContainText(locale === 'zh' ? 'US$60 / 年' : 'US$60 / year');
+    await expect(page.locator('.price-options')).not.toContainText(locale === 'zh' ? 'US$1 / 天' : 'US$1 / day');
     await auditAndCapture(page, testInfo, `${locale}-landing-pricing`);
     await page.locator('.landing-hero .hero-copy > button').click();
     await expect(page.getByRole('dialog')).toBeVisible();

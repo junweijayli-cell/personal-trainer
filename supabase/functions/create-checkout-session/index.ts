@@ -10,7 +10,7 @@ Deno.serve(async (request) => {
   try {
     const {user,admin}=await authenticatedUser(request);
     const {plan}=await request.json();
-    if(plan!=='daily' && plan!=='monthly' && plan!=='annual') throw new Error('Choose daily, monthly or annual access.');
+    if(plan!=='monthly' && plan!=='annual') throw new Error('Choose monthly or annual access.');
     const { mode } = await runtime(admin);
     const stripe=stripeClient(mode);
     const price=await approvedStripePrice(stripe,plan,mode);
