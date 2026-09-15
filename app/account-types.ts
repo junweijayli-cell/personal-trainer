@@ -63,6 +63,7 @@ export type Membership = {
   cancelAtPeriodEnd: boolean;
   hasAccess: boolean;
   serverNow: string;
+  accessSource?: 'trial' | 'stripe' | 'grant' | null;
 };
 
 export type MemberAccount = {
