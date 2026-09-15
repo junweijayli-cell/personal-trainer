@@ -22,10 +22,12 @@ beforeAll(async()=>{
   await db.exec(read('supabase/migrations/202609020001_production_foundation.sql').replace('create extension if not exists pgcrypto with schema extensions;',''));
   await db.exec(read('supabase/migrations/202609070001_safe_test_billing.sql'));
   await db.exec(read('supabase/migrations/202609090001_live_daily_billing.sql'));
+  await db.exec(read('supabase/migrations/202609150001_promo_code_memberships.sql'));
 },30000);
 beforeEach(async()=>{
   await db.exec(`reset role; truncate auth.users cascade; truncate public.billing_events,public.billing_audit_log;
-    update public.billing_runtime set mode='test',checkout_enabled=true;`);
+    update public.billing_runtime set mode='test',checkout_enabled=true;
+    update public.promo_runtime set redemption_enabled=true;`);
   await db.query(`insert into auth.users(id,email,email_confirmed_at) values($1,'fixture@example.com',now())`,[userId]);
   await db.query(`select set_config('request.jwt.claim.sub',$1,false)`,[userId]);
 });
@@ -81,6 +83,15 @@ function fakeStripe(live = false){
   return {api:api as unknown as Stripe,sessions,subscriptions,created:()=>creates,customers:()=>customers,loseNextResponse:()=>{loseResponse=true;}};
 }
 async function member(){return (await db.query<Record<string,unknown>>('select * from public.memberships where user_id=$1',[userId])).rows[0];}
+async function redeem(digest:string){
+  const result = await db.query<Record<string,unknown>>('select * from public.redeem_promo_code($1)',[digest]);
+  return result.rows[0];
+}
+async function seedPromo(digest='a'.repeat(64), plan='monthly' as 'monthly'|'annual', expires='365 days'){
+  const batch = await db.query<{id:string}>('insert into public.promo_code_batches(plan,quantity,label,expires_at,created_by) values($1,1,$2,now()+$3::interval,$4) returning id',[plan,`${plan} fixture`,expires,userId]);
+  await db.query('insert into public.promo_codes(batch_id,code_digest,code_suffix) values($1,$2,$3)',[batch.rows[0].id,digest,digest.slice(-4).toUpperCase()]);
+  return batch.rows[0].id;
+}
 const checkout=(s:Stripe,p:'daily'|'monthly'|'annual'='monthly')=>openCheckout(adapter,s,user,p,p==='daily'?'price_day':p==='monthly'?'price_month':'price_year','https://trainwell.win');
 const event=(id:string,type:string,object:unknown)=>({id,type,livemode:false,data:{object}} as Stripe.Event);
 const reconcile=(s:Stripe,e:Stripe.Event)=>reconcileBilling(adapter,s,e,['price_month','price_old_month'],['price_year','price_old_year'],['price_day']);
@@ -220,6 +231,56 @@ describe('authoritative event reconciliation',()=>{
     await reconcile(s.api,event('evt_paid','invoice.paid',{customer:'cus_1',subscription:'sub_1'}));expect((await member()).status).toBe('active');expect((await member()).cancel_at_period_end).toBe(true);
     s.subscriptions.set('sub_1',subscription('canceled'));
     await reconcile(s.api,event('evt_end','customer.subscription.deleted',subscription('canceled')));expect((await member()).status).toBe('canceled');
+  });
+});
+
+describe('one-time access-code grants', () => {
+  it('redeems once, is idempotent for the same account, and calculates fixed duration', async () => {
+    await seedPromo('b'.repeat(64), 'annual');
+    const first = await redeem('b'.repeat(64));
+    const second = await redeem('b'.repeat(64));
+    expect(first.grant_id).toBe(second.grant_id);
+    expect(first.plan).toBe('annual');
+    const duration = new Date(String(first.ends_at)).getTime() - new Date(String(first.starts_at)).getTime();
+    expect(duration).toBe(365 * 24 * 60 * 60 * 1000);
+    const stored = await db.query<{code_digest:string;redeemed_by:string}>('select code_digest,redeemed_by from public.promo_codes');
+    expect(stored.rows[0].code_digest).toBe('b'.repeat(64));
+    expect(stored.rows[0].redeemed_by).toBe(userId);
+  });
+
+  it('serializes concurrent tabs and rejects reuse by another account', async () => {
+    await seedPromo('c'.repeat(64));
+    const results = await Promise.allSettled([redeem('c'.repeat(64)), redeem('c'.repeat(64))]);
+    expect(results.filter((item) => item.status === 'fulfilled')).toHaveLength(2);
+    const grants = await db.query('select * from public.membership_grants');
+    expect(grants.rows).toHaveLength(1);
+    const otherId = '22222222-2222-4222-8222-222222222222';
+    await db.query('insert into auth.users(id,email,email_confirmed_at) values($1,$2,now())',[otherId,'other@example.com']);
+    await db.query('select set_config($1,$2,false)',['request.jwt.claim.sub',otherId]);
+    await expect(redeem('c'.repeat(64))).rejects.toThrow('invalid or unavailable');
+    await db.query('select set_config($1,$2,false)',['request.jwt.claim.sub',userId]);
+  });
+
+  it('fails closed for expired, revoked, unverified, and China-market accounts', async () => {
+    await seedPromo('d'.repeat(64));
+    await db.query('update public.promo_code_batches set expires_at=now()-interval \'1 minute\'');
+    await expect(redeem('d'.repeat(64))).rejects.toThrow('invalid or unavailable');
+    await seedPromo('e'.repeat(64));
+    await db.query('update public.promo_code_batches set revoked_at=now() where id=(select batch_id from public.promo_codes where code_digest=$1)',['e'.repeat(64)]);
+    await expect(redeem('e'.repeat(64))).rejects.toThrow('invalid or unavailable');
+    await db.query('update auth.users set email_confirmed_at=null where id=$1',[userId]);
+    await expect(redeem('e'.repeat(64))).rejects.toThrow('Verify your email');
+  });
+
+  it('stacks after paid access and exposes grant as the effective entitlement source', async () => {
+    await db.query("update public.memberships set status='active',plan='monthly',billing_mode='test',current_period_end=now()+interval '10 days' where user_id=$1",[userId]);
+    await seedPromo('f'.repeat(64), 'monthly');
+    const grant = await redeem('f'.repeat(64));
+    const membership = await member();
+    expect(new Date(String(grant.starts_at)).getTime()).toBeGreaterThanOrEqual(new Date(String(membership.current_period_end)).getTime() - 1000);
+    const entitlement = await db.query<Record<string,unknown>>('select * from public.get_my_entitlement()');
+    expect(entitlement.rows[0].access_source).toBe('grant');
+    expect(entitlement.rows[0].plan).toBe('monthly');
   });
 });
 

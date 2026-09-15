@@ -25,7 +25,14 @@ type EntitlementRow = {
   cancel_at_period_end: boolean;
   server_now: string;
   has_access: boolean;
+  access_source?: 'trial' | 'stripe' | 'grant' | null;
 };
+
+export type PromoBatch = {
+  id: string; plan: 'monthly' | 'annual'; label: string; quantity: number; expires_at: string;
+  revoked_at: string | null; created_at: string; redeemed: number; unused: number; expired: number; revoked: number;
+};
+export type PromoBatchCreation = { batch: PromoBatch; codes: Array<{ code: string; suffix: string }> };
 
 const defaultProfile: Profile = {
   goal: 'Build strength',
@@ -193,6 +200,7 @@ export async function loadMember(session?: Session): Promise<MemberAccount> {
       cancelAtPeriodEnd: Boolean(row.cancel_at_period_end),
       hasAccess: Boolean(row.has_access),
       serverNow: row.server_now,
+      accessSource: row.access_source ?? (row.status === 'trial' ? 'trial' : row.status === 'active' ? 'stripe' : null),
     },
   };
 }
@@ -363,6 +371,36 @@ export async function deleteAccount() {
   if (error) throw new Error(error.message);
 }
 
+async function invokePromoFunction<T>(name: string, body?: Record<string, unknown>, method: 'GET' | 'POST' = 'POST'): Promise<T> {
+  const { data, error } = await getSupabase().functions.invoke(name, { body, method, timeout: 15000 });
+  if (error) {
+    const response = error.context as Response | undefined;
+    const context = response instanceof Response ? await response.clone().json().catch(() => null) as { error?: unknown } | null : null;
+    throw new Error(typeof context?.error === 'string' ? context.error : error.message);
+  }
+  return data as T;
+}
+
+export async function redeemPromoCode(code: string) {
+  return invokePromoFunction<{ plan: 'monthly' | 'annual'; startsAt: string; endsAt: string }>('redeem-promo-code', { code });
+}
+
+export async function promoOperatorStatus() {
+  return invokePromoFunction<{ operator: boolean }>('promo-operator-status', undefined, 'GET');
+}
+
+export async function createPromoBatch(input: { plan: 'monthly' | 'annual'; quantity: number; label: string; expiresAt: string }) {
+  return invokePromoFunction<PromoBatchCreation>('create-promo-batch', input);
+}
+
+export async function listPromoBatches() {
+  return invokePromoFunction<{ batches: PromoBatch[] }>('list-promo-batches', undefined, 'GET');
+}
+
+export async function revokePromoBatch(batchId: string) {
+  return invokePromoFunction<{ batch: { id: string; revoked_at: string } }>('revoke-promo-batch', { batchId });
+}
+
 export function readLegacySnapshot(email: string): AccountSnapshot | null {
   try {
     const raw = window.localStorage.getItem(`relay-demo-snapshot:${email.trim().toLowerCase()}`);
@@ -405,6 +443,7 @@ const exportTables = [
   ['profiles', 'user_id'],
   ['training_preferences', 'user_id'],
   ['memberships', 'user_id'],
+  ['membership_grants', 'user_id'],
   ['training_plans', 'id'],
   ['scheduled_workouts', 'id'],
   ['workout_sessions', 'id'],

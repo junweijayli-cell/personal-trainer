@@ -9,6 +9,7 @@ import LandingAuth, { LanguageSwitch, type Language } from './landing-auth';
 import {
   createCheckout,
   createCustomerPortal,
+  createPromoBatch,
   deleteAccount,
   downloadAccountExport,
   getActiveSession,
@@ -17,6 +18,10 @@ import {
   loadBillingCatalog,
   loadCheckoutConfirmation,
   loadMember,
+  listPromoBatches,
+  promoOperatorStatus,
+  redeemPromoCode,
+  revokePromoBatch,
   observeAuth,
   readLegacySnapshot,
   saveTrainingProfile,
@@ -29,6 +34,7 @@ import { membershipDaysRemaining, membershipHasAccess } from './membership';
 import { annualSavingLabel, globalPriceLabel } from './pricing';
 import { billingNoticeText, readBillingReturn, refreshBillingMembership, runBillingAction, type BillingNotice, type BillingReturn, type CheckoutConfirmation } from './billing-client';
 import type { AccountSnapshot, DailyLog, MemberAccount, ScheduleItem } from './account-types';
+import type { PromoBatch } from './account-service';
 import type { PurchasableBillingPlan } from '../supabase/functions/_shared/billing-policy';
 import {
   buildWorkout,
@@ -43,12 +49,12 @@ import {
   type FocusId,
 } from './workout-data';
 
-type View = 'today' | 'history' | 'you' | 'membership' | 'payment';
+type View = 'today' | 'history' | 'you' | 'membership' | 'payment' | 'promo-admin';
 
 function viewFromUrl(): View {
   if (readBillingReturn(window.location.search) === 'success') return 'payment';
   const requested = new URLSearchParams(window.location.search).get('view');
-  return requested === 'membership' || requested === 'you' || requested === 'history' || requested === 'payment' ? requested : 'today';
+  return requested === 'membership' || requested === 'you' || requested === 'history' || requested === 'payment' || requested === 'promo-admin' ? requested : 'today';
 }
 type SessionStage = 'setup' | 'guide' | 'camera';
 type CoachingMode = 'photos' | 'camera';
@@ -148,6 +154,10 @@ export default function Home() {
   const [billingMode, setBillingMode] = useState<'test' | 'live' | null>(null);
   const [billingPlans, setBillingPlans] = useState<PurchasableBillingPlan[]>([]);
   const [catalogStatus, setCatalogStatus] = useState<'loading' | 'ready' | 'unavailable'>('loading');
+  const [promoCode, setPromoCode] = useState('');
+  const [promoBusy, setPromoBusy] = useState(false);
+  const [promoMessage, setPromoMessage] = useState('');
+  const [promoOperator, setPromoOperator] = useState(false);
   const resetBilling = useCallback(() => {
     billingAbort.current?.abort();
     billingActionLock.generation += 1;
@@ -161,6 +171,7 @@ export default function Home() {
     setView((current) => current === 'payment' ? 'today' : current);
     setBillingPlans([]); setBillingMode(null);
     setCatalogStatus('loading');
+    setPromoCode(''); setPromoMessage(''); setPromoOperator(false); setPromoBusy(false);
     setSaveStatus('');
     const url = new URL(window.location.href);
     url.searchParams.delete('billing');
@@ -182,6 +193,24 @@ export default function Home() {
   const memberId = member?.userId;
   const needsSubscription = Boolean(member && !membershipHasAccess(member.membership));
   const billingAwaitingConfirmation = billingReturn === 'success' && !['confirmed', 'canceled'].includes(billingNotice);
+
+  async function redeemAccessCode() {
+    if (!member || !promoCode.trim() || promoBusy || accountActionBusy) return;
+    const expectedUser = member.userId;
+    setPromoBusy(true); setPromoMessage('');
+    try {
+      const result = await redeemPromoCode(promoCode);
+      if (billingIdentity.current !== expectedUser) throw new Error('Your account session changed.');
+      setPromoCode('');
+      setPromoMessage(language === 'zh'
+        ? `兑换成功。${result.plan === 'annual' ? '年付' : '月付'}会员权限有效至 ${new Intl.DateTimeFormat('zh-CN', { dateStyle: 'medium' }).format(new Date(result.endsAt))}，不会自动续费。`
+        : `Access code redeemed. Your ${result.plan} access is active until ${new Intl.DateTimeFormat('en', { dateStyle: 'medium' }).format(new Date(result.endsAt))} and will not renew automatically.`);
+      const latest = await loadMember();
+      if (billingIdentity.current === expectedUser) setMember(latest);
+    } catch (error) {
+      if (billingIdentity.current === expectedUser) setPromoMessage(error instanceof Error ? error.message : tr('This access code is invalid or unavailable.', '兑换码无效或不可用。'));
+    } finally { setPromoBusy(false); }
+  }
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -272,6 +301,13 @@ export default function Home() {
   }, [memberId, needsSubscription, view]);
 
   useEffect(() => {
+    if (!memberId) return;
+    let cancelled = false;
+    void promoOperatorStatus().then((result) => { if (!cancelled) setPromoOperator(Boolean(result.operator)); }).catch(() => { if (!cancelled) setPromoOperator(false); });
+    return () => { cancelled = true; };
+  }, [memberId]);
+
+  useEffect(() => {
     const restoreView = () => {
       billingAbort.current?.abort();
       setPaymentReceipt(null);
@@ -342,6 +378,7 @@ export default function Home() {
     if (!languageHydrated) return;
     document.documentElement.lang = language === 'zh' ? 'zh-CN' : 'en';
     document.title = view === 'payment' ? (language === 'zh' ? '付款确认 — 悦练' : 'Payment confirmation — TrainWell')
+      : view === 'promo-admin' ? (language === 'zh' ? '兑换码管理 — 悦练' : 'Access code admin — TrainWell')
       : language === 'zh' ? '悦练 — 清晰训练 · 自信行动' : 'TrainWell — See it · Do it · Move better';
     try {
       window.localStorage.setItem('relay-language', language);
@@ -672,6 +709,10 @@ export default function Home() {
       onContinue={() => navigate('today')} onAccount={() => navigate('you')} onManageBilling={manageBilling} />;
   }
 
+  if (view === 'promo-admin' && promoOperator) {
+    return <PromoAdmin language={language} onLanguageChange={setLanguage} onBack={() => navigate('you')} onSignOut={signOut} />;
+  }
+
   if (needsSubscription || view === 'membership') {
     return <TrialPaywall language={language} member={member} onBack={() => navigate('you')} onLanguageChange={setLanguage} onSubscribe={selectSubscription} onSignOut={signOut} onExport={exportAccountData} onDelete={removeAccount} onManageBilling={manageBilling} accountActionBusy={accountActionBusy || billingBusy} billingBusy={billingBusy || billingAwaitingConfirmation} billingPlans={billingPlans} billingMode={billingMode} catalogStatus={catalogStatus} billingNotice={billingNotice} status={saveStatus} />;
   }
@@ -913,12 +954,15 @@ export default function Home() {
           <h1>Simple choices<br />Clear training</h1>
           {accountStatus === 'signed-in' && account ? <>
             <article className="profile-card"><span className="large-avatar">{account.user.displayName.charAt(0).toUpperCase()}</span><div><strong>{account.user.displayName}</strong><small>{account.user.email} · {account.profile.level}</small></div><button type="button" onClick={signOut}>{tr('Sign out', '退出登录')}</button></article>
-            <article className="membership-card"><div><small>{tr('MEMBERSHIP', '会员状态')}</small><h2>{member.membership.plan === 'trial' ? tr('7-day free trial', '7 天免费试用') : member.membership.plan === 'daily' ? tr('Daily membership', '日付会员') : member.membership.plan === 'monthly' ? tr('Monthly membership', '月付会员') : tr('Annual membership', '年付会员')}</h2><p>{trialRemaining !== null ? tr(`${trialRemaining} days remaining. No card is required during the trial.`, `剩余 ${trialRemaining} 天。试用期间无需绑卡。`) : member.membership.cancelAtPeriodEnd ? tr('Active until the current paid period ends.', '当前付费周期结束前仍可使用。') : tr('Secure subscription access is active.', '安全订阅权限已开启。')}</p>{member.market === 'global' && <p>{member.membership.plan === 'trial' ? tr(`After your trial: ${globalPriceLabel('daily', language)}, ${globalPriceLabel('monthly', language)} or ${globalPriceLabel('annual', language)}. ${annualSavingLabel(language)}.`, `试用后：${globalPriceLabel('daily', language)}、${globalPriceLabel('monthly', language)} 或 ${globalPriceLabel('annual', language)}。${annualSavingLabel(language)}。`) : globalPriceLabel(member.membership.plan, language)}</p>}</div><span>{member.membership.plan === 'trial' ? `${trialRemaining}/7` : '✓'}</span></article>
+            <article className="membership-card"><div><small>{tr('MEMBERSHIP', '会员状态')}</small><h2>{member.membership.plan === 'trial' ? tr('7-day free trial', '7 天免费试用') : member.membership.plan === 'daily' ? tr('Daily membership', '日付会员') : member.membership.plan === 'monthly' ? tr('Monthly membership', '月付会员') : tr('Annual membership', '年付会员')}</h2><p>{trialRemaining !== null ? tr(`${trialRemaining} days remaining. No card is required during the trial.`, `剩余 ${trialRemaining} 天。试用期间无需绑卡。`) : member.membership.accessSource === 'grant' ? tr('Access granted by an access code. It does not renew automatically.', '兑换码已授予访问权限，不会自动续费。') : member.membership.cancelAtPeriodEnd ? tr('Active until the current paid period ends.', '当前付费周期结束前仍可使用。') : tr('Secure subscription access is active.', '安全订阅权限已开启。')}</p>{member.market === 'global' && <p>{member.membership.plan === 'trial' ? tr(`After your trial: ${globalPriceLabel('monthly', language)} or ${globalPriceLabel('annual', language)}. ${annualSavingLabel(language)}.`, `试用后：${globalPriceLabel('monthly', language)} 或 ${globalPriceLabel('annual', language)}。${annualSavingLabel(language)}。`) : globalPriceLabel(member.membership.plan, language)}</p>}</div><span>{member.membership.plan === 'trial' ? `${trialRemaining}/7` : '✓'}</span></article>
 
             <a className="membership-plans-link" href="?view=membership" onClick={(event) => {
               if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
               event.preventDefault(); navigate('membership');
             }}><span><strong>{tr('Membership plans', '会员订阅')}</strong><small>{tr('Choose monthly or annual access', '选择月付或年付方案')}</small></span><b aria-hidden="true">→</b></a>
+
+            {member.market === 'global' && <PromoCodeCard language={language} code={promoCode} message={promoMessage} busy={promoBusy} onCodeChange={setPromoCode} onRedeem={() => void redeemAccessCode()} />}
+            {promoOperator && <button className="promo-admin-link" type="button" onClick={() => navigate('promo-admin')}>{tr('Open access-code admin', '打开兑换码管理')} <span>→</span></button>}
 
             {legacySnapshot && <article className="legacy-import-card"><div><small>{tr('DEVICE HISTORY FOUND', '发现设备历史记录')}</small><h2>{tr('Bring your previous Relay activity with you', '导入之前的 Relay 训练记录')}</h2><p>{tr('Only workouts, wellness, and schedule data will be imported. Demo passwords and billing status are never copied.', '仅导入训练、健康记录与日程。演示密码和账单状态绝不会被复制。')}</p></div><button type="button" onClick={importDeviceData}>{tr('Import securely', '安全导入')} <span>→</span></button></article>}
 
@@ -1061,6 +1105,44 @@ function PhaseGuide({ exercise, compact = false, language = 'en' }: { exercise: 
   );
 }
 
+function PromoCodeCard({ language, code, message, busy, onCodeChange, onRedeem }: {
+  language: Language; code: string; message: string; busy: boolean; onCodeChange: (value: string) => void; onRedeem: () => void;
+}) {
+  const tr = (english: string, chinese: string) => language === 'zh' ? chinese : english;
+  return <article className="promo-code-card">
+    <div><small>{tr('ACCESS CODE', '兑换码')}</small><h2>{tr('Redeem access', '兑换会员权限')}</h2><p>{tr('Enter a code from TrainWell. Monthly codes grant 30 days and annual codes grant 365 days. Access does not renew automatically.', '输入 TrainWell 提供的兑换码。月付兑换码提供 30 天，年付兑换码提供 365 天，权限不会自动续费。')}</p></div>
+    <div className="promo-code-form"><label htmlFor="promo-code-input">{tr('Access code', '兑换码')}</label><input id="promo-code-input" value={code} onChange={(event) => onCodeChange(event.target.value.toUpperCase())} autoComplete="off" spellCheck={false} placeholder="XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX" maxLength={39} /><button type="button" onClick={onRedeem} disabled={busy || code.trim().length < 32}>{busy ? tr('Checking…', '验证中…') : tr('Redeem code', '兑换')}<span>→</span></button></div>
+    {message && <p className="account-save-status" role="status">{message}</p>}
+  </article>;
+}
+
+function PromoAdmin({ language, onLanguageChange, onBack, onSignOut }: { language: Language; onLanguageChange: (language: Language) => void; onBack: () => void; onSignOut: () => void }) {
+  const tr = (english: string, chinese: string) => language === 'zh' ? chinese : english;
+  const [plan, setPlan] = useState<'monthly' | 'annual'>('monthly');
+  const [quantity, setQuantity] = useState(10);
+  const [label, setLabel] = useState('');
+  const [expiresAt, setExpiresAt] = useState(() => new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10));
+  const [batches, setBatches] = useState<PromoBatch[]>([]);
+  const [codes, setCodes] = useState<Array<{ code: string; suffix: string }>>([]);
+  const [message, setMessage] = useState('');
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { let cancelled = false; void listPromoBatches().then((result) => { if (!cancelled) setBatches(result.batches); }).catch(() => { if (!cancelled) setMessage(language === 'zh' ? '无法加载兑换码批次。' : 'Could not load batches.'); }); return () => { cancelled = true; }; }, [language]);
+  async function generate() {
+    if (!label.trim() || busy) return;
+    setBusy(true); setMessage(''); setCodes([]);
+    try { const result = await createPromoBatch({ plan, quantity, label: label.trim(), expiresAt: new Date(`${expiresAt}T23:59:59Z`).toISOString() }); setCodes(result.codes); setBatches((current) => [{ ...result.batch, redeemed: 0, unused: result.codes.length, expired: 0, revoked: 0 }, ...current]); setMessage(tr('Codes are shown once. Download or copy them now.', '兑换码只显示一次，请立即下载或复制。')); }
+    catch (error) { setMessage(error instanceof Error ? error.message : tr('Could not create the batch.', '无法创建批次。')); }
+    finally { setBusy(false); }
+  }
+  function downloadCodes() {
+    if (!codes.length) return;
+    const csv = ['code,plan,expires_at,label', ...codes.map(({ code }) => `${code},${plan},${expiresAt},"${label.replaceAll('"', '""')}"`)].join('\n');
+    const href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })); const anchor = document.createElement('a'); anchor.href = href; anchor.download = `trainwell-access-codes-${expiresAt}.csv`; anchor.click(); URL.revokeObjectURL(href);
+  }
+  async function revoke(batch: PromoBatch) { if (busy || batch.revoked_at) return; setBusy(true); try { await revokePromoBatch(batch.id); setBatches((current) => current.map((item) => item.id === batch.id ? { ...item, revoked_at: new Date().toISOString() } : item)); } catch (error) { setMessage(error instanceof Error ? error.message : tr('Could not revoke the batch.', '无法撤销批次。')); } finally { setBusy(false); } }
+  return <main className="promo-admin-shell"><header><button className="wordmark" type="button" onClick={onBack}><span>T</span>{tr('TrainWell', '悦练')}</button><div><LanguageSwitch language={language} onChange={onLanguageChange} /><button className="promo-signout" type="button" onClick={onSignOut}>{tr('Sign out', '退出登录')}</button></div></header><section className="promo-admin-content"><button className="paywall-back" type="button" onClick={onBack}>{tr('← Back to account', '← 返回账户')}</button><p className="kicker">{tr('OPERATOR TOOLS', '运营工具')}</p><h1>{tr('Access codes', '兑换码管理')}</h1><p>{tr('Generate one-time global USD access codes for customers paid outside Stripe or for friends. Unused codes expire with their batch.', '为通过其他方式付款的客户或朋友生成一次性全球美元兑换码。未使用的兑换码将在批次到期时失效。')}</p><article className="promo-admin-form"><label><span>{tr('Plan', '方案')}</span><select value={plan} onChange={(event) => setPlan(event.target.value as 'monthly' | 'annual')}><option value="monthly">US$10 monthly · 30 days</option><option value="annual">US$60 annual · 365 days</option></select></label><label><span>{tr('Quantity', '数量')}</span><input type="number" min={1} max={500} value={quantity} onChange={(event) => setQuantity(Number(event.target.value))} /></label><label><span>{tr('Batch label', '批次名称')}</span><input value={label} onChange={(event) => setLabel(event.target.value)} maxLength={120} placeholder={tr('September friends', '九月朋友')} /></label><label><span>{tr('Expires', '到期日期')}</span><input type="date" value={expiresAt} onChange={(event) => setExpiresAt(event.target.value)} /></label><button className="auth-submit" type="button" onClick={() => void generate()} disabled={busy || !label.trim()}>{busy ? tr('Working…', '处理中…') : tr('Generate codes', '生成兑换码')}<span>→</span></button></article>{codes.length > 0 && <article className="promo-generated"><h2>{tr('Codes ready to deliver', '兑换码已准备好')}</h2><p>{message}</p><div>{codes.map(({ code }) => <code key={code}>{code}</code>)}</div><button type="button" onClick={downloadCodes}>{tr('Download private CSV', '下载私密 CSV')}</button><button type="button" onClick={() => void navigator.clipboard?.writeText(codes.map(({ code }) => code).join('\n'))}>{tr('Copy all codes', '复制全部兑换码')}</button></article>}{message && codes.length === 0 && <p className="account-save-status" role="status">{message}</p>}<div className="promo-batch-list">{batches.map((batch) => <article key={batch.id}><div><small>{batch.plan.toUpperCase()} · {batch.label}</small><strong>{tr(`${batch.unused} unused · ${batch.redeemed} redeemed`, `${batch.unused} 未使用 · ${batch.redeemed} 已兑换`)}</strong><span>{tr(`Expires ${new Date(batch.expires_at).toLocaleDateString()}${batch.expired ? ` · ${batch.expired} expired` : ''}${batch.revoked ? ` · ${batch.revoked} revoked` : ''}`, `到期 ${new Date(batch.expires_at).toLocaleDateString()}${batch.expired ? ` · ${batch.expired} 已过期` : ''}${batch.revoked ? ` · ${batch.revoked} 已撤销` : ''}`)}</span></div>{!batch.revoked_at && batch.unused > 0 && <button type="button" onClick={() => void revoke(batch)} disabled={busy}>{tr('Revoke unused', '撤销未使用')}</button>}</article>)}</div></section></main>;
+}
+
 function AccountGate({ title, copy }: { title: string; copy: string }) {
   return (
     <article className="account-gate-card">
@@ -1092,7 +1174,7 @@ function AccountPrivacyActions({ language, member, onExport, onDelete, onManageB
       </div>
       <div>
         <button type="button" onClick={onExport} disabled={busy}>{tr('Export my data', '导出我的数据')}</button>
-        {member.membership.plan !== 'trial' && <button type="button" onClick={onManageBilling} disabled={busy}>{tr('Manage billing', '管理账单')}</button>}
+        {member.membership.plan !== 'trial' && member.membership.accessSource !== 'grant' && <button type="button" onClick={onManageBilling} disabled={busy}>{tr('Manage billing', '管理账单')}</button>}
         <button className="danger" type="button" onClick={onDelete} disabled={busy}>{tr('Delete account', '删除账户')}</button>
       </div>
     </article>
@@ -1119,7 +1201,7 @@ function TrialPaywall({ language, member, onBack, onLanguageChange, onSubscribe,
 }) {
   const tr = (english: string, chinese: string) => language === 'zh' ? chinese : english;
   const hasAccess = membershipHasAccess(member.membership);
-  const managesSubscription = member.membership.plan !== 'trial' && ['active', 'past_due'].includes(member.membership.status);
+  const managesSubscription = member.membership.plan !== 'trial' && member.membership.accessSource !== 'grant' && ['active', 'past_due'].includes(member.membership.status);
   return (
     <main className="paywall-shell">
       <header><button className="wordmark" type="button"><span>T</span>{tr('TrainWell', '悦练')}</button><LanguageSwitch language={language} onChange={onLanguageChange} /></header>
