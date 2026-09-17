@@ -714,7 +714,7 @@ export default function Home() {
   }
 
   if (needsSubscription || view === 'membership') {
-    return <TrialPaywall language={language} member={member} onBack={() => navigate('you')} onLanguageChange={setLanguage} onSubscribe={selectSubscription} onSignOut={signOut} onExport={exportAccountData} onDelete={removeAccount} onManageBilling={manageBilling} accountActionBusy={accountActionBusy || billingBusy} billingBusy={billingBusy || billingAwaitingConfirmation} billingPlans={billingPlans} billingMode={billingMode} catalogStatus={catalogStatus} billingNotice={billingNotice} status={saveStatus} />;
+    return <TrialPaywall language={language} member={member} onBack={() => navigate('you')} onLanguageChange={setLanguage} onSubscribe={selectSubscription} onSignOut={signOut} onExport={exportAccountData} onDelete={removeAccount} onManageBilling={manageBilling} accountActionBusy={accountActionBusy || billingBusy} billingBusy={billingBusy || billingAwaitingConfirmation} billingPlans={billingPlans} billingMode={billingMode} catalogStatus={catalogStatus} billingNotice={billingNotice} status={saveStatus} promoCode={promoCode} promoMessage={promoMessage} promoBusy={promoBusy} onPromoCodeChange={setPromoCode} onRedeemPromo={() => void redeemAccessCode()} />;
   }
 
   if (sessionOpen) {
@@ -1181,7 +1181,7 @@ function AccountPrivacyActions({ language, member, onExport, onDelete, onManageB
   );
 }
 
-function TrialPaywall({ language, member, onBack, onLanguageChange, onSubscribe, onSignOut, onExport, onDelete, onManageBilling, accountActionBusy, billingBusy, billingPlans, billingMode, catalogStatus, billingNotice, status }: {
+function TrialPaywall({ language, member, onBack, onLanguageChange, onSubscribe, onSignOut, onExport, onDelete, onManageBilling, accountActionBusy, billingBusy, billingPlans, billingMode, catalogStatus, billingNotice, status, promoCode, promoMessage, promoBusy, onPromoCodeChange, onRedeemPromo }: {
   language: Language;
   member: MemberAccount;
   onBack: () => void;
@@ -1198,6 +1198,11 @@ function TrialPaywall({ language, member, onBack, onLanguageChange, onSubscribe,
   catalogStatus: 'loading' | 'ready' | 'unavailable';
   billingNotice: BillingNotice;
   status: string;
+  promoCode: string;
+  promoMessage: string;
+  promoBusy: boolean;
+  onPromoCodeChange: (value: string) => void;
+  onRedeemPromo: () => void;
 }) {
   const tr = (english: string, chinese: string) => language === 'zh' ? chinese : english;
   const hasAccess = membershipHasAccess(member.membership);
@@ -1214,6 +1219,7 @@ function TrialPaywall({ language, member, onBack, onLanguageChange, onSubscribe,
         {managesSubscription && <p>{tr('You already have a subscription. Use Manage billing below to update it or cancel renewal.', '你已有订阅，请使用下方“管理账单”更新订阅或取消续订。')}</p>}
         {billingNotice !== 'none' && <p className="account-save-status" role="status">{billingNoticeText(billingNotice, language, member.membership.billingMode)}</p>}
         {catalogStatus !== 'ready' && <p role="status">{catalogStatus === 'loading' ? tr('Checking available payment plans…', '正在确认可用付款方案…') : tr('Online payment is not available yet. Your saved data remains safe; please check back later.', '在线支付暂未开放，你的数据仍被安全保存，请稍后再来查看。')}</p>}
+        {member.market === 'global' && <PromoCodeCard language={language} code={promoCode} message={promoMessage} busy={promoBusy} onCodeChange={onPromoCodeChange} onRedeem={onRedeemPromo} />}
         <div className="paywall-options">
           {member.market === 'global' && <article><span>{tr('MONTHLY', '月付')}</span><h2>{globalPriceLabel('monthly', language)}</h2><p>{tr('Billed monthly in USD. Cancel renewal from the secure billing portal.', '以美元按月续费，可在安全账单页面取消续订。')}</p><button type="button" onClick={() => onSubscribe('monthly')} disabled={managesSubscription || accountActionBusy || billingBusy || !billingPlans.includes('monthly')} aria-busy={billingBusy}>{tr('Choose monthly', '选择月付')}<b>→</b></button></article>}
           <article className="featured"><small>{member.market === 'global' ? annualSavingLabel(language) : tr('BEST VALUE', '超值方案')}</small><span>{tr('ANNUAL', '年付')}</span><h2>{member.market === 'cn' ? tr('One secure annual payment', '一次安全年付') : globalPriceLabel('annual', language)}</h2><p>{member.market === 'cn' ? tr('365 days of access with Alipay or an eligible card. It does not auto-renew.', '可使用支付宝或支持的银行卡购买 365 天权限，不会自动续费。') : tr('Billed yearly in USD. Cancel renewal from the secure billing portal.', '以美元按年续费，可在安全账单页面取消续订。')}</p><button type="button" onClick={() => onSubscribe('annual')} disabled={managesSubscription || accountActionBusy || billingBusy || !billingPlans.includes('annual')} aria-busy={billingBusy}>{tr('Choose annual', '选择年付')}<b>→</b></button></article>
