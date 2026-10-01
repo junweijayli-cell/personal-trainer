@@ -7,10 +7,12 @@ Deno.serve(async (request) => {
   const options = handleOptions(request); if (options) return options;
   if (request.method !== 'POST') return json(request, { error: 'Method not allowed.' }, 405);
   try {
-    const { admin } = await authenticatedUser(request);
+    const { userClient } = await authenticatedUser(request);
     const normalized = normalizePromoCode((await request.json())?.code);
     const digest = await promoDigest(normalized);
-    const { data, error } = await admin.rpc('redeem_promo_code', { p_digest: digest });
+    // The RPC derives its recipient from auth.uid(); a service-role client has
+    // no user identity and must never be used for this operation.
+    const { data, error } = await userClient.rpc('redeem_promo_code', { p_digest: digest });
     if (error) throw new Error(error.message);
     const result = Array.isArray(data) ? data[0] : data;
     if (!result) throw new Error('This access code is invalid or unavailable.');

@@ -12,6 +12,7 @@ import {
   verifySignup,
 } from './account-service';
 import Turnstile from './turnstile';
+import { authFeedback } from './auth-feedback';
 import { market } from './supabase-client';
 import { annualSavingLabel, globalPriceLabel } from './pricing';
 import LegalNotices, { type LegalDocument } from './legal-notices';
@@ -167,7 +168,7 @@ export default function LandingAuth({ language, onLanguageChange, onAuthenticate
     if (captchaRequired && !captchaToken) return setError(text.securityCheck);
     setBusy(true); setError('');
     try { onAuthenticated(await signInAccount(email, password, captchaToken || undefined)); }
-    catch { setError(text.badLogin); }
+    catch (cause) { setError(authFeedback(cause, language, 'signin')); }
     finally { refreshCaptcha(); setBusy(false); }
   }
 
@@ -179,7 +180,7 @@ export default function LandingAuth({ language, onLanguageChange, onAuthenticate
     if (captchaRequired && !captchaToken) return setError(text.securityCheck);
     setBusy(true); setError(''); setNotice('');
     try { await requestPasswordReset(email, captchaToken || undefined); setNotice(text.resetSent); }
-    catch { setError(text.emailDeliveryFailed); }
+    catch (cause) { setError(authFeedback(cause, language, 'email')); }
     finally { refreshCaptcha(); setBusy(false); }
   }
 
@@ -192,7 +193,7 @@ export default function LandingAuth({ language, onLanguageChange, onAuthenticate
       await updatePassword(password);
       finishPasswordRecovery();
       setNotice(text.resetDone);
-    } catch { setError(text.genericError); }
+    } catch (cause) { setError(authFeedback(cause, language, 'reset')); }
     finally { setBusy(false); }
   }
 
