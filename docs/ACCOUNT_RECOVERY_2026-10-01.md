@@ -25,4 +25,16 @@ Both public exports contain the existing Turnstile public site key. The backend 
 
 The free Supabase project remains subject to inactivity pausing. For a continuously available paid application, review a paid Supabase plan with the owner; no upgrade or new recurring charge was authorized or made. No artificial keep-alive job was added. Restore the same project if paused and check `/auth/v1/health`, project status, and actual inbox delivery before assuming a password is incorrect.
 
-Deployment commit and host results will be recorded after release verification. No credentials or usable access codes belong in this document.
+## Release record
+
+- Fix commit: `8a959574603b71b433082697f9a508a4b1c0d827`; reviewed and merged in [PR #9](https://github.com/junweijayli-cell/personal-trainer/pull/9).
+- Production merge: `1e4d22efc145f7f718d6b6de2d478d6e26927a72`.
+- PR validation and database checks passed before merge. The production database check also passed; the automatic backend workflow was skipped as configured because the affected function was deployed separately.
+- Supabase `redeem-promo-code` version 3 is active. Anonymous redemption is rejected. Auth configuration, Stripe functions, existing subscriptions, and database migrations were not changed.
+- Cloudflare Pages production deployment `82915dbd-4f8b-41bb-a6ea-7ef7e7c45156` succeeded. A fresh request to `https://trainwell.win/` returned HTTP 200, all nine referenced JavaScript files returned HTTP 200, and the deployed bundle contains the new account-service and credential feedback. A refreshed browser account page displayed the owner's monthly code membership.
+- The initial GitHub Pages run stalled downloading Ubuntu packages from the runner's Azure mirror; its replacement attempt also downloaded dependencies slowly. Follow-up commit `2acde4926102afc424d67bb7d880540c51e5b2e1` switches that mirror entry to Ubuntu's main HTTPS archive and configures 30-second transport timeouts with two retries in the Pages and release-validation jobs. YAML parsing and whitespace checks passed; every application test remains in place.
+- Cloudflare Pages also successfully deployed follow-up commit `2acde49` as deployment `b09eb464-8b01-4a42-9506-58ccfad6873f`.
+- GitHub Pages [replacement production run](https://github.com/junweijayli-cell/personal-trainer/actions/runs/36883513168) succeeded, including lint, all 214 unit tests, mobile, bilingual layout, mocked authentication/recovery, legal dialogs, production export, and deployment. The mirror change completed dependency installation successfully.
+- Final fresh requests to both `https://trainwell.win/` and `https://junweijayli-cell.github.io/personal-trainer/` returned HTTP 200. Each page's nine referenced JavaScript files returned HTTP 200, and both deployed bundles contain the new account-service and credential feedback.
+
+The private password-change step remains unconfirmed. If the delivered recovery link expires, request a fresh email through Forgot password and have the owner enter and submit the new password privately. Do not infer a new password sign-in from an existing session being restored. No credentials or usable access codes belong in this document.

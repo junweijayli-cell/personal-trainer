@@ -122,6 +122,8 @@ Complete and record:
 
 ## 6. Monitoring and recovery
 
+See [the October 1 account-recovery incident](./ACCOUNT_RECOVERY_2026-10-01.md) for the paused-project restoration, verified recovery-email delivery, access-code repair, and deployment record. A working static homepage does not prove the account backend is available. The current free Supabase project remains subject to inactivity pausing.
+
 Configure Sentry alerts for new releases and elevated error rates. Add external uptime checks for the global frontend, the catalog function, and an authenticated staging probe. Alert on failed `billing_events`, database CPU/storage/connection thresholds, SMTP rejection rate, backup failures, and certificate expiry.
 
 Use Supabase point-in-time recovery or scheduled backups appropriate to the plan. Quarterly, restore a backup into an isolated project, verify row counts and authentication-linked profiles, and record recovery-point and recovery-time results. Retain the billing audit log according to the legal retention policy.
