@@ -12,7 +12,7 @@ export function adminClient(): SupabaseClient {
   });
 }
 
-export async function authenticatedUser(request: Request): Promise<{ user: User; admin: SupabaseClient }> {
+export async function authenticatedUser(request: Request): Promise<{ user: User; admin: SupabaseClient; userClient: SupabaseClient }> {
   const authorization = request.headers.get('Authorization');
   if (!authorization?.startsWith('Bearer ')) throw new Error('Authentication required.');
   const userClient = createClient(required('SUPABASE_URL'), required('SUPABASE_ANON_KEY'), {
@@ -21,5 +21,5 @@ export async function authenticatedUser(request: Request): Promise<{ user: User;
   });
   const { data, error } = await userClient.auth.getUser();
   if (error || !data.user) throw new Error('Your session is invalid or expired.');
-  return { user: data.user, admin: adminClient() };
+  return { user: data.user, admin: adminClient(), userClient };
 }

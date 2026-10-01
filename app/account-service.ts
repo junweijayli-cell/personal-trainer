@@ -132,7 +132,7 @@ export async function signInAccount(email: string, password: string, captchaToke
     password,
     options: { captchaToken },
   });
-  if (error) throw new Error(error.message);
+  if (error) throw error;
   if (!data.session) throw new Error('TrainWell could not start your session.');
   return loadMember(data.session);
 }
@@ -142,12 +142,12 @@ export async function requestPasswordReset(email: string, captchaToken?: string)
     captchaToken,
     redirectTo: `${appUrl()}?reset=1`,
   });
-  if (error) throw new Error(error.message);
+  if (error) throw error;
 }
 
 export async function updatePassword(password: string) {
   const { error } = await getSupabase().auth.updateUser({ password });
-  if (error) throw new Error(error.message);
+  if (error) throw error;
 }
 
 export async function signOutAccount() {
