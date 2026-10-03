@@ -53,6 +53,33 @@ async function mockCaptcha(page: Page, behavior: { failFirst?: boolean; controls
 }
 
 for (const language of ['en', 'zh'] as const) {
+  test(`sign-in distinguishes backend outages from a wrong password (${language})`, async ({ page }) => {
+    await mockCaptcha(page);
+    let attempts = 0;
+    await page.route('https://relay-auth-test.supabase.co/auth/v1/token*', (route) => {
+      attempts += 1;
+      return attempts === 1
+        ? route.fulfill({ status: 503, json: { code: 'unexpected_failure', message: 'private database detail' } })
+        : route.fulfill({ status: 400, headers: { 'x-supabase-api-version': '2024-01-01', 'access-control-expose-headers': 'X-Supabase-Api-Version' }, json: { code: 'invalid_credentials', error_code: 'invalid_credentials', message: 'Invalid login credentials' } });
+    });
+    await page.addInitScript((locale) => localStorage.setItem('relay-language', locale), language);
+    await page.goto('/');
+    await page.locator('.landing-actions').getByRole('button', { name: language === 'en' ? 'Sign in' : '登录', exact: true }).click();
+    const dialog = page.getByRole('dialog');
+    await dialog.getByLabel(language === 'en' ? 'Email address' : '邮箱地址').fill(fakeUser.email);
+    await dialog.getByLabel(language === 'en' ? 'Password' : '密码', { exact: true }).fill('IsolatedTestPassword123');
+    await dialog.getByRole('button', { name: 'Complete security check' }).click();
+    await dialog.locator('.auth-submit').click();
+    await expect(dialog.getByRole('alert')).toContainText('trainwell.win@gmail.com');
+    await expect(dialog).not.toContainText('private database detail');
+    await dialog.getByRole('button', { name: 'Complete security check' }).click();
+    await dialog.locator('.auth-submit').click();
+    await expect(dialog.getByRole('alert')).toHaveText(language === 'en'
+      ? 'The email or password is incorrect. Try again or use Forgot password.'
+      : '邮箱或密码不正确，请重试或选择“忘记密码”。');
+    expect(attempts).toBe(2);
+  });
+
   test(`password reset returns to sign-in with cleared password (${language})`, async ({ page }) => {
     let updatedPassword = '';
     await mockCaptcha(page);

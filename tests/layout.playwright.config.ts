@@ -1,7 +1,5 @@
-import { existsSync } from 'node:fs';
 import { defineConfig } from '@playwright/test';
 
-const chromePath = process.env.LAYOUT_CHROME_PATH || 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 process.env.E2E_LAYOUT_MOCKS = 'true';
 
 // Isolated local fixtures: all browser requests outside this server are intercepted.
@@ -17,7 +15,7 @@ export default defineConfig({
   outputDir: '../test-results/layout',
   use: {
     baseURL: 'http://127.0.0.1:3012',
-    launchOptions: existsSync(chromePath) ? { executablePath: chromePath } : undefined,
+    channel: process.platform === 'win32' ? 'chrome' : undefined,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     serviceWorkers: 'block',

@@ -3,18 +3,26 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
 import MotionVideo, { useMotionActivity } from './motion-video';
-import CameraCoach from './camera-coach';
+import WorkoutSession from './workout-session';
+import type { WorkoutResult } from './workout-clock';
+import PaymentConfirmation from './payment-confirmation';
 import LandingAuth, { LanguageSwitch, type Language } from './landing-auth';
 import {
   createCheckout,
   createCustomerPortal,
+  createPromoBatch,
   deleteAccount,
   downloadAccountExport,
   getActiveSession,
   importLegacySnapshot,
   loadAccountSnapshot,
   loadBillingCatalog,
+  loadCheckoutConfirmation,
   loadMember,
+  listPromoBatches,
+  promoOperatorStatus,
+  redeemPromoCode,
+  revokePromoBatch,
   observeAuth,
   readLegacySnapshot,
   saveTrainingProfile,
@@ -25,8 +33,10 @@ import {
 } from './account-service';
 import { membershipDaysRemaining, membershipHasAccess } from './membership';
 import { annualSavingLabel, globalPriceLabel } from './pricing';
-import { billingNoticeText, readBillingReturn, refreshBillingMembership, runBillingAction, type BillingNotice, type BillingReturn } from './billing-client';
+import { billingNoticeText, readBillingReturn, refreshBillingMembership, runBillingAction, type BillingNotice, type BillingReturn, type CheckoutConfirmation } from './billing-client';
 import type { AccountSnapshot, DailyLog, MemberAccount, ScheduleItem } from './account-types';
+import type { PromoBatch } from './account-service';
+import type { PurchasableBillingPlan } from '../supabase/functions/_shared/billing-policy';
 import {
   buildWorkout,
   equipmentOptions,
@@ -40,20 +50,15 @@ import {
   type FocusId,
 } from './workout-data';
 
-type View = 'today' | 'history' | 'you' | 'membership';
+type View = 'today' | 'history' | 'you' | 'membership' | 'payment' | 'promo-admin';
 
 function viewFromUrl(): View {
+  if (readBillingReturn(window.location.search) === 'success') return 'payment';
   const requested = new URLSearchParams(window.location.search).get('view');
-  return requested === 'membership' || requested === 'you' || requested === 'history' ? requested : 'today';
+  return requested === 'membership' || requested === 'you' || requested === 'history' || requested === 'payment' || requested === 'promo-admin' ? requested : 'today';
 }
-type SessionStage = 'setup' | 'guide' | 'camera' | 'rest' | 'summary';
+type SessionStage = 'setup' | 'guide' | 'camera';
 type CoachingMode = 'photos' | 'camera';
-
-function formatClock(totalSeconds: number) {
-  const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
-  const seconds = (totalSeconds % 60).toString().padStart(2, '0');
-  return `${minutes}:${seconds}`;
-}
 
 function localDateKey(date = new Date()) {
   const offset = date.getTimezoneOffset() * 60_000;
@@ -122,7 +127,6 @@ export default function Home() {
     [selectedFocus, selectedEquipment],
   );
   const workoutStats = useMemo(() => getWorkoutStats(activeWorkout), [activeWorkout]);
-  const totalSets = workoutStats.sets;
   const focusInfo = getFocusOption(selectedFocus);
   const recommendedFocusInfo = getFocusOption(recommendedFocus);
   const planName = `${focusInfo.shortLabel} Day 01`;
@@ -130,10 +134,6 @@ export default function Home() {
   const equipmentSummary = selectedEquipment.length > 0
     ? selectedEquipment.map((id) => equipmentOptions.find((item) => item.id === id)?.shortLabel).filter(Boolean).join(' · ')
     : 'Bodyweight only';
-  const [setsDone, setSetsDone] = useState<number[]>(activeWorkout.map(() => 0));
-  const [restSeconds, setRestSeconds] = useState(45);
-  const [elapsed, setElapsed] = useState(0);
-  const [cameraSets, setCameraSets] = useState(0);
   const [audioEnabled, setAudioEnabled] = useState(() => {
     if (typeof window === 'undefined') return true;
     try { return window.localStorage.getItem('relay-audio') !== 'off'; } catch { return true; }
@@ -150,9 +150,15 @@ export default function Home() {
   const [billingBusy, setBillingBusy] = useState(false);
   const [billingReturn, setBillingReturn] = useState<BillingReturn | null>(null);
   const [billingNotice, setBillingNotice] = useState<BillingNotice>('none');
+  const [paymentReceipt, setPaymentReceipt] = useState<CheckoutConfirmation | null>(null);
+  const [paymentCheck, setPaymentCheck] = useState(0);
   const [billingMode, setBillingMode] = useState<'test' | 'live' | null>(null);
-  const [billingPlans, setBillingPlans] = useState<('daily' | 'monthly' | 'annual')[]>([]);
+  const [billingPlans, setBillingPlans] = useState<PurchasableBillingPlan[]>([]);
   const [catalogStatus, setCatalogStatus] = useState<'loading' | 'ready' | 'unavailable'>('loading');
+  const [promoCode, setPromoCode] = useState('');
+  const [promoBusy, setPromoBusy] = useState(false);
+  const [promoMessage, setPromoMessage] = useState('');
+  const [promoOperator, setPromoOperator] = useState(false);
   const resetBilling = useCallback(() => {
     billingAbort.current?.abort();
     billingActionLock.generation += 1;
@@ -160,22 +166,24 @@ export default function Home() {
     billingIdentity.current = null;
     setBillingBusy(false);
     setBillingReturn(null);
+    setSessionOpen(false);
     setBillingNotice('none');
+    setPaymentReceipt(null);
+    setView((current) => current === 'payment' ? 'today' : current);
     setBillingPlans([]); setBillingMode(null);
     setCatalogStatus('loading');
+    setPromoCode(''); setPromoMessage(''); setPromoOperator(false); setPromoBusy(false);
     setSaveStatus('');
     const url = new URL(window.location.href);
     url.searchParams.delete('billing');
+    url.searchParams.delete('session_id');
+    if (url.searchParams.get('view') === 'payment') url.searchParams.delete('view');
     window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
   }, [billingActionLock]);
   const [startingSession, setStartingSession] = useState(false);
-  const [pendingExerciseIndex, setPendingExerciseIndex] = useState(0);
   const [todayWeekday, setTodayWeekday] = useState(-1);
   const [passwordRecovery, setPasswordRecovery] = useState(false);
   const [legacySnapshot, setLegacySnapshot] = useState<AccountSnapshot | null>(null);
-  const exercise = activeWorkout[exerciseIndex] ?? activeWorkout[0];
-  const completedSetCount = setsDone.reduce((sum, count) => sum + count, 0);
-  const sessionPercent = Math.round(completedSetCount / totalSets * 100);
   const sessionHistory = account?.sessions ?? [];
   const totalTrainingMinutes = sessionHistory.length > 0
     ? Math.max(1, Math.round(sessionHistory.reduce((sum, session) => sum + session.durationSeconds, 0) / 60))
@@ -186,6 +194,24 @@ export default function Home() {
   const memberId = member?.userId;
   const needsSubscription = Boolean(member && !membershipHasAccess(member.membership));
   const billingAwaitingConfirmation = billingReturn === 'success' && !['confirmed', 'canceled'].includes(billingNotice);
+
+  async function redeemAccessCode() {
+    if (!member || !promoCode.trim() || promoBusy || accountActionBusy) return;
+    const expectedUser = member.userId;
+    setPromoBusy(true); setPromoMessage('');
+    try {
+      const result = await redeemPromoCode(promoCode);
+      if (billingIdentity.current !== expectedUser) throw new Error('Your account session changed.');
+      setPromoCode('');
+      setPromoMessage(language === 'zh'
+        ? `兑换成功。${result.plan === 'annual' ? '年付' : '月付'}会员权限有效至 ${new Intl.DateTimeFormat('zh-CN', { dateStyle: 'medium' }).format(new Date(result.endsAt))}，不会自动续费。`
+        : `Access code redeemed. Your ${result.plan} access is active until ${new Intl.DateTimeFormat('en', { dateStyle: 'medium' }).format(new Date(result.endsAt))} and will not renew automatically.`);
+      const latest = await loadMember();
+      if (billingIdentity.current === expectedUser) setMember(latest);
+    } catch (error) {
+      if (billingIdentity.current === expectedUser) setPromoMessage(error instanceof Error ? error.message : tr('This access code is invalid or unavailable.', '兑换码无效或不可用。'));
+    } finally { setPromoBusy(false); }
+  }
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -276,7 +302,21 @@ export default function Home() {
   }, [memberId, needsSubscription, view]);
 
   useEffect(() => {
-    const restoreView = () => setView(viewFromUrl());
+    if (!memberId) return;
+    let cancelled = false;
+    void promoOperatorStatus().then((result) => { if (!cancelled) setPromoOperator(Boolean(result.operator)); }).catch(() => { if (!cancelled) setPromoOperator(false); });
+    return () => { cancelled = true; };
+  }, [memberId]);
+
+  useEffect(() => {
+    const restoreView = () => {
+      billingAbort.current?.abort();
+      setPaymentReceipt(null);
+      setBillingNotice('none');
+      setBillingReturn(readBillingReturn(window.location.search));
+      setView(viewFromUrl());
+      setPaymentCheck((value) => value + 1);
+    };
     window.addEventListener('popstate', restoreView);
     return () => window.removeEventListener('popstate', restoreView);
   }, []);
@@ -293,7 +333,8 @@ export default function Home() {
   }, [billingActionLock]);
 
   useEffect(() => {
-    if (!memberId || !billingReturn) return;
+    if (!memberId || (!billingReturn && view !== 'payment')) return;
+    const paymentReturn = view === 'payment';
     const controller = new AbortController();
     billingAbort.current = controller;
     const clearReturnParameter = () => {
@@ -312,32 +353,40 @@ export default function Home() {
       }
       setBillingNotice('pending');
       try {
+        if (paymentReturn) {
+          const receipt = await loadCheckoutConfirmation(new URLSearchParams(window.location.search).get('session_id'));
+          if (controller.signal.aborted) return;
+          setPaymentReceipt(receipt);
+          if (receipt.status !== 'confirmed') { setBillingNotice('unconfirmed'); return; }
+        }
         const result = await refreshBillingMembership(memberId!, loadMember, (latest) => {
           setMember((current) => current?.userId === latest.userId ? latest : current);
-        }, { signal: controller.signal, requirePaid: billingReturn === 'success' });
+        }, { signal: controller.signal, requirePaid: paymentReturn });
         if (result === 'aborted' || controller.signal.aborted) return;
         setBillingNotice(result);
-        if (result !== 'unconfirmed') clearReturnParameter();
+        if (!paymentReturn && result !== 'unconfirmed') clearReturnParameter();
       } catch {
         if (!controller.signal.aborted) setBillingNotice('error');
       }
     }
     void checkBillingReturn();
     return () => controller.abort();
-  }, [memberId, billingReturn]);
+  }, [memberId, billingReturn, view, paymentCheck]);
 
   useEffect(() => {
     // Never overwrite the saved locale with the initial render's English default.
     // This also protects the second hydration pass in React StrictMode.
     if (!languageHydrated) return;
     document.documentElement.lang = language === 'zh' ? 'zh-CN' : 'en';
-    document.title = language === 'zh' ? '悦练 — 清晰训练 · 自信行动' : 'TrainWell — See it · Do it · Move better';
+    document.title = view === 'payment' ? (language === 'zh' ? '付款确认 — 悦练' : 'Payment confirmation — TrainWell')
+      : view === 'promo-admin' ? (language === 'zh' ? '兑换码管理 — 悦练' : 'Access code admin — TrainWell')
+      : language === 'zh' ? '悦练 — 清晰训练 · 自信行动' : 'TrainWell — See it · Do it · Move better';
     try {
       window.localStorage.setItem('relay-language', language);
     } catch {
       // Language preferences are optional.
     }
-  }, [language, languageHydrated]);
+  }, [language, languageHydrated, view]);
 
   useEffect(() => {
     try {
@@ -362,8 +411,6 @@ export default function Home() {
   useEffect(() => {
     const timer = window.setTimeout(() => {
       setExerciseIndex(0);
-      setPendingExerciseIndex(0);
-      setSetsDone(activeWorkout.map(() => 0));
     }, 0);
     return () => window.clearTimeout(timer);
   }, [activeWorkout]);
@@ -375,26 +422,6 @@ export default function Home() {
       // Device storage is optional.
     }
   }, [audioEnabled]);
-
-  useEffect(() => {
-    if (!sessionOpen || stage === 'summary' || stage === 'setup') return;
-    const timer = window.setInterval(() => setElapsed((value) => value + 1), 1000);
-    return () => window.clearInterval(timer);
-  }, [sessionOpen, stage]);
-
-  useEffect(() => {
-    if (stage !== 'rest') return;
-    const timer = window.setTimeout(() => {
-      if (restSeconds <= 1) {
-        setRestSeconds(0);
-        setExerciseIndex(pendingExerciseIndex);
-        setStage('guide');
-      } else {
-        setRestSeconds(restSeconds - 1);
-      }
-    }, 1000);
-    return () => window.clearTimeout(timer);
-  }, [stage, restSeconds, pendingExerciseIndex]);
 
   useEffect(() => {
     if (!sessionOpen) return;
@@ -422,9 +449,6 @@ export default function Home() {
       setSetupStep(1);
       setCoachingMode('photos');
       setExerciseIndex(startAt);
-      setSetsDone(activeWorkout.map(() => 0));
-      setElapsed(0);
-      setCameraSets(0);
       setPreviewIndex(null);
       setSaveStatus('');
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -435,27 +459,10 @@ export default function Home() {
     }
   }
 
-  function completeSet() {
-    const nextSetCount = Math.min(exercise.sets, setsDone[exerciseIndex] + 1);
-    setSetsDone((counts) => counts.map((count, index) => index === exerciseIndex ? nextSetCount : count));
-    if (exerciseIndex === activeWorkout.length - 1 && nextSetCount >= exercise.sets) {
-      setStage('summary');
-      return;
-    }
-    setPendingExerciseIndex(nextSetCount >= exercise.sets ? exerciseIndex + 1 : exerciseIndex);
-    setRestSeconds(exercise.rest);
-    setStage('rest');
-  }
-
   function toggleEquipment(item: EquipmentId) {
     setSelectedEquipment((current) => current.includes(item)
       ? current.filter((entry) => entry !== item)
       : [...current, item]);
-  }
-
-  function endRest() {
-    setExerciseIndex(pendingExerciseIndex);
-    setStage('guide');
   }
 
   async function postAccount(action: string, data?: unknown) {
@@ -472,6 +479,7 @@ export default function Home() {
       throw new Error('Unsupported account update.');
     }
     const snapshot = await loadAccountSnapshot(member);
+    if (billingIdentity.current !== member.userId) throw new Error('Account changed.');
     setAccount(snapshot);
     setAccountStatus('signed-in');
     return snapshot;
@@ -510,7 +518,7 @@ export default function Home() {
     void signOutAccount();
   }
 
-  async function selectSubscription(plan: 'daily' | 'monthly' | 'annual') {
+  async function selectSubscription(plan: PurchasableBillingPlan) {
     if (!member || accountActionBusy || billingAwaitingConfirmation || !billingPlans.includes(plan)) return;
     await runBillingAction(billingActionLock, async () => {
       const generation = billingActionLock.generation;
@@ -586,28 +594,15 @@ export default function Home() {
     }
   }
 
-  async function saveWorkout() {
-    setCompletedToday(true);
-    if (accountStatus === 'signed-in') {
-      setSaveStatus('Saving workout…');
-      try {
-        await postAccount('save-workout', {
-          workoutId: `${selectedFocus}-day-01`,
-          workoutName: planName,
-          durationSeconds: Math.max(1, elapsed),
-          setsCompleted: totalSets,
-          movementsCompleted: activeWorkout.length,
-          cameraSets,
-          notes: `${equipmentSummary}; focus: ${focusInfo.label}`,
-        });
-        setSaveStatus('Workout saved to your account.');
-      } catch (error) {
-        setSaveStatus(error instanceof Error ? error.message : 'Could not save. Try again.');
-        return;
-      }
-    }
-    setSessionOpen(false);
-    setView('today');
+  async function saveWorkout(result: WorkoutResult) {
+    if (!member || !account || !result.setsCompleted) throw new Error('Sign in to save your completed sets.');
+    const expectedUser = member.userId;
+    await postAccount('save-workout', {
+      workoutId: `${selectedFocus}-day-01`, workoutName: planName,
+      ...result, notes: `${equipmentSummary}; focus: ${focusInfo.label}; guided session`,
+    });
+    if (billingIdentity.current !== expectedUser) return;
+    setCompletedToday(true); setSessionOpen(false); setView('today');
   }
 
   async function beginWorkout() {
@@ -686,6 +681,14 @@ export default function Home() {
   function navigate(next: View) {
     setView(next);
     const url = new URL(window.location.href);
+    if (view === 'payment' && next !== 'payment') {
+      billingAbort.current?.abort();
+      setBillingReturn(null);
+      setBillingNotice('none');
+      setPaymentReceipt(null);
+      url.searchParams.delete('billing');
+      url.searchParams.delete('session_id');
+    }
     if (next === 'today') url.searchParams.delete('view');
     else url.searchParams.set('view', next);
     window.history.pushState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
@@ -700,8 +703,19 @@ export default function Home() {
     return <LandingAuth language={language} onLanguageChange={setLanguage} onAuthenticated={completeAuthentication} initialMode={passwordRecovery ? 'reset' : undefined} />;
   }
 
+  if (view === 'payment') {
+    return <PaymentConfirmation language={language} onLanguageChange={setLanguage} receipt={paymentReceipt} notice={billingNotice}
+      accessReady={paymentReceipt?.status === 'confirmed' && member.membership.billingMode === paymentReceipt.mode && member.membership.plan !== 'trial' && membershipHasAccess(member.membership)}
+      busy={billingBusy} message={saveStatus} onRetry={() => { setBillingNotice('pending'); setPaymentCheck((value) => value + 1); }}
+      onContinue={() => navigate('today')} onAccount={() => navigate('you')} onManageBilling={manageBilling} />;
+  }
+
+  if (view === 'promo-admin' && promoOperator) {
+    return <PromoAdmin language={language} onLanguageChange={setLanguage} onBack={() => navigate('you')} onSignOut={signOut} />;
+  }
+
   if (needsSubscription || view === 'membership') {
-    return <TrialPaywall language={language} member={member} onBack={() => navigate('you')} onLanguageChange={setLanguage} onSubscribe={selectSubscription} onSignOut={signOut} onExport={exportAccountData} onDelete={removeAccount} onManageBilling={manageBilling} accountActionBusy={accountActionBusy || billingBusy} billingBusy={billingBusy || billingAwaitingConfirmation} billingPlans={billingPlans} billingMode={billingMode} catalogStatus={catalogStatus} billingNotice={billingNotice} status={saveStatus} />;
+    return <TrialPaywall language={language} member={member} onBack={() => navigate('you')} onLanguageChange={setLanguage} onSubscribe={selectSubscription} onSignOut={signOut} onExport={exportAccountData} onDelete={removeAccount} onManageBilling={manageBilling} accountActionBusy={accountActionBusy || billingBusy} billingBusy={billingBusy || billingAwaitingConfirmation} billingPlans={billingPlans} billingMode={billingMode} catalogStatus={catalogStatus} billingNotice={billingNotice} status={saveStatus} promoCode={promoCode} promoMessage={promoMessage} promoBusy={promoBusy} onPromoCodeChange={setPromoCode} onRedeemPromo={() => void redeemAccessCode()} />;
   }
 
   if (sessionOpen) {
@@ -768,7 +782,7 @@ export default function Home() {
               <p className="coach-choice-label">{tr('How should TrainWell guide you?', '你希望悦练如何指导？')}</p>
               <div className="coach-choice compact" role="radiogroup" aria-label="Coaching mode">
                 <button className={coachingMode === 'photos' ? 'selected' : ''} role="radio" aria-checked={coachingMode === 'photos'} type="button" onClick={() => setCoachingMode('photos')}>
-                  <span className="choice-icon">1·2·3</span><div><strong>{tr('Follow 3 clear steps', '跟随 3 个清晰步骤')}</strong><small>{tr('Set up, move, finish', '准备、动作、完成')}</small></div><b>{coachingMode === 'photos' ? '✓' : ''}</b>
+                  <span className="choice-icon">1·2·3</span><div><strong>{tr('Follow 3 clear steps', '跟随 3 个清晰步骤')}</strong><small>{tr('Rep timers, rest cues and music', '动作计时、休息提醒与音乐')}</small></div><b>{coachingMode === 'photos' ? '✓' : ''}</b>
                 </button>
                 <button className={coachingMode === 'camera' ? 'selected' : ''} role="radio" aria-checked={coachingMode === 'camera'} type="button" onClick={() => setCoachingMode('camera')}>
                   <span className="choice-icon camera-choice-icon"><i /></span><div><strong>{tr('Use live camera coach', '使用实时摄像指导')}</strong><small>{tr('Rep counting and form cues', '计数与动作纠正提示')}</small></div><b>{coachingMode === 'camera' ? '✓' : ''}</b>
@@ -793,111 +807,12 @@ export default function Home() {
       );
     }
 
-    if (stage === 'camera') {
-      return (
-        <CameraCoach
-          language={language}
-          exercise={exercise}
-          audioEnabled={audioEnabled}
-          onClose={() => setStage('guide')}
-          onSetComplete={() => { setCameraSets((count) => count + 1); completeSet(); }}
-        />
-      );
-    }
-
-    if (stage === 'rest') {
-      const nextExercise = activeWorkout[pendingExerciseIndex];
-      return (
-        <main className="rest-screen">
-          <header className="session-top">
-            <button type="button" onClick={() => setSessionOpen(false)} aria-label="Exit workout">×</button>
-            <div><span>{planName.toUpperCase()}</span><strong>{completedSetCount} of {totalSets} sets</strong></div>
-            <span>{formatClock(elapsed)}</span>
-          </header>
-          <div className="rest-content">
-            <p>REST</p>
-            <div className="rest-ring" style={{ '--rest': `${Math.max(0, restSeconds / exercise.rest * 100)}%` } as React.CSSProperties}>
-              <strong>{restSeconds}</strong><span>SECONDS</span>
-            </div>
-            <h1>Nice set<br />Breathe slowly</h1>
-            <p className="up-next">{pendingExerciseIndex === exerciseIndex ? `Next: set ${setsDone[exerciseIndex] + 1} of ${exercise.sets}` : `Up next: ${nextExercise.name}`}</p>
-            <button type="button" onClick={endRest}>Skip rest <span>→</span></button>
-          </div>
-        </main>
-      );
-    }
-
-    if (stage === 'summary') {
-      return (
-        <main className="summary-screen">
-          <div className="summary-confetti"><i /><i /><i /><i /><i /></div>
-          <div className="summary-mark">T</div>
-          <p>WORKOUT COMPLETE</p>
-          <h1>You showed up<br />That&apos;s the win</h1>
-          <div className="summary-stats">
-            <span><strong>{formatClock(elapsed)}</strong><small>TIME</small></span>
-            <span><strong>{totalSets}</strong><small>SETS</small></span>
-            <span><strong>{activeWorkout.length}</strong><small>MOVES</small></span>
-          </div>
-          <div className="summary-coach">
-            <span>COACH NOTE</span>
-            <p>{cameraSets > 0
-              ? `Camera coaching was used on ${cameraSets} set${cameraSets === 1 ? '' : 's'}. Next time, reuse the same phone position for more consistent tracking.`
-              : 'You logged this session manually. Turn on camera coaching next time if you want rep counting and live movement cues.'}</p>
-          </div>
-          <button type="button" onClick={saveWorkout}>{accountStatus === 'signed-in' ? 'Save to my account' : 'Finish workout'} <span>→</span></button>
-          <small>Movement feedback is an estimate from visible joint positions.</small>
-        </main>
-      );
-    }
-
-    return (
-      <main className="guided-session">
-        <header className="session-top">
-          <button type="button" onClick={() => setSessionOpen(false)} aria-label="Exit workout">×</button>
-          <div><span>{planName.toUpperCase()}</span><strong>Move {exerciseIndex + 1} of {activeWorkout.length}</strong></div>
-          <button className={audioEnabled ? 'audio-on' : ''} type="button" onClick={() => setAudioEnabled((value) => !value)} aria-label="Toggle voice coaching">{audioEnabled ? '♪' : '×'}</button>
-        </header>
-        <div className="session-progress"><i style={{ width: `${Math.max(3, sessionPercent)}%` }} /></div>
-        <section className="guide-layout">
-          <div className="guide-visual">
-            <PhaseGuide key={exercise.id} exercise={exercise} language={language} active={previewIndex === null} />
-            <span className="start-label">{exercise.video ? tr('VIDEO + AUTO DEMO', '视频 + 自动示范') : tr('AUTO MOVEMENT DEMO', '自动动作示范')}</span>
-            <span className="move-label">{tr('LOOK, THEN MOVE', '先看，再练')}</span>
-            <button type="button" onClick={() => setPreviewIndex(exerciseIndex)}>↗ <span>Full guide</span></button>
-          </div>
-          <div className="guide-copy">
-            <p className="kicker">SET {setsDone[exerciseIndex] + 1} OF {exercise.sets}</p>
-            <h1>{exercise.name}</h1>
-            <p className="exercise-intro">{exercise.intro}</p>
-            <div className="prescription">
-              <span><small>DO</small><strong>{exercise.targetLabel}</strong></span>
-              <span><small>THEN REST</small><strong>{exercise.rest} sec</strong></span>
-            </div>
-            <div className="one-cue"><span>KEY CUE</span><p>{exercise.tips[1]}</p></div>
-            <button className="camera-cta" type="button" onClick={() => setStage('camera')}><span className="camera-dot"><i /></span><b>Coach me with camera</b><em>→</em></button>
-            <button className="manual-cta" type="button" onClick={completeSet}>I did this set <span>✓</span></button>
-            <p className="device-note">Camera feedback stays on this device. You can always log manually.</p>
-          </div>
-        </section>
-        <div className="session-queue">
-          {activeWorkout.map((item, index) => (
-            <button
-              className={`${index === exerciseIndex ? 'active' : ''} ${setsDone[index] >= item.sets ? 'done' : ''}`}
-              type="button"
-              key={item.id}
-              onClick={() => setExerciseIndex(index)}
-            >
-              <span>{setsDone[index] >= item.sets ? '✓' : index + 1}</span>
-              <small>{item.name}</small>
-            </button>
-          ))}
-        </div>
-        {previewIndex !== null && activeWorkout[previewIndex] && (
-          <ExercisePreview exercise={activeWorkout[previewIndex]} index={previewIndex} total={activeWorkout.length} language={language} onClose={() => setPreviewIndex(null)} onStartCamera={() => { setExerciseIndex(previewIndex); setPreviewIndex(null); setStage('camera'); }} />
-        )}
-      </main>
-    );
+    return <WorkoutSession key={member.userId} workout={activeWorkout} startAt={exerciseIndex} cameraFirst={stage === 'camera'}
+      language={language} onLanguageChange={setLanguage} voiceEnabled={audioEnabled} onVoiceChange={setAudioEnabled}
+      exerciseName={(item) => language === 'zh' ? exerciseChinese[item.id] ?? item.name : item.name}
+      renderGuide={(item) => <PhaseGuide key={item.id} exercise={item} language={language} />}
+      renderPreview={(item, close, camera) => <ExercisePreview exercise={item} index={activeWorkout.indexOf(item)} total={activeWorkout.length} language={language} onClose={close} onStartCamera={camera} />}
+      onSave={saveWorkout} onExit={() => setSessionOpen(false)} />;
   }
 
   return (
@@ -1040,12 +955,15 @@ export default function Home() {
           <h1>Simple choices<br />Clear training</h1>
           {accountStatus === 'signed-in' && account ? <>
             <article className="profile-card"><span className="large-avatar">{account.user.displayName.charAt(0).toUpperCase()}</span><div><strong>{account.user.displayName}</strong><small>{account.user.email} · {account.profile.level}</small></div><button type="button" onClick={signOut}>{tr('Sign out', '退出登录')}</button></article>
-            <article className="membership-card"><div><small>{tr('MEMBERSHIP', '会员状态')}</small><h2>{member.membership.plan === 'trial' ? tr('7-day free trial', '7 天免费试用') : member.membership.plan === 'daily' ? tr('Daily membership', '日付会员') : member.membership.plan === 'monthly' ? tr('Monthly membership', '月付会员') : tr('Annual membership', '年付会员')}</h2><p>{trialRemaining !== null ? tr(`${trialRemaining} days remaining. No card is required during the trial.`, `剩余 ${trialRemaining} 天。试用期间无需绑卡。`) : member.membership.cancelAtPeriodEnd ? tr('Active until the current paid period ends.', '当前付费周期结束前仍可使用。') : tr('Secure subscription access is active.', '安全订阅权限已开启。')}</p>{member.market === 'global' && <p>{member.membership.plan === 'trial' ? tr(`After your trial: ${globalPriceLabel('daily', language)}, ${globalPriceLabel('monthly', language)} or ${globalPriceLabel('annual', language)}. ${annualSavingLabel(language)}.`, `试用后：${globalPriceLabel('daily', language)}、${globalPriceLabel('monthly', language)} 或 ${globalPriceLabel('annual', language)}。${annualSavingLabel(language)}。`) : globalPriceLabel(member.membership.plan, language)}</p>}</div><span>{member.membership.plan === 'trial' ? `${trialRemaining}/7` : '✓'}</span></article>
+            <article className="membership-card"><div><small>{tr('MEMBERSHIP', '会员状态')}</small><h2>{member.membership.plan === 'trial' ? tr('7-day free trial', '7 天免费试用') : member.membership.plan === 'daily' ? tr('Daily membership', '日付会员') : member.membership.plan === 'monthly' ? tr('Monthly membership', '月付会员') : tr('Annual membership', '年付会员')}</h2><p>{trialRemaining !== null ? tr(`${trialRemaining} days remaining. No card is required during the trial.`, `剩余 ${trialRemaining} 天。试用期间无需绑卡。`) : member.membership.accessSource === 'grant' ? tr('Access granted by an access code. It does not renew automatically.', '兑换码已授予访问权限，不会自动续费。') : member.membership.cancelAtPeriodEnd ? tr('Active until the current paid period ends.', '当前付费周期结束前仍可使用。') : tr('Secure subscription access is active.', '安全订阅权限已开启。')}</p>{member.market === 'global' && <p>{member.membership.plan === 'trial' ? tr(`After your trial: ${globalPriceLabel('monthly', language)} or ${globalPriceLabel('annual', language)}. ${annualSavingLabel(language)}.`, `试用后：${globalPriceLabel('monthly', language)} 或 ${globalPriceLabel('annual', language)}。${annualSavingLabel(language)}。`) : globalPriceLabel(member.membership.plan, language)}</p>}</div><span>{member.membership.plan === 'trial' ? `${trialRemaining}/7` : '✓'}</span></article>
 
             <a className="membership-plans-link" href="?view=membership" onClick={(event) => {
               if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
               event.preventDefault(); navigate('membership');
-            }}><span><strong>{tr('Membership plans', '会员订阅')}</strong><small>{tr('Choose daily, monthly or annual access', '选择日付、月付或年付方案')}</small></span><b aria-hidden="true">→</b></a>
+            }}><span><strong>{tr('Membership plans', '会员订阅')}</strong><small>{tr('Choose monthly or annual access', '选择月付或年付方案')}</small></span><b aria-hidden="true">→</b></a>
+
+            {member.market === 'global' && <PromoCodeCard language={language} code={promoCode} message={promoMessage} busy={promoBusy} onCodeChange={setPromoCode} onRedeem={() => void redeemAccessCode()} />}
+            {promoOperator && <button className="promo-admin-link" type="button" onClick={() => navigate('promo-admin')}>{tr('Open access-code admin', '打开兑换码管理')} <span>→</span></button>}
 
             {legacySnapshot && <article className="legacy-import-card"><div><small>{tr('DEVICE HISTORY FOUND', '发现设备历史记录')}</small><h2>{tr('Bring your previous Relay activity with you', '导入之前的 Relay 训练记录')}</h2><p>{tr('Only workouts, wellness, and schedule data will be imported. Demo passwords and billing status are never copied.', '仅导入训练、健康记录与日程。演示密码和账单状态绝不会被复制。')}</p></div><button type="button" onClick={importDeviceData}>{tr('Import securely', '安全导入')} <span>→</span></button></article>}
 
@@ -1080,7 +998,7 @@ export default function Home() {
             </article>
 
             <article className="setting-card">
-              <div><span>VOICE COACH</span><h2>Hear reps and form cues</h2><p>{tr('TrainWell speaks only during a camera-coached set.', '悦练仅在摄像指导训练组中提供语音提示。')}</p></div>
+              <div><span>VOICE COACH</span><h2>Hear reps and form cues</h2><p>{tr('Hear rep pacing, rest reminders and encouragement throughout your session.', '全程聆听动作计时、休息提醒与鼓励。')}</p></div>
               <button className={audioEnabled ? 'switch on' : 'switch'} type="button" onClick={() => setAudioEnabled((value) => !value)} aria-pressed={audioEnabled}><i /></button>
             </article>
             <article className="privacy-card"><span className="shield">✓</span><div><small>CAMERA PRIVACY</small><h2>Your video stays yours</h2><p>{tr('Pose tracking runs in your browser. TrainWell never saves or uploads camera frames; only your completed workout totals are stored.', '姿态分析在浏览器本地运行。悦练不会保存或上传摄像画面，只保存你已完成的训练统计。')}</p></div></article>
@@ -1186,6 +1104,44 @@ function PhaseGuide({ exercise, compact = false, language = 'en', active = true 
   );
 }
 
+function PromoCodeCard({ language, code, message, busy, onCodeChange, onRedeem }: {
+  language: Language; code: string; message: string; busy: boolean; onCodeChange: (value: string) => void; onRedeem: () => void;
+}) {
+  const tr = (english: string, chinese: string) => language === 'zh' ? chinese : english;
+  return <article className="promo-code-card">
+    <div><small>{tr('ACCESS CODE', '兑换码')}</small><h2>{tr('Redeem access', '兑换会员权限')}</h2><p>{tr('Enter a code from TrainWell. Monthly codes grant 30 days and annual codes grant 365 days. Access does not renew automatically.', '输入 TrainWell 提供的兑换码。月付兑换码提供 30 天，年付兑换码提供 365 天，权限不会自动续费。')}</p></div>
+    <div className="promo-code-form"><label htmlFor="promo-code-input">{tr('Access code', '兑换码')}</label><input id="promo-code-input" value={code} onChange={(event) => onCodeChange(event.target.value.toUpperCase())} autoComplete="off" spellCheck={false} placeholder="XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX" maxLength={39} /><button type="button" onClick={onRedeem} disabled={busy || code.trim().length < 32}>{busy ? tr('Checking…', '验证中…') : tr('Redeem code', '兑换')}<span>→</span></button></div>
+    {message && <p className="account-save-status" role="status">{message}</p>}
+  </article>;
+}
+
+function PromoAdmin({ language, onLanguageChange, onBack, onSignOut }: { language: Language; onLanguageChange: (language: Language) => void; onBack: () => void; onSignOut: () => void }) {
+  const tr = (english: string, chinese: string) => language === 'zh' ? chinese : english;
+  const [plan, setPlan] = useState<'monthly' | 'annual'>('monthly');
+  const [quantity, setQuantity] = useState(10);
+  const [label, setLabel] = useState('');
+  const [expiresAt, setExpiresAt] = useState(() => new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10));
+  const [batches, setBatches] = useState<PromoBatch[]>([]);
+  const [codes, setCodes] = useState<Array<{ code: string; suffix: string }>>([]);
+  const [message, setMessage] = useState('');
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { let cancelled = false; void listPromoBatches().then((result) => { if (!cancelled) setBatches(result.batches); }).catch(() => { if (!cancelled) setMessage(language === 'zh' ? '无法加载兑换码批次。' : 'Could not load batches.'); }); return () => { cancelled = true; }; }, [language]);
+  async function generate() {
+    if (!label.trim() || busy) return;
+    setBusy(true); setMessage(''); setCodes([]);
+    try { const result = await createPromoBatch({ plan, quantity, label: label.trim(), expiresAt: new Date(`${expiresAt}T23:59:59Z`).toISOString() }); setCodes(result.codes); setBatches((current) => [{ ...result.batch, redeemed: 0, unused: result.codes.length, expired: 0, revoked: 0 }, ...current]); setMessage(tr('Codes are shown once. Download or copy them now.', '兑换码只显示一次，请立即下载或复制。')); }
+    catch (error) { setMessage(error instanceof Error ? error.message : tr('Could not create the batch.', '无法创建批次。')); }
+    finally { setBusy(false); }
+  }
+  function downloadCodes() {
+    if (!codes.length) return;
+    const csv = ['code,plan,expires_at,label', ...codes.map(({ code }) => `${code},${plan},${expiresAt},"${label.replaceAll('"', '""')}"`)].join('\n');
+    const href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })); const anchor = document.createElement('a'); anchor.href = href; anchor.download = `trainwell-access-codes-${expiresAt}.csv`; anchor.click(); URL.revokeObjectURL(href);
+  }
+  async function revoke(batch: PromoBatch) { if (busy || batch.revoked_at) return; setBusy(true); try { await revokePromoBatch(batch.id); setBatches((current) => current.map((item) => item.id === batch.id ? { ...item, revoked_at: new Date().toISOString() } : item)); } catch (error) { setMessage(error instanceof Error ? error.message : tr('Could not revoke the batch.', '无法撤销批次。')); } finally { setBusy(false); } }
+  return <main className="promo-admin-shell"><header><button className="wordmark" type="button" onClick={onBack}><span>T</span>{tr('TrainWell', '悦练')}</button><div><LanguageSwitch language={language} onChange={onLanguageChange} /><button className="promo-signout" type="button" onClick={onSignOut}>{tr('Sign out', '退出登录')}</button></div></header><section className="promo-admin-content"><button className="paywall-back" type="button" onClick={onBack}>{tr('← Back to account', '← 返回账户')}</button><p className="kicker">{tr('OPERATOR TOOLS', '运营工具')}</p><h1>{tr('Access codes', '兑换码管理')}</h1><p>{tr('Generate one-time global USD access codes for customers paid outside Stripe or for friends. Unused codes expire with their batch.', '为通过其他方式付款的客户或朋友生成一次性全球美元兑换码。未使用的兑换码将在批次到期时失效。')}</p><article className="promo-admin-form"><label><span>{tr('Plan', '方案')}</span><select value={plan} onChange={(event) => setPlan(event.target.value as 'monthly' | 'annual')}><option value="monthly">US$10 monthly · 30 days</option><option value="annual">US$60 annual · 365 days</option></select></label><label><span>{tr('Quantity', '数量')}</span><input type="number" min={1} max={500} value={quantity} onChange={(event) => setQuantity(Number(event.target.value))} /></label><label><span>{tr('Batch label', '批次名称')}</span><input value={label} onChange={(event) => setLabel(event.target.value)} maxLength={120} placeholder={tr('September friends', '九月朋友')} /></label><label><span>{tr('Expires', '到期日期')}</span><input type="date" value={expiresAt} onChange={(event) => setExpiresAt(event.target.value)} /></label><button className="auth-submit" type="button" onClick={() => void generate()} disabled={busy || !label.trim()}>{busy ? tr('Working…', '处理中…') : tr('Generate codes', '生成兑换码')}<span>→</span></button></article>{codes.length > 0 && <article className="promo-generated"><h2>{tr('Codes ready to deliver', '兑换码已准备好')}</h2><p>{message}</p><div>{codes.map(({ code }) => <code key={code}>{code}</code>)}</div><button type="button" onClick={downloadCodes}>{tr('Download private CSV', '下载私密 CSV')}</button><button type="button" onClick={() => void navigator.clipboard?.writeText(codes.map(({ code }) => code).join('\n'))}>{tr('Copy all codes', '复制全部兑换码')}</button></article>}{message && codes.length === 0 && <p className="account-save-status" role="status">{message}</p>}<div className="promo-batch-list">{batches.map((batch) => <article key={batch.id}><div><small>{batch.plan.toUpperCase()} · {batch.label}</small><strong>{tr(`${batch.unused} unused · ${batch.redeemed} redeemed`, `${batch.unused} 未使用 · ${batch.redeemed} 已兑换`)}</strong><span>{tr(`Expires ${new Date(batch.expires_at).toLocaleDateString()}${batch.expired ? ` · ${batch.expired} expired` : ''}${batch.revoked ? ` · ${batch.revoked} revoked` : ''}`, `到期 ${new Date(batch.expires_at).toLocaleDateString()}${batch.expired ? ` · ${batch.expired} 已过期` : ''}${batch.revoked ? ` · ${batch.revoked} 已撤销` : ''}`)}</span></div>{!batch.revoked_at && batch.unused > 0 && <button type="button" onClick={() => void revoke(batch)} disabled={busy}>{tr('Revoke unused', '撤销未使用')}</button>}</article>)}</div></section></main>;
+}
+
 function AccountGate({ title, copy }: { title: string; copy: string }) {
   return (
     <article className="account-gate-card">
@@ -1217,34 +1173,39 @@ function AccountPrivacyActions({ language, member, onExport, onDelete, onManageB
       </div>
       <div>
         <button type="button" onClick={onExport} disabled={busy}>{tr('Export my data', '导出我的数据')}</button>
-        {member.membership.plan !== 'trial' && <button type="button" onClick={onManageBilling} disabled={busy}>{tr('Manage billing', '管理账单')}</button>}
+        {member.membership.plan !== 'trial' && member.membership.accessSource !== 'grant' && <button type="button" onClick={onManageBilling} disabled={busy}>{tr('Manage billing', '管理账单')}</button>}
         <button className="danger" type="button" onClick={onDelete} disabled={busy}>{tr('Delete account', '删除账户')}</button>
       </div>
     </article>
   );
 }
 
-function TrialPaywall({ language, member, onBack, onLanguageChange, onSubscribe, onSignOut, onExport, onDelete, onManageBilling, accountActionBusy, billingBusy, billingPlans, billingMode, catalogStatus, billingNotice, status }: {
+function TrialPaywall({ language, member, onBack, onLanguageChange, onSubscribe, onSignOut, onExport, onDelete, onManageBilling, accountActionBusy, billingBusy, billingPlans, billingMode, catalogStatus, billingNotice, status, promoCode, promoMessage, promoBusy, onPromoCodeChange, onRedeemPromo }: {
   language: Language;
   member: MemberAccount;
   onBack: () => void;
   onLanguageChange: (language: Language) => void;
-  onSubscribe: (plan: 'daily' | 'monthly' | 'annual') => void;
+  onSubscribe: (plan: PurchasableBillingPlan) => void;
   onSignOut: () => void;
   onExport: () => void;
   onDelete: () => void;
   onManageBilling: () => void;
   accountActionBusy: boolean;
   billingBusy: boolean;
-  billingPlans: ('daily' | 'monthly' | 'annual')[];
+  billingPlans: PurchasableBillingPlan[];
   billingMode: 'test' | 'live' | null;
   catalogStatus: 'loading' | 'ready' | 'unavailable';
   billingNotice: BillingNotice;
   status: string;
+  promoCode: string;
+  promoMessage: string;
+  promoBusy: boolean;
+  onPromoCodeChange: (value: string) => void;
+  onRedeemPromo: () => void;
 }) {
   const tr = (english: string, chinese: string) => language === 'zh' ? chinese : english;
   const hasAccess = membershipHasAccess(member.membership);
-  const managesSubscription = member.membership.plan !== 'trial' && ['active', 'past_due'].includes(member.membership.status);
+  const managesSubscription = member.membership.plan !== 'trial' && member.membership.accessSource !== 'grant' && ['active', 'past_due'].includes(member.membership.status);
   return (
     <main className="paywall-shell">
       <header><button className="wordmark" type="button"><span>T</span>{tr('TrainWell', '悦练')}</button><LanguageSwitch language={language} onChange={onLanguageChange} /></header>
@@ -1257,8 +1218,8 @@ function TrialPaywall({ language, member, onBack, onLanguageChange, onSubscribe,
         {managesSubscription && <p>{tr('You already have a subscription. Use Manage billing below to update it or cancel renewal.', '你已有订阅，请使用下方“管理账单”更新订阅或取消续订。')}</p>}
         {billingNotice !== 'none' && <p className="account-save-status" role="status">{billingNoticeText(billingNotice, language, member.membership.billingMode)}</p>}
         {catalogStatus !== 'ready' && <p role="status">{catalogStatus === 'loading' ? tr('Checking available payment plans…', '正在确认可用付款方案…') : tr('Online payment is not available yet. Your saved data remains safe; please check back later.', '在线支付暂未开放，你的数据仍被安全保存，请稍后再来查看。')}</p>}
+        {member.market === 'global' && <PromoCodeCard language={language} code={promoCode} message={promoMessage} busy={promoBusy} onCodeChange={onPromoCodeChange} onRedeem={onRedeemPromo} />}
         <div className="paywall-options">
-          {member.market === 'global' && <article><span>{tr('DAILY', '日付')}</span><h2>{globalPriceLabel('daily', language)}</h2><p>{tr('US$1 charged every day until canceled. Cancel renewal from Account → Manage billing; access lasts through the paid day.', '每天扣款 US$1，直至取消。可在账户的管理账单中取消续订，权限保留至已付费当天的周期结束。')}</p><button type="button" onClick={() => onSubscribe('daily')} disabled={managesSubscription || accountActionBusy || billingBusy || !billingPlans.includes('daily')} aria-busy={billingBusy}>{tr('Choose daily', '选择日付')}<b>→</b></button></article>}
           {member.market === 'global' && <article><span>{tr('MONTHLY', '月付')}</span><h2>{globalPriceLabel('monthly', language)}</h2><p>{tr('Billed monthly in USD. Cancel renewal from the secure billing portal.', '以美元按月续费，可在安全账单页面取消续订。')}</p><button type="button" onClick={() => onSubscribe('monthly')} disabled={managesSubscription || accountActionBusy || billingBusy || !billingPlans.includes('monthly')} aria-busy={billingBusy}>{tr('Choose monthly', '选择月付')}<b>→</b></button></article>}
           <article className="featured"><small>{member.market === 'global' ? annualSavingLabel(language) : tr('BEST VALUE', '超值方案')}</small><span>{tr('ANNUAL', '年付')}</span><h2>{member.market === 'cn' ? tr('One secure annual payment', '一次安全年付') : globalPriceLabel('annual', language)}</h2><p>{member.market === 'cn' ? tr('365 days of access with Alipay or an eligible card. It does not auto-renew.', '可使用支付宝或支持的银行卡购买 365 天权限，不会自动续费。') : tr('Billed yearly in USD. Cancel renewal from the secure billing portal.', '以美元按年续费，可在安全账单页面取消续订。')}</p><button type="button" onClick={() => onSubscribe('annual')} disabled={managesSubscription || accountActionBusy || billingBusy || !billingPlans.includes('annual')} aria-busy={billingBusy}>{tr('Choose annual', '选择年付')}<b>→</b></button></article>
         </div>

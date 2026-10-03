@@ -56,6 +56,7 @@ async function memberFixture(page: Page, baseURL: string) {
     else if (endpoint === 'training_preferences') body = { equipment: [], preferred_focus: [] };
     else if (endpoint === 'wellness_logs') body = null;
     else if (endpoint === 'workout_sessions' || endpoint === 'scheduled_workouts') body = [];
+    else if (url.pathname === '/functions/v1/promo-operator-status') body = { operator: false };
     else throw new Error(`Unexpected isolated account request: ${url.pathname}`);
     return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
   });
@@ -101,7 +102,7 @@ test('switching previews selects the new video and clears the previous playback 
   await page.getByRole('button', { name: /Forearm plank/i }).click();
   const video = page.getByRole('dialog').locator('video');
   await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime)).toBeGreaterThan(0.3);
-  expect(await video.evaluate((v: HTMLVideoElement) => v.currentSrc)).toContain('/forearm-plank.mp4?v=20260907-approved-motion');
+  expect(await video.evaluate((v: HTMLVideoElement) => v.currentSrc)).toContain('/forearm-plank.mp4?v=20261003-hires-partial');
 });
 
 test('workout previews pause the demonstration behind the dialog', async ({ page, baseURL }) => {

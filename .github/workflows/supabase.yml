@@ -39,6 +39,7 @@ jobs:
       - name: Deploy server functions
         run: |
           supabase functions deploy create-checkout-session --project-ref "$PROJECT_ID"
+          supabase functions deploy get-checkout-confirmation --project-ref "$PROJECT_ID"
           supabase functions deploy create-customer-portal-session --project-ref "$PROJECT_ID"
           supabase functions deploy get-billing-catalog --project-ref "$PROJECT_ID" --no-verify-jwt
           supabase functions deploy delete-account --project-ref "$PROJECT_ID"

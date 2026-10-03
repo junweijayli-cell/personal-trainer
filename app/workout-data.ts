@@ -32,7 +32,7 @@ export type Exercise = {
 export type FocusOption = { id: FocusId; label: string; shortLabel: string; description: string };
 export type EquipmentOption = { id: EquipmentId; label: string; shortLabel: string; icon: string };
 
-const mediaVersion = '20260907-approved-motion';
+const mediaVersion = '20261003-hires-partial';
 const publicBasePath = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
 const media = (path: string) => `${publicBasePath}${path}?v=${mediaVersion}`;
 

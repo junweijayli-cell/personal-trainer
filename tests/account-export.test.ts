@@ -69,7 +69,7 @@ describe('complete account export', () => {
     expect(result.data.workout_sessions).toHaveLength(65);
     expect(result.data.wellness_logs).toHaveLength(2);
     expect(result.data.exercise_logs[0].form_feedback).toBe('Keep hips level');
-    expect(Object.keys(result.data)).toHaveLength(9);
+    expect(Object.keys(result.data)).toHaveLength(10);
     expect(backend.requests.every((request) => request.userId === member.userId)).toBe(true);
     expect(backend.requests.filter((request) => request.table === 'workout_sessions')).toHaveLength(4);
   });

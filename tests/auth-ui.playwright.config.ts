@@ -1,7 +1,4 @@
-import { existsSync } from 'node:fs';
 import { defineConfig } from '@playwright/test';
-
-const chromePath = process.env.LAYOUT_CHROME_PATH || 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 
 // These tests intercept all Auth calls and use a local imitation of the CAPTCHA.
 // No Supabase account is created and no verification email is sent.
@@ -17,7 +14,7 @@ export default defineConfig({
   use: {
     baseURL: 'http://127.0.0.1:3011',
     viewport: { width: 390, height: 844 },
-    launchOptions: existsSync(chromePath) ? { executablePath: chromePath } : undefined,
+    channel: process.platform === 'win32' ? 'chrome' : undefined,
     trace: 'retain-on-failure',
   },
   outputDir: '../test-results/auth-ui',

@@ -1,9 +1,21 @@
 import type { MemberAccount, Market } from './account-types';
-import { GLOBAL_PLANS, type BillingPlan } from '../supabase/functions/_shared/billing-policy';
+import { GLOBAL_PLANS, type BillingPlan, type PurchasableBillingPlan } from '../supabase/functions/_shared/billing-policy';
 import { membershipHasAccess } from './membership';
 
 export type BillingReturn = 'success' | 'canceled' | 'return';
 export type BillingNotice = 'none' | 'pending' | 'confirmed' | 'canceled' | 'unconfirmed' | 'refreshed' | 'error';
+
+export type CheckoutConfirmation = { status: 'pending'; mode: 'test' | 'live' }
+  | { status: 'confirmed'; mode: 'test' | 'live'; plan: BillingPlan; amount: number; currency: 'usd' };
+
+export function parseCheckoutConfirmation(value: unknown): CheckoutConfirmation {
+  const data = value as Record<string, unknown> | null;
+  if (!data || (data.mode !== 'test' && data.mode !== 'live')) throw new Error('Invalid payment confirmation.');
+  if (data.status === 'pending') return { status: 'pending', mode: data.mode };
+  if (data.status !== 'confirmed' || !['daily', 'monthly', 'annual'].includes(String(data.plan))
+    || data.currency !== 'usd' || !Number.isSafeInteger(data.amount) || Number(data.amount) < 0) throw new Error('Invalid payment confirmation.');
+  return { status: 'confirmed', mode: data.mode, plan: data.plan as BillingPlan, amount: Number(data.amount), currency: 'usd' };
+}
 
 export function readBillingReturn(search: string): BillingReturn | null {
   const values = new URLSearchParams(search).getAll('billing');
@@ -21,14 +33,14 @@ export function secureStripeUrl(value: unknown, kind: 'checkout' | 'portal') {
   return url.href;
 }
 
-export function approvedCatalogPlans(value: unknown, expectedMarket: Market): BillingPlan[] {
+export function approvedCatalogPlans(value: unknown, expectedMarket: Market): PurchasableBillingPlan[] {
   const catalog = value as { market?: unknown; plans?: unknown; mode?: unknown; enabled?: unknown } | null;
   if (!catalog || !['test', 'live'].includes(String(catalog.mode)) || catalog.enabled !== true || catalog.market !== expectedMarket || !Array.isArray(catalog.plans)) throw new Error('Billing is unavailable.');
-  const plans: BillingPlan[] = [];
+  const plans: PurchasableBillingPlan[] = [];
   for (const item of catalog.plans) {
     if (!item || typeof item !== 'object' || !('plan' in item)) continue;
     const row = item as { plan: unknown; currency: unknown; unitAmount: unknown; recurring: unknown };
-    if (row.plan !== 'daily' && row.plan !== 'monthly' && row.plan !== 'annual') continue;
+    if (row.plan !== 'monthly' && row.plan !== 'annual') continue;
     if (expectedMarket === 'global') {
       const approved = GLOBAL_PLANS[row.plan];
       if (row.currency !== approved.currency || row.unitAmount !== approved.unitAmount || row.recurring !== approved.interval) continue;

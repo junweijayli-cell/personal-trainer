@@ -12,7 +12,8 @@ import type {
 } from './account-types';
 import { appUrl, backendConfigured, getSupabase, market } from './supabase-client';
 import { getFocusOption, weeklyRotation } from './workout-data';
-import { approvedCatalogPlans, secureStripeUrl } from './billing-client';
+import { approvedCatalogPlans, parseCheckoutConfirmation, secureStripeUrl } from './billing-client';
+import type { PurchasableBillingPlan } from '../supabase/functions/_shared/billing-policy';
 
 type EntitlementRow = {
   billing_mode?: 'test' | 'live' | null;
@@ -24,7 +25,14 @@ type EntitlementRow = {
   cancel_at_period_end: boolean;
   server_now: string;
   has_access: boolean;
+  access_source?: 'trial' | 'stripe' | 'grant' | null;
 };
+
+export type PromoBatch = {
+  id: string; plan: 'monthly' | 'annual'; label: string; quantity: number; expires_at: string;
+  revoked_at: string | null; created_at: string; redeemed: number; unused: number; expired: number; revoked: number;
+};
+export type PromoBatchCreation = { batch: PromoBatch; codes: Array<{ code: string; suffix: string }> };
 
 const defaultProfile: Profile = {
   goal: 'Build strength',
@@ -124,7 +132,7 @@ export async function signInAccount(email: string, password: string, captchaToke
     password,
     options: { captchaToken },
   });
-  if (error) throw new Error(error.message);
+  if (error) throw error;
   if (!data.session) throw new Error('TrainWell could not start your session.');
   return loadMember(data.session);
 }
@@ -134,12 +142,12 @@ export async function requestPasswordReset(email: string, captchaToken?: string)
     captchaToken,
     redirectTo: `${appUrl()}?reset=1`,
   });
-  if (error) throw new Error(error.message);
+  if (error) throw error;
 }
 
 export async function updatePassword(password: string) {
   const { error } = await getSupabase().auth.updateUser({ password });
-  if (error) throw new Error(error.message);
+  if (error) throw error;
 }
 
 export async function signOutAccount() {
@@ -192,6 +200,7 @@ export async function loadMember(session?: Session): Promise<MemberAccount> {
       cancelAtPeriodEnd: Boolean(row.cancel_at_period_end),
       hasAccess: Boolean(row.has_access),
       serverNow: row.server_now,
+      accessSource: row.access_source ?? (row.status === 'trial' ? 'trial' : row.status === 'active' ? 'stripe' : null),
     },
   };
 }
@@ -260,6 +269,7 @@ export async function loadAccountSnapshot(member: MemberAccount): Promise<Accoun
 }
 
 export async function saveWorkout(member: MemberAccount, input: {
+  sessionId?: string;
   workoutId: string;
   workoutName: string;
   durationSeconds: number;
@@ -268,7 +278,8 @@ export async function saveWorkout(member: MemberAccount, input: {
   cameraSets: number;
   notes?: string;
 }) {
-  const { error } = await getSupabase().from('workout_sessions').insert({
+  const row = {
+    ...(input.sessionId ? { id: input.sessionId } : {}),
     user_id: member.userId,
     workout_id: input.workoutId,
     workout_name: input.workoutName,
@@ -278,7 +289,10 @@ export async function saveWorkout(member: MemberAccount, input: {
     movements_completed: input.movementsCompleted,
     camera_sets: input.cameraSets,
     notes: input.notes ?? '',
-  });
+  };
+  const table = getSupabase().from('workout_sessions');
+  // Reuse the session ID after an ambiguous save or a failed history refresh.
+  const { error } = await (input.sessionId ? table.upsert(row, { onConflict: 'id', ignoreDuplicates: true }) : table.insert(row));
   if (error) throw new Error(error.message);
 }
 
@@ -338,7 +352,7 @@ export async function loadBillingCatalog() {
   return { plans: approvedCatalogPlans(data, market), mode: data.mode as 'test' | 'live' };
 }
 
-export async function createCheckout(plan: 'daily' | 'monthly' | 'annual') {
+export async function createCheckout(plan: PurchasableBillingPlan) {
   return invokeBillingFunction('create-checkout-session', { plan });
 }
 
@@ -346,9 +360,45 @@ export async function createCustomerPortal() {
   return invokeBillingFunction('create-customer-portal-session');
 }
 
+export async function loadCheckoutConfirmation(sessionId: string | null) {
+  const { data, error } = await getSupabase().functions.invoke('get-checkout-confirmation', { body: { sessionId }, timeout: 15000 });
+  if (error) throw new Error('Payment confirmation is unavailable.');
+  return parseCheckoutConfirmation(data);
+}
+
 export async function deleteAccount() {
   const { error } = await getSupabase().functions.invoke('delete-account', { body: {} });
   if (error) throw new Error(error.message);
+}
+
+async function invokePromoFunction<T>(name: string, body?: Record<string, unknown>, method: 'GET' | 'POST' = 'POST'): Promise<T> {
+  const { data, error } = await getSupabase().functions.invoke(name, { body, method, timeout: 15000 });
+  if (error) {
+    const response = error.context as Response | undefined;
+    const context = response instanceof Response ? await response.clone().json().catch(() => null) as { error?: unknown } | null : null;
+    throw new Error(typeof context?.error === 'string' ? context.error : error.message);
+  }
+  return data as T;
+}
+
+export async function redeemPromoCode(code: string) {
+  return invokePromoFunction<{ plan: 'monthly' | 'annual'; startsAt: string; endsAt: string }>('redeem-promo-code', { code });
+}
+
+export async function promoOperatorStatus() {
+  return invokePromoFunction<{ operator: boolean }>('promo-operator-status', undefined, 'GET');
+}
+
+export async function createPromoBatch(input: { plan: 'monthly' | 'annual'; quantity: number; label: string; expiresAt: string }) {
+  return invokePromoFunction<PromoBatchCreation>('create-promo-batch', input);
+}
+
+export async function listPromoBatches() {
+  return invokePromoFunction<{ batches: PromoBatch[] }>('list-promo-batches', undefined, 'GET');
+}
+
+export async function revokePromoBatch(batchId: string) {
+  return invokePromoFunction<{ batch: { id: string; revoked_at: string } }>('revoke-promo-batch', { batchId });
 }
 
 export function readLegacySnapshot(email: string): AccountSnapshot | null {
@@ -393,6 +443,7 @@ const exportTables = [
   ['profiles', 'user_id'],
   ['training_preferences', 'user_id'],
   ['memberships', 'user_id'],
+  ['membership_grants', 'user_id'],
   ['training_plans', 'id'],
   ['scheduled_workouts', 'id'],
   ['workout_sessions', 'id'],

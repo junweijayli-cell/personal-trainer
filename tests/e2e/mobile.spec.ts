@@ -24,6 +24,7 @@ test('landing and secure signup are usable on a phone', async ({ page }) => {
   await expect(page.locator('.landing-nav .wordmark')).toContainText('TrainWell');
   await expectReadableTrainWellSurface(page);
   const previewVideo = page.getByLabel('Full-body Smith machine squat movement video');
+  await previewVideo.scrollIntoViewIfNeeded();
   await expect(previewVideo).toBeVisible();
   await expect.poll(() => previewVideo.evaluate((element: HTMLVideoElement) => element.readyState)).toBeGreaterThan(0);
   const videoBox = await previewVideo.boundingBox();

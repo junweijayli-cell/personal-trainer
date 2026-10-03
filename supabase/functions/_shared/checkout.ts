@@ -37,13 +37,13 @@ export async function openCheckout(admin: SupabaseClient, stripe: Stripe,
         if (!sid || !isTerminalSubscription((await stripe.subscriptions.retrieve(sid)).status)) throw new Error('Payment confirmation is pending. Do not pay again.');
       }
       if (recovered.status === 'open') {
-        if (op.plan === plan && op.price === price) return requireUrl(recovered, mode);
+        if (op.plan === plan && op.price === price && op.checkoutVersion === 2 && recovered.billing_address_collection === 'required') return requireUrl(recovered, mode);
         await stripe.checkout.sessions.expire(recovered.id);
       }
       op = { ...op, state:'expired' };
       await applyState(admin,user.id,token,{},op);
     }
-    op = { id:crypto.randomUUID(),mode,plan,price,createdAt:Date.now(),state:'creating' };
+    op = { id:crypto.randomUUID(),checkoutVersion:2,mode,plan,price,createdAt:Date.now(),state:'creating' };
     await applyState(admin,user.id,token,{},op);
     return requireUrl(await createOrRetrieve(op), mode);
 
@@ -66,7 +66,13 @@ export async function openCheckout(admin: SupabaseClient, stripe: Stripe,
       const session=await stripe.checkout.sessions.create({mode:'subscription',customer:customerId,
         adaptive_pricing:{enabled:false},
         line_items:[{price:operation.price,quantity:1}],client_reference_id:user.id,metadata,subscription_data:{metadata},
-        success_url:`${base}/?view=you&billing=success`,cancel_url:`${base}/?view=membership&billing=canceled`,
+        // Keep old ambiguous requests byte-for-byte compatible with their idempotency key.
+        ...(operation.checkoutVersion === 2 ? {
+          billing_address_collection: 'required' as const,
+          customer_update: { address: 'auto' as const },
+          success_url: `${base}/?view=payment&billing=success&session_id={CHECKOUT_SESSION_ID}`,
+        } : { success_url: `${base}/?view=you&billing=success` }),
+        cancel_url:`${base}/?view=membership&billing=canceled`,
         custom_text:{submit:{message: mode === 'test'
           ? 'TrainWell / 悦练 demo · 演示付款：Test membership only. No real money is charged. 仅用于测试会员，不收取真实款项。'
           : 'Paid membership starts now and renews automatically at the selected interval until canceled. Cancel in Account → Manage billing. 付费会员立即开始，按所选周期自动续费，可在账户的管理账单中取消。'}},

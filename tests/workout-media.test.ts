@@ -7,6 +7,12 @@ import videos from '../app/exercise-videos.json';
 import approved from '../docs/approved-exercise-videos.json';
 
 const renderedVideos = Object.values(videos).map((path) => path.split('/').at(-1)!);
+const highResolutionExercises = [
+  'band-row', 'barbell-squat', 'cable-chest-press', 'dumbbell-floor-press',
+  'dumbbell-rdl', 'dumbbell-row', 'glute-bridge', 'goblet-squat',
+  'incline-pushup', 'kettlebell-deadlift', 'lat-pulldown', 'leg-press',
+  'squat', 'stability-ball-curl', 'suspension-row',
+] as const;
 
 describe('movement guide videos', () => {
   it('connects rendered videos to bodyweight and Smith machine workouts', () => {
@@ -44,8 +50,16 @@ describe('movement guide videos', () => {
   });
 
   it.each(Object.entries(videos))('connects %s to its MP4 at either deployment base path', (id, video) => {
-    expect(exerciseCatalog[id].video).toContain(`${video}?v=20260907-approved-motion`);
+    expect(exerciseCatalog[id].video).toContain(`${video}?v=20261003-hires-partial`);
     expect(readFileSync(resolve('public', video.slice(1))).subarray(4, 8).toString()).toBe('ftyp');
+  });
+
+  it.each(highResolutionExercises)('ships reviewed high-resolution evidence for %s', (id) => {
+    const evidence = approved[id];
+    expect(evidence.release_tier).toBe('1152x1536-high-resolution');
+    expect(evidence.settings).toMatchObject({ width: 1152, height: 1536, fps: 24, frames: 124, steps: 20, turbo: false });
+    expect(evidence.review_encoding).toMatchObject({ codec: 'h264', pix_fmt: 'yuv420p', crf: 19, audio: false, faststart: true });
+    expect(evidence.technical_checks).toMatchObject({ passed: true, full_decode: true });
   });
 
   it.each(Object.entries(approved))('ships the unchanged reviewed %s candidate', (id, evidence) => {
@@ -65,7 +79,7 @@ describe('movement guide videos', () => {
   it('ships exactly the 22 available videos and maps every file', () => {
     expect(Object.keys(exerciseCatalog)).toHaveLength(26);
     expect(Object.keys(videos)).toHaveLength(22);
-    expect(Object.keys(approved)).toHaveLength(18);
+    expect(Object.keys(approved)).toHaveLength(21);
     const files = readdirSync(resolve('public/exercises/videos')).filter((file) => file.endsWith('.mp4'));
     expect(files.sort()).toEqual([...renderedVideos].sort());
   });
