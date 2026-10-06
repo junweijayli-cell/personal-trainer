@@ -10,6 +10,7 @@ export default defineConfig({
   reporter: process.env.CI ? [['html', { open: 'never' }], ['list']] : 'list',
   use: {
     baseURL: process.env.E2E_BASE_URL || 'http://127.0.0.1:3000',
+    channel: process.platform === 'win32' ? 'chrome' : undefined,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
   },

@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import MotionVideo from './motion-video';
+import { exerciseCatalog } from './workout-data';
 import type { MemberAccount } from './account-types';
 import {
   isSecureBackendConfigured,
@@ -26,7 +28,7 @@ const copy = {
     eyebrow: 'YOUR NEXT RIGHT MOVE', heroA: 'Train with clarity', heroB: 'Move with confidence',
     heroCopy: 'A complete workout for today, clear human movement guides, equipment-aware plans, and private camera coaching—all in your pocket.',
     noCharge: 'No card today · Choose a plan after your trial', stat1: '3-step guides', stat2: 'Private camera', stat3: 'Your weekly plan',
-    phoneKicker: 'TODAY · LEGS', phoneTitle: 'Strong legs', phoneSubtitle: 'Zero guesswork', phoneMeta: '20 MIN · 5 MOVES · BARBELL + BENCH', phoneButton: 'Start workout',
+    phoneKicker: 'TODAY · LEGS', phoneTitle: 'Strong legs', phoneSubtitle: 'Zero guesswork', phoneMeta: '20 MIN · 5 MOVES · SMITH MACHINE + BENCH', phoneButton: 'Start workout',
     howKicker: 'BUILT FOR REAL LIFE', howTitle: 'Open · Choose · Train',
     step1: 'Tell TrainWell what you have', step1c: 'Pick your focus, available equipment, and time.',
     step2: 'See every movement clearly', step2c: 'Watch a consistent full-body coach video, then inspect the three key positions.',
@@ -46,7 +48,7 @@ const copy = {
     eyebrow: '找到今天最正确的一步', heroA: '清晰训练', heroB: '自信行动',
     heroCopy: '每天完整训练计划、清楚真人动作示范、器械定制与本地隐私摄像指导，全部放在你的手机里。',
     noCharge: '今天无需绑卡 · 试用结束后再选择方案', stat1: '三步动作指导', stat2: '隐私摄像指导', stat3: '每周训练计划',
-    phoneKicker: '今天 · 腿部', phoneTitle: '练强双腿', phoneSubtitle: '无需猜测', phoneMeta: '20 分钟 · 5 个动作 · 杠铃 + 训练凳', phoneButton: '开始训练',
+    phoneKicker: '今天 · 腿部', phoneTitle: '练强双腿', phoneSubtitle: '无需猜测', phoneMeta: '20 分钟 · 5 个动作 · 史密斯机 + 训练凳', phoneButton: '开始训练',
     howKicker: '为真实生活而设计', howTitle: '打开 · 选择 · 训练',
     step1: '告诉悦练你有什么', step1c: '选择训练部位、可用器械与时间。',
     step2: '看清每一个动作', step2c: '先看完整全身动作视频，再查看准备、动作与完成三个关键姿势。',
@@ -63,7 +65,6 @@ const copy = {
   },
 };
 
-const asset = (path: string) => `${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}${path}`;
 const captchaRequired = Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim());
 const signupEnabled = process.env.NEXT_PUBLIC_SIGNUP_ENABLED !== 'false';
 
@@ -219,7 +220,7 @@ export default function LandingAuth({ language, onLanguageChange, onAuthenticate
 
       <section className="landing-hero">
         <div className="hero-copy"><p className="kicker"><i /> {text.eyebrow}</p><h1>{text.heroA}<br /><em>{text.heroB}</em></h1><p>{text.heroCopy}</p><button type="button" onClick={() => openAuth('signup')}>{text.cta}<span>→</span></button><small>✓ {text.noCharge}</small><div className="hero-stats"><span><b>01</b>{text.stat1}</span><span><b>02</b>{text.stat2}</span><span><b>03</b>{text.stat3}</span></div></div>
-        <div className="hero-device" aria-label={language === 'zh' ? '悦练训练预览' : 'TrainWell workout preview'}><div className="device-top"><span>9:41</span><b>{brand}</b><i>●</i></div><div className="device-copy"><small>{text.phoneKicker}</small><h2>{text.phoneTitle}<br />{text.phoneSubtitle}</h2><p>{text.phoneMeta}</p></div><div className="device-image"><video autoPlay muted loop playsInline controls preload="metadata" poster={asset('/exercises/phase-guides/barbell-squat-middle.webp')} aria-label={language === 'zh' ? '杠铃深蹲完整动作视频' : 'Full-body barbell squat movement video'}><source src={asset('/exercises/videos/barbell-squat.mp4')} type="video/mp4" />{language === 'zh' ? '你的浏览器无法播放此视频。' : 'Your browser cannot play this video.'}</video></div><button type="button" onClick={() => openAuth('signup')}>{text.phoneButton}<span>→</span></button></div>
+        <div className="hero-device" aria-label={language === 'zh' ? '悦练训练预览' : 'TrainWell workout preview'}><div className="device-top"><span>9:41</span><b>{brand}</b><i>●</i></div><div className="device-copy"><small>{text.phoneKicker}</small><h2>{text.phoneTitle}<br />{text.phoneSubtitle}</h2><p>{text.phoneMeta}</p></div><div className="device-image"><MotionVideo src={exerciseCatalog['barbell-squat'].video!} active={mode === 'closed'} poster={exerciseCatalog['barbell-squat'].phases[1].image} label={language === 'zh' ? '史密斯机深蹲完整动作视频' : 'Full-body Smith machine squat movement video'} /></div><button type="button" onClick={() => openAuth('signup')}>{text.phoneButton}<span>→</span></button></div>
       </section>
 
       <section className="landing-steps" id="how"><div className="landing-section-title"><p className="kicker">{text.howKicker}</p><h2>{text.howTitle}</h2></div><div className="step-cards" id="benefits"><article><b>01</b><h3>{text.step1}</h3><p>{text.step1c}</p></article><article><b>02</b><h3>{text.step2}</h3><p>{text.step2c}</p></article><article><b>03</b><h3>{text.step3}</h3><p>{text.step3c}</p></article></div></section>

@@ -730,6 +730,9 @@ footer { display: flex; justify-content: space-between; padding: 34px 2px; color
   background: #181b18;
 }
 .movement-video-frame::after { display: none; }
+.manual-phase-controls { position: absolute; z-index: 3; bottom: 12px; left: 12px; right: 12px; display: flex; justify-content: center; gap: 6px; }
+.manual-phase-controls button { min-height: 44px; padding: 8px 14px; border: 1px solid #c3c5ba; border-radius: 24px; background: var(--paper); color: var(--ink); cursor: pointer; }
+.manual-phase-controls button[aria-pressed="true"] { background: var(--ink); color: var(--lime); }
 .video-badge { background: rgba(21,23,21,.88); color: var(--lime); }
 .phase-frame img {
   width: 100%;

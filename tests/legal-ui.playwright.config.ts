@@ -1,7 +1,5 @@
-import { existsSync } from 'node:fs';
 import { defineConfig } from '@playwright/test';
 
-const chromePath = process.env.LAYOUT_CHROME_PATH || 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 process.env.E2E_LEGAL_MOCKS = 'true';
 
 export default defineConfig({
@@ -10,7 +8,7 @@ export default defineConfig({
   outputDir: '../test-results/legal-ui',
   use: {
     baseURL: 'http://127.0.0.1:3014',
-    launchOptions: existsSync(chromePath) ? { executablePath: chromePath } : undefined,
+    channel: process.platform === 'win32' ? 'chrome' : undefined,
     serviceWorkers: 'block', trace: 'retain-on-failure', screenshot: 'only-on-failure',
   },
   webServer: {
